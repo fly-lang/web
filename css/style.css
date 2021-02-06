@@ -479,7 +479,7 @@ h5 {
 *******************************/
 
 @media (max-width: 991px) {
-  #topbar {
+  #topbar .social-links {
     display: none;
   }
 

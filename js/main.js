@@ -1,9 +1,6 @@
 (function ($) {
   "use strict";
 
-  // Initiate the wowjs animation library
-  new WOW().init();
-
   // Header scroll class
   $(window).scroll(function() {
     if ($(this).scrollTop() > 100) {

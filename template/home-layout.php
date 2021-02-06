@@ -54,14 +54,15 @@ Intro Section
             <div class="intro-img col-md-6">
                 <img src="img/intro-img.png" alt="" class="img-fluid">
             </div>
+            <div class="col-md-12">
+                <h4>There is a lot of programming language, but Software Industry still prefers the same languages
+                    in percentage from 30 or 40 years ago (<a href="https://www.tiobe.com/tiobe-index/" target="_blank">Tiobe.com</a>).
+                    Some languages have been evolved but conserve the same core features from born but now we have the chance to start
+                    from zero and create something different.<br>
 
-            <h4>There is a lot of programming language, but Software Industry still prefers the same languages
-                in percentage from 30 or 40 years ago (<a href="https://www.tiobe.com/tiobe-index/" target="_blank">Tiobe.com</a>).
-                Some languages have been evolved but conserve the same core features from born but now we have the chance to start 
-                from zero and create something different.<br>
-                
-            </h4>
-            <h3 style="text-align: center">We aren't a company, we are the developers, we want to choose our next programming language!</h3>
+                </h4>
+                <h3 style="text-align: center">We aren't a company, we are the developers, we want to choose our next programming language!</h3>
+            </div>
         </div>
     </div>
 </section>

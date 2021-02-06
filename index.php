@@ -25,7 +25,7 @@ Project Plan Section
 
             <div class="col-lg-6 col-md-6">
                 <div class="content">
-                    <h3>Goals</h4>
+                    <h3>Goals</h3>
                         <ol>
                             <li>High-level programming language making the process of developing a program simpler and more understandable.</li>
                             <li>Compiled language programming because is faster than interpreted.</li>

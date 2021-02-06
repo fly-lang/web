@@ -1,8 +1,26 @@
-# Fly - Web Project
+<!-- PROJECT LOGO -->
+<br />
+<p align="center">
+  <a href="https://github.com/fly-lang/web">
+    <img src="https://github.com/fly-lang/web/blob/main/img/flylang-logo.png" alt="Logo" width="80" height="80">
+  </a>
+
+  <h3 align="center">Fly - Web</h3>
+
+  <p align="center">
+    Website of the Fly Project
+    <br />
+    <br />
+    <a href="http://flylang.org">View Website</a>
+    ·
+    <a href="https://github.com/fly-lang/web">Report Bug / Request Feature</a>
+    ·
+    <a href="https://github.com/fly-lang/web/discussions">Open a Discussion</a>
+  </p>
+</p>
 
 ## About the Project
-This repository contains the source code of the official website for Fly Programming Language http://flyalang.org
-Everyone can contribute to improve website
+This repository contains the source code of the website for the Fly Project, it contains web pages, images and all files need to working.
 
 ### Build with
 This website uses the following Frameworks:

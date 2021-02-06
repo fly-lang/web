@@ -1,3 +1,4 @@
 <?php ob_start()?>
-<?php $page = ob_get_clean()?>
+<?php $main = ob_get_clean()?>
+<?php $title = "Report a Bug"?>
 <?php include_once "template/page-layout.php" ?>

@@ -22,9 +22,10 @@ Footer
                 <div class="col-sm-4">
                     <div class="footer-thanks">
                         <h3>Thanks</h3>
-                        <p>This project is an idea of Marco Romagnolo it's not financed by anyone and it is the results
-                            of daily work aimed to contribute on computer science. Help me broadcasting this project, your suggestions are precious,
-                            follow the links. Thank you!</p>
+                        <p>This project is not financed by anyone and it is the results
+                            of daily work aimed to contribute on computer science. 
+                            Help me broadcasting this project, your suggestions are precious,
+                            share with your friends and colleagues and follow us. Thank you!</p>
                     </div>
                 </div>
 
@@ -33,7 +34,7 @@ Footer
                         <h3>Social</h3>
                         <div class="social-links">
                             <a href="https://twitter.com/fly_lang" class="twitter"><i class="fa fa-twitter"></i></a>
-                            <a href="https://groups.google.com/g/flylang" class="google"><i class="fa fa-google"></i></a>
+                            <a href="https://discord.gg/kyFHvTWUUg" class="discord"><i class="fa fa-discord"></i></a>
                             <a href="https://github.com/fly-lang" class="github"><i class="fa fa-github"></i></a>
                         </div>
                     </div>

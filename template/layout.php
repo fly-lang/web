@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Rapid Bootstrap Template</title>
+    <title>Fly - <?php echo $title?></title>
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <meta content="" name="keywords">
     <meta content="" name="description">
@@ -21,13 +21,17 @@
     <!-- Main Stylesheet File -->
     <link href="css/style.css" rel="stylesheet">
 
+    <!-- External css -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css" integrity="sha256-gsmEoJAws/Kd3CjuOQzLie5Q3yshhvmo7YNtBG7aaEY=" crossorigin="anonymous">
+
 </head>
 
 <body>
-<?php include_once "header.php"?>
-<?php echo $intro?>
+    
+<?php echo $header?>
+
 <main id="main">
-<?php echo $page?>
+<?php echo $main?>
 </main>
 
 <?php include_once "footer.php" ?>

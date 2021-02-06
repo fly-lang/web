@@ -5,5 +5,6 @@
     </div>
 </section>
 
-<?php $page = ob_get_clean()?>
+<?php $main = ob_get_clean()?>
+<?php $title = "Licenses"?>
 <?php include_once "template/page-layout.php" ?>

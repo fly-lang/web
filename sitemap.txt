@@ -1,0 +1,7 @@
+http://flylang.org/code-of-conduct.php
+http://flylang.org/contribute.php
+http://flylang.org/index.php
+http://flylang.org/licenses.php
+http://flylang.org/privacy-policy.php
+http://flylang.org/project.php
+http://flylang.org/report-a-bug.php

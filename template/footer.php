@@ -12,7 +12,6 @@ Footer
                         <ul>
                             <li><a href="/code-of-conduct.php">Code of Conduct</a></li>
                             <li><a href="/licenses.php">Licenses</a></li>
-                            <li><a href="/term-of-service.php">Terms of service</a></li>
                             <li><a href="/privacy-policy.php">Privacy policy</a></li>
                             <li><a href="https://github.com/fly-lang/web/issues">Report a website bug</a></li>
                         </ul>

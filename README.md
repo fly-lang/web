@@ -13,7 +13,7 @@
     <br />
     <a href="http://flylang.org">View Website</a>
     ·
-    <a href="https://github.com/fly-lang/web">Report Bug / Request Feature</a>
+    <a href="https://github.com/fly-lang/web/issues">Report Bug / Request Feature</a>
     ·
     <a href="https://github.com/fly-lang/web/discussions">Open a Discussion</a>
   </p>
@@ -29,7 +29,7 @@ This website uses the following Frameworks:
 - [Fork Awesome](https://forkaweso.me/)
 
 ## Getting Started
-Her you can find instruction how to deploy the web application in your environment.
+Here you can find instruction how to deploy the web application in your environment.
 
 ### Prerequisites
 In order to see the webpages of this site you need:
@@ -37,16 +37,17 @@ In order to see the webpages of this site you need:
  - Webserver with PHP module support like: Apache or Nginx
 
 ## Usage
-You can use this project for contribuitng in Fly Programming Language Project, by deploy in your env for fixes and enhancements, or only for testing.
-For more info about this projects:
- - For how to contribute see `CONTRIBUTING.md`
- - For know Authors see `AUTHORS.md`
- - See `LICENSE`
+You can contribute to this project for improve indirectly the Fly Programming Language main project.
+You can deploy this website in your environment for fixes and enhancements, or only for testing.
+For more info about this project:
+ - For how to contribute see [CONTRIBUTING.md](CONTRIBUTING.md)
+ - For know Authors see [AUTHORS.md](AUTHORS.md)
+ - See [LICENSE](LICENSE)
  
  ## Contact
 Twitter: [@fly_lang](https://twitter.com/fly_lang)
  
  Email: [dev@flylang.org](mailto:dev@flylang.org)
  
- Website: [flylang.org](http://flyalang.org)
+ Website: [flylang.org](http://flylang.org)
  

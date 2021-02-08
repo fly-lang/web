@@ -1,28 +1,50 @@
-# How to Contribute
+# Contributing
+**Fly Communty** say THANKS for your interest in advance.
+
 Here you can found more details to improve the Fly website at http://flylang.org
-
 There are two primary ways to help:
- - Opening *Issues:
- - Doing Code changes
- - Posting in *Discussions
+ - _Opening issues_
+ - _Doing Code changes_
 
-## Opening Issues
-Use the issue tracker to suggest feature requests, report bugs, and ask questions.
-This is also a great way to connect with the developers of the project.
+You can also _Posting in Discussions_ for all arguments which not need to be tracked.
 
-Use the issue tracker to find ways to contribute. Find a bug or a feature, mention in
-the issue that you will take on that effort, then follow the _Doing code changes_
-guidance below.
-
+## Opening issues
+Use the [issue tracker](https://github.com/fly-lang/fly/issues) to suggest feature requests, report bugs, and ask questions.
+This is also a great way to connect with the developers of the project and get 
+confirmation of your bug or approval for your feature request this way before starting to code.
 
 ## Doing code changes
-If you are a member you can use a branch, otherways do a fork, make your update, finally, do a pull request 
+If this is something you think you can fix, then fork this project and create a branch with a descriptive name.
+A good branch name would be (where issue #473 is the ticket you're working on):
+```sh
+git checkout -b 473-add-feature-name
+```
+
+### Make a Pull Request
+You should switch back to your master branch and make sure it's up to date with Fly's master branch:
 with enough details in the comment to understand your work.
+```sh
+git remote add upstream git@github.com:fly-lang/fly.git
+git checkout master
+git pull upstream master
+```
+
+Then update your feature branch from your local copy of master, and push it!
+
+```sh
+git checkout 473-add-feature-name
+git rebase master
+git push --set-upstream origin 473-add-feature-name
+```
+
+Finally, go to GitHub and [make a Pull Request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request) :D
 
 ## Posting in Discussions
-If you wnat to share a comment with Community you can also post in the following
-Discussions categories:
- - General
- - Idea
- - Q&A
- - Show and tell
+If you want to share a comment with Community and you are a member,
+you can do a post Discussions, by speaking about project but not related to code or not need to be tracked.
+Please before post do a search to look for if your argument was already posted,
+if not chose a right categories:
+- General: if you can't insert your post in the following categories
+- Idea: if you think something of new
+- Q&A: post here your questions, or answer to Community
+- Show and tell: tell to Community about a topic

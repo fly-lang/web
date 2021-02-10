@@ -1,7 +1,7 @@
 # Contributing
 **Fly Communty** say THANKS for your interest in advance.
 
-Here you can found more details to improve the Fly website at http://flylang.org
+Here you can found more details to improve the Fly website at https://flylang.org
 There are two primary ways to help:
  - _Opening issues_
  - _Doing Code changes_

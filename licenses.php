@@ -13,7 +13,7 @@
             </p>
             <h3>Arts</h3>
             <p>The Fly logos (bitmap and vector) are owned by Fly Community and distributed under the terms of the
-                <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution license (CC-BY).</a>
+                <a href="https://creativecommons.org/publicdomain/zero/1.0/">Creative Commons Zero v1.0 Universal (CC0).</a>
             </p>
             <br><br><br><br><br><br><br><br>
         </div>

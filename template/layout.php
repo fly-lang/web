@@ -1,11 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Fly Programming Language - <?php echo $title?></title>
+    <title><?php echo $title = "Fly Programming Language - " . $title?></title>
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <meta content="" name="keywords">
-    <meta content="" name="description">
+    <meta content="<?php echo $description = "Fly is an open source compiled programming language simple, fast and powerful." ?>" name="description">
+    <?php $baseurl = "https://flylang.org" ?>
+    <meta property="og:title" content="<?php echo $title ?>" />
+    <meta property="og:url" content="<?php echo $url = $baseurl . $_SERVER['REQUEST_URI'] ?>" />
+    <meta property="og:type" content="website" />
+    <meta property="og:description" content="<?php echo $description ?>" />
+    <meta property="og:image" content="<?php echo $baseurl . "/img/flylang-logo.png" ?>>" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="<?php echo $title ?>" />
+    <meta name="twitter:description" content="<?php echo $description ?>" />
+    <meta name="twitter:url" content="<?php echo $url ?>" />
+    <meta name="twitter:image" content="<?php echo $baseurl . "/img/flylang-logo.png" ?>" />
 
     <!-- Favicons -->
     <link href="img/favicon.png" rel="icon">

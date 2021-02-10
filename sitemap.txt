@@ -1,7 +1,7 @@
-http://flylang.org/code-of-conduct.php
-http://flylang.org/contribute.php
-http://flylang.org/index.php
-http://flylang.org/licenses.php
-http://flylang.org/privacy-policy.php
-http://flylang.org/project.php
-http://flylang.org/report-a-bug.php
+https://flylang.org/code-of-conduct.php
+https://flylang.org/contribute.php
+https://flylang.org/index.php
+https://flylang.org/licenses.php
+https://flylang.org/privacy-policy.php
+https://flylang.org/project.php
+https://flylang.org/report-a-bug.php

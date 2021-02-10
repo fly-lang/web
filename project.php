@@ -81,7 +81,7 @@ Community Section
     </div>
 
 </section>
-<?php $main = ob_get_clean() ?>
 
+<?php $main = ob_get_clean() ?>
 <?php $title = "The Project" ?>
 <?php include_once "template/page-layout.php" ?>

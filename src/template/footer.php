@@ -52,7 +52,7 @@ Footer
 
     <div class="container">
         <div class="footer-bottom">
-            Maintained by the <strong>Fly Community</strong>
+            Maintained by the <strong>Marco Romagnolo</strong>
         </div>
     </div>
 </footer><!-- #footer -->

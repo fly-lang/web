@@ -29,7 +29,15 @@ This website uses the following Frameworks:
 - [Fork Awesome](https://forkaweso.me/)
 
 ## Getting Started
-Here you can find instruction how to deploy the web application in your environment.
+Here you can find instruction how to deploy the web application in your environment by Docker.
+
+`docker build -t "fly-web:Dockerfile"`
+
+`docker run -p 8080:80 fly-web:Dockerfile`
+
+or for working on with continuous changes:
+
+`docker run -d -p 8080:80 -v /path/to/project/web/src:/app fly-web:Dockerfile`
 
 ### Prerequisites
 In order to see the webpages of this site you need:

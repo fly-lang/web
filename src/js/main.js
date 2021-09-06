@@ -69,3 +69,19 @@
 
 })(jQuery);
 
+function download(version) {
+  var url = 'https://github.com/fly-lang/fly/releases/tag/v' + version + '/'
+  if (String(platform.os.toString()).indexOf("Win") != -1) { fileName = 'fly-' + version + '-win-x64.zip' }
+  else if (String(platform.os.toString()).indexOf("Mac") != -1) { fileName = 'fly-' + version + '-macos-x86_64.tar.gz' }
+  else if (String(platform.os.toString()).indexOf("Linux") != -1) { fileName = 'fly-' + version + '-linux-x86_64.tar.gz' }
+  else { window.location.href = url; return }
+
+  var a = document.createElement("a");
+  a.href = url;
+  a.setAttribute("href", 'data:application/gzip,' + encodeURIComponent(url))
+  a.setAttribute("download", fileName);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+

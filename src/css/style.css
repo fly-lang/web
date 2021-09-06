@@ -72,8 +72,10 @@ h5 {
 *******************************/
 
 #topbar {
-  padding: 0 0 10px 0;
+  padding: 2px;
   transition: all 0.5s;
+  background-color: #d4e7ff;
+  margin-bottom: 20px;
 }
 
 #topbar .social-links {
@@ -116,13 +118,11 @@ h5 {
   height: 110px;
   transition: all 0.5s;
   z-index: 997;
-  transition: all 0.5s;
-  padding: 20px 0;
+  padding: 0 0 20px 0;
   position: fixed;
   left: 0;
   top: 0;
   right: 0;
-  transition: all 0.5s;
 }
 
 .margin-top-100 {
@@ -130,26 +130,25 @@ h5 {
 }
 
 #header.header-scrolled {
-  height: 70px;
-  padding: 8px 0;
+  height: auto;
+  padding: 12px 0;
   background-color: #f5f8fd;
-  box-shadow: 0px 0px 30px rgba(127, 137, 161, 0.3);
+  box-shadow: 0 0 30px rgba(127, 137, 161, 0.3);
 }
 
 /** In Home **/
-#header .logo-home img {
+#header .logo img {
   padding: 0;
   margin-left: 10px;
-  max-height: 150px;
+  max-height: 80px;
+}
+
+#header.header-scrolled .logo img {
+  max-height: 50px;
 }
 
 #header.header-scrolled #topbar {
   display: none;
-}
-
-#header .logo img {
-  display: none;
-  margin-left: 10px;
 }
 
 #header.header-scrolled .logo img {
@@ -159,10 +158,6 @@ h5 {
 }
 
 /** in Page **/
-#header.header-scrolled .logo-page img {
-  display: none;
-
-}
 
 #header .logo-page img {
   padding: 0;
@@ -179,6 +174,10 @@ h5 {
 /*******************************
 # Intro Section
 *******************************/
+
+top-page {
+  padding-top: 200px;
+}
 
 #intro {
   width: 100%;
@@ -214,7 +213,7 @@ h5 {
 
 .main-nav,
 .main-nav * {
-  margin: 0;
+  margin-top: 0;
   padding: 0;
   list-style: none;
 }
@@ -229,7 +228,7 @@ h5 {
   display: block;
   position: relative;
   color: #413e66;
-  padding: 10px 15px;
+  padding: 12px 15px;
   transition: 0.3s;
   font-size: 18px;
   font-family: "Open Sans", sans-serif;

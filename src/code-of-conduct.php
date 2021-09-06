@@ -1,5 +1,5 @@
 <?php ob_start() ?>
-<section>
+<section id="intro">
     <div class="container">
         <h2>Code of Conduct</h2>
         <h3>Summary</h3>
@@ -65,4 +65,4 @@
 
 <?php $main = ob_get_clean() ?>
 <?php $title = "Code of Conduct" ?>
-<?php include_once "template/page-layout.php" ?>
+<?php include_once "template/layout.php" ?>

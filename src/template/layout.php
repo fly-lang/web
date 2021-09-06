@@ -5,12 +5,13 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
     <meta content="<?php echo $description = "Fly is an open source compiled programming language simple, fast and powerful." ?>" name="description">
     <?php $baseurl = "https://flylang.org" ?>
+    <!-- Facebook OpenGraph -->
     <meta property="og:title" content="<?php echo $title ?>" />
     <meta property="og:url" content="<?php echo $url = $baseurl . $_SERVER['REQUEST_URI'] ?>" />
     <meta property="og:type" content="website" />
     <meta property="og:description" content="<?php echo $description ?>" />
     <meta property="og:image" content="<?php echo $baseurl . "/img/flylang-logo.png" ?>>" />
-
+    <!-- Twitter OpenGraph -->
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="<?php echo $title ?>" />
     <meta name="twitter:description" content="<?php echo $description ?>" />
@@ -32,12 +33,24 @@
 </head>
 
 <body>
-    
-<?php echo $header?>
 
+<!--------------------------
+Header
+---------------------------->
+<header id="header">
+
+    <?php include_once "header.php" ?>
+
+</header>
+<!-- #header -->
+
+<!--------------------------
+Main
+---------------------------->
 <main id="main">
 <?php echo $main?>
 </main>
+<!-- #main -->
 
 <?php include_once "footer.php" ?>
 
@@ -47,6 +60,7 @@
 <script src="lib/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script src="lib/mobile-nav/mobile-nav.js"></script>
 <script src="lib/wow/wow.min.js"></script>
+<script src="lib/platform/platform.js"></script>
 
 <!-- Template Main Javascript File -->
 <script src="js/main.js"></script>

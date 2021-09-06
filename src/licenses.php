@@ -1,5 +1,5 @@
 <?php ob_start() ?>
-    <section>
+    <section id="intro">
         <div class="container">
             <h2>Licenses</h2>
             <h3>Code</h3>
@@ -21,4 +21,4 @@
 
 <?php $main = ob_get_clean() ?>
 <?php $title = "Licenses" ?>
-<?php include_once "template/page-layout.php" ?>
+<?php include_once "template/layout.php" ?>

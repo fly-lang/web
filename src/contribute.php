@@ -2,7 +2,7 @@
 <!--------------------------
 Contribute Section
 ---------------------------->
-<section>
+<section id="intro">
 
     <div class="container">
         <h2>Contribute</h2>
@@ -53,4 +53,4 @@ Contribute Section
 
 <?php $main = ob_get_clean() ?>
 <?php $title = "Community" ?>
-<?php include_once "template/page-layout.php" ?>
+<?php include_once "template/layout.php" ?>

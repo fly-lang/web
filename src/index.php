@@ -14,17 +14,18 @@ Intro Section
             <div class="intro-info col-md-8">
                 <h1>Fly Programming Language</h1>
                 <ul>
-                    <li><h3>This is a <strong>New Project</strong> for <strong>Old Programmers</strong></h3></li>
-                    <li><h3>Focused on the <strong>Best Features</strong> from other languages</h3></li>
-                    <li><h3>Growing, Easy, Fast, Versatile</h3></li>
+                    <li><h4>Continue to develop <strong>as you've always done</strong></h4></li>
+                    <li><h4>Maintain your <strong>code simple</strong></h4></li>
+                    <li><h4>Compiled, Multi-Paradigm, Easy, Fast, Versatile</h4></li>
                 </ul>
+                <div class="container-fluid" id="download">
+                    <button type="button" onclick="download()" class="btn btn-primary btn-lg">Download (0.0.4-alpha)</button>
+                    <a type="button" href="#get-started" class="btn btn-light btn-outline-info btn-lg">Get Started</a>
+                </div>
+                <p>Download packages for <a href="javascript:void(0);" onclick="window.location.href=getDownloadWinUrl()">Windows 64-bit</a>, <a href="javascript:void(0);" onclick="window.location.href=getDownloadMacUrl()">macOS</a>, <a href="javascript:void(0);" onclick="window.location.href=getDownloadLinuxUrl()">Linux</a>.</p>
             </div>
             <div class="intro-img col-md-4">
                 <img src="img/intro-img.png" alt="" class="img-fluid">
-            </div>
-            <div class="margin-top-100 col-md-12">
-                <button type="button" onclick="download('0.0.4-alpha')" class="btn btn-primary btn-lg">Download latest (0.0.4-alpha)</button>
-                <a type="button" href="#get-started" class="btn btn-light btn-outline-info btn-lg">Get Started</a>
             </div>
         </div>
     </div>
@@ -36,66 +37,66 @@ Home Section
 ---------------------------->
 <section>
 
-    <div class="container">
-        <h2>Project Plan</h2>
-        <h4>What are the projects goals? What kind of feautures does the language needs to be better than others?</h4>
+    <div class="container" id="get-started">
+        <h2>Get Started</h2>
+        <h3>Install latest version</h3>
+        <p><a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.release.url.releases">Download</a> and Install the latest version,
+            by following the <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.install">installation guide</a></p>
+        <br>
+        <h3>Hello World</h3>
+        <p>A classic to show basic syntax of Fly programming language.</p>
+        <small class="text-muted">main.fly</small>
+        <pre class="fly-code">
+            <code>
+                import std
+
+                main() {
+                    std.print("Hello World!");
+                }
+            </code>
+        </pre>
+        <br>
+        <h3>Learning Fly</h3>
+        <p>You can start to Fly code from official <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.url">Github Wiki</a> here you can find:</p>
+
         <div class="row">
-
-            <div class="col-lg-6 col-md-6">
-                <div class="content">
-                    <h3>Goals</h3>
-                        <ol>
-                            <li>High-level programming language making the process of developing a program simpler and more understandable.</li>
-                            <li>Compiled language programming because is faster than interpreted.</li>
-                            <li>A solution which implement all programming paradigms (Object Oriented, Procedural and
-                                Functional) guarantees to chose better ways in different cases.
-                            </li>
-                            <li>A clean and easy code syntax, guessable from average programmer.</li>
-                            <li>Take the best features from all know programming languages, to own all you need.</li>
-                            <li>Integrate natively most know design patterns to be one step ahead.</li>
-                        </ol>
+            <div class="col-md-4">
+                <div class="card" style="width: 18rem;">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="javascript:void(0);" onclick="window.location.href=config.wiki.languageReference">
+                                Language Reference
+                            </a>
+                        </h5>
+                        <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+                    </div>
                 </div>
             </div>
-
-            <div class="col-lg-6 col-md-6">
-                <div class="content">
-                    <h3>Phases</h3>
-                    <ol>
-                        <li>Define the <strong>Syntax</strong> of the language</li>
-                        <li>Build the <strong>Compiler</strong></li>
-                        <li>Equip with standard and auxiliary code <strong>Libraries</strong></li>
-                        <li>Add <strong>Utility & Tools</strong></li>
-                        <li>Write <strong>Documentation</strong></li>
-                    </ol>
-                    <br>
-
+            <div class="col-md-4">
+                <div class="card" style="width: 18rem;">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="javascript:void(0);" onclick="window.location.href=config.wiki.commandGuide">
+                                Command Guide
+                            </a>
+                        </h5>
+                        <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card" style="width: 18rem;">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <a href="javascript:void(0);" onclick="window.location.href=config.wiki.programmersManual">
+                                Programmer's Manual
+                            </a>
+                        </h5>
+                        <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-lg-12 col-md-12">
-            <div class="content">
-                <h2>Project Status</h2>
-                <h3>We are at the start point</h3>
-                <p>The community is just born, we are a few, we need to grow, please share this initiative, <a href="/contribute.php">contribute</a>.</p>
-                <h4>The first step is Plan for creating a new Syntax Language:</h4>
-                <ul>
-                    <li>
-                        <h4>Follow more details in <a href="/project.php">The Project</a></h4>
-                    </li>
-                    <li>
-                        <h4>Start a discussion on <a href="https://github.com/fly-lang/fly/discussions" target="_blank">Github</a></h4>
-                    </li>
-                    <li>
-                        <h4>Or enter in chat on <a href="https://discord.gg/kyFHvTWUUg" target="_blank">Discord</a></h4>
-                    </li>
-                    <li>
-                        <h4>Propose your best features for Fly programming language!</h4>
-                    </li>
-                </ul>
-            </div>
-        </div>
-
     </div>
 
 </section><!-- #project -->

@@ -1,3 +1,29 @@
+const config = {
+  release: {
+    version: {
+      number: '0.0.4-alpha',
+      prefix: 'v'
+    },
+    url: {
+      download: 'https://github.com/fly-lang/fly/releases/download',
+      releases: 'https://github.com/fly-lang/fly/releases'
+    },
+    prefix: 'fly-',
+    suffix: {
+      win: '-win-x64.zip',
+      mac: '-macos-x86_64.tar.gz',
+      linux: '-linux-x86_64.tar.gz'
+    },
+  },
+  wiki: {
+    url: 'https://github.com/fly-lang/fly/wiki',
+    install: 'https://github.com/fly-lang/fly/wiki/Installing-Fly',
+    languageReference: 'https://github.com/fly-lang/fly/wiki/Fly-Language-Reference',
+    commandGuide: 'https://github.com/fly-lang/fly/wiki/Fly-Command-Guide',
+    programmersManual: 'https://github.com/fly-lang/fly/wiki/Fly-Programmers-Manual'
+  }
+};
+
 (function ($) {
   "use strict";
 
@@ -69,16 +95,44 @@
 
 })(jQuery);
 
-function download(version) {
-  var url = 'https://github.com/fly-lang/fly/releases/tag/v' + version + '/'
-  if (String(platform.os.toString()).indexOf("Win") != -1) { fileName = 'fly-' + version + '-win-x64.zip' }
-  else if (String(platform.os.toString()).indexOf("Mac") != -1) { fileName = 'fly-' + version + '-macos-x86_64.tar.gz' }
-  else if (String(platform.os.toString()).indexOf("Linux") != -1) { fileName = 'fly-' + version + '-linux-x86_64.tar.gz' }
-  else { window.location.href = url; return }
+function getDownloadUrl() {
+  return config.release.url.download + '/' + config.release.version.prefix + config.release.version.number;
+}
 
-  var a = document.createElement("a");
-  a.href = url;
-  a.setAttribute("href", 'data:application/gzip,' + encodeURIComponent(url))
+function getDownloadWinUrl() {
+  return getDownloadUrl() + '/' + config.release.prefix + config.release.version.number + config.release.suffix.win;
+}
+
+function getDownloadMacUrl() {
+  return getDownloadUrl() + '/' + config.release.prefix + config.release.version.number + config.release.suffix.mac;
+}
+
+function getDownloadLinuxUrl() {
+  return getDownloadUrl() + '/' + config.release.prefix + config.release.version.number + config.release.suffix.linux;
+}
+
+function download() {
+
+  let fileName;
+  let dataType;
+
+  if (String(platform.os.toString()).indexOf("Win") != -1) {
+    fileName = config.release.prefix + config.release.version.number + config.release.suffix.win;
+    dataType = 'application/zip';
+  } else if (String(platform.os.toString()).indexOf("Mac") != -1) {
+    fileName = config.release.prefix + config.release.version.number + config.release.suffix.mac;
+    dataType = 'application/gzip';
+  } else if (String(platform.os.toString()).indexOf("Linux") != -1) {
+    fileName = config.release.prefix + config.release.version.number + config.release.suffix.linux;
+    dataType = 'application/gzip';
+  } else {
+    window.location.href = getDownloadUrl();
+    return
+  }
+
+  let a = document.createElement("a");
+  a.href = getDownloadUrl();
+  a.setAttribute("href", 'data:' + dataType + ',' + encodeURIComponent(a.href))
   a.setAttribute("download", fileName);
   document.body.appendChild(a);
   a.click();

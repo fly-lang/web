@@ -19,7 +19,7 @@ Intro Section
                     <li><h4>Compiled, Multi-Paradigm, Easy, Fast, Versatile</h4></li>
                 </ul>
                 <div class="container-fluid" id="download">
-                    <button type="button" onclick="download()" class="btn btn-primary btn-lg">Download (0.0.4-alpha)</button>
+                    <a type="button" onclick="download()" class="btn btn-info btn-lg">Download <small>(0.0.4-alpha)</small></a>
                     <a type="button" href="#get-started" class="btn btn-light btn-outline-info btn-lg">Get Started</a>
                 </div>
                 <p>Download packages for <a href="javascript:void(0);" onclick="window.location.href=getDownloadWinUrl()">Windows 64-bit</a>, <a href="javascript:void(0);" onclick="window.location.href=getDownloadMacUrl()">macOS</a>, <a href="javascript:void(0);" onclick="window.location.href=getDownloadLinuxUrl()">Linux</a>.</p>
@@ -39,60 +39,67 @@ Home Section
 
     <div class="container" id="get-started">
         <h2>Get Started</h2>
-        <h3>Install latest version</h3>
-        <p><a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.release.url.releases">Download</a> and Install the latest version,
-            by following the <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.install">installation guide</a></p>
-        <br>
-        <h3>Hello World</h3>
-        <p>A classic to show basic syntax of Fly programming language.</p>
-        <small class="text-muted">main.fly</small>
-        <pre class="fly-code">
-            <code>
-                import std
 
-                main() {
-                    std.print("Hello World!");
-                }
-            </code>
-        </pre>
-        <br>
-        <h3>Learning Fly</h3>
-        <p>You can start to Fly code from official <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.url">Github Wiki</a> here you can find:</p>
+        <div class="content">
+            <h3>Install latest version</h3>
+            <p><a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.release.url.releases">Download</a> and Install the latest version,
+                by following the <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.install">installation guide</a></p>
+        </div>
 
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card" style="width: 18rem;">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <a href="javascript:void(0);" onclick="window.location.href=config.wiki.languageReference">
-                                Language Reference
-                            </a>
-                        </h5>
-                        <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+        <div class="content">
+            <h3>Hello World</h3>
+            <p>A classic code example to show basic syntax of Fly programming language.</p>
+            <small class="text-muted">main.fly</small>
+            <pre class="fly-code">
+                <code>
+        import std
+
+        main() {
+            std.print("Hello World!");
+        }
+                </code>
+            </pre>
+        </div>
+
+        <div class="content">
+            <h3>Learning Fly</h3>
+            <p>You can start to Fly code from official <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.url">Github Wiki</a> here you can find:</p>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card" style="width: 18rem;">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="javascript:void(0);" onclick="window.location.href=config.wiki.languageReference">
+                                    Language Reference
+                                </a>
+                            </h5>
+                            <p class="card-text">The main reference to Fly language syntax</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card" style="width: 18rem;">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <a href="javascript:void(0);" onclick="window.location.href=config.wiki.commandGuide">
-                                Command Guide
-                            </a>
-                        </h5>
-                        <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+                <div class="col-md-4">
+                    <div class="card" style="width: 18rem;">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="javascript:void(0);" onclick="window.location.href=config.wiki.commandGuide">
+                                    Command Guide
+                                </a>
+                            </h5>
+                            <p class="card-text">The guide to launch Fly command and how to use all different options.</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card" style="width: 18rem;">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <a href="javascript:void(0);" onclick="window.location.href=config.wiki.programmersManual">
-                                Programmer's Manual
-                            </a>
-                        </h5>
-                        <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card's content.</p>
+                <div class="col-md-4">
+                    <div class="card" style="width: 18rem;">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="javascript:void(0);" onclick="window.location.href=config.wiki.programmersManual">
+                                    Programmer's Manual
+                                </a>
+                            </h5>
+                            <p class="card-text">For better understand compiler functions or starting to contribute to project development.</p>
+                        </div>
                     </div>
                 </div>
             </div>

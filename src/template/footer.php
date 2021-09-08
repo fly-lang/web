@@ -24,7 +24,9 @@ Footer
                         <p>This project is not financed by anyone and it is the results
                             of daily work aimed to contribute on computer science. 
                             Help me broadcasting this project, your suggestions are precious,
-                            share with your friends and colleagues and follow us. Thank you!</p>
+                            share with your friends and colleagues and follow us. Thank you!
+                            <a href="https://twitter.com/romagnolo_marco" target="_blank">Marco Romagnolo</a></p>
+
                     </div>
                 </div>
 
@@ -52,7 +54,7 @@ Footer
 
     <div class="container">
         <div class="footer-bottom">
-            Maintained by the <strong>Marco Romagnolo</strong>
+
         </div>
     </div>
 </footer><!-- #footer -->

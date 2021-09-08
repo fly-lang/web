@@ -246,6 +246,11 @@ top-page {
   background-color: #eeeeee;
 }
 
+.card {
+  margin: 10px;
+  height: 12rem;
+}
+
 /* Mobile Navigation */
 
 .mobile-nav {

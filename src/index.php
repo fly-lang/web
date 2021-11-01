@@ -19,7 +19,7 @@ Intro Section
                     <li><h4>Compiled, Multi-Paradigm, Easy, Fast, Versatile</h4></li>
                 </ul>
                 <div class="container-fluid" id="download">
-                    <a type="button" onclick="download()" class="btn btn-info btn-lg">Download <small>(0.0.4-alpha)</small></a>
+                    <a type="button" onclick="window.location.href=getDownloadAutoUrl()" class="btn btn-info btn-lg">Download <small>(0.0.4)</small></a>
                     <a type="button" href="#get-started" class="btn btn-light btn-outline-info btn-lg">Get Started</a>
                 </div>
                 <p>Download packages for <a href="javascript:void(0);" onclick="window.location.href=getDownloadWinUrl()">Windows 64-bit</a>, <a href="javascript:void(0);" onclick="window.location.href=getDownloadMacUrl()">macOS</a>, <a href="javascript:void(0);" onclick="window.location.href=getDownloadLinuxUrl()">Linux</a>.</p>

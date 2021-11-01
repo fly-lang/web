@@ -1,7 +1,7 @@
 const config = {
   release: {
     version: {
-      number: '0.0.4-alpha',
+      number: '0.0.4',
       prefix: 'v'
     },
     url: {
@@ -111,7 +111,7 @@ function getDownloadLinuxUrl() {
   return getDownloadUrl() + '/' + config.release.prefix + config.release.version.number + config.release.suffix.linux;
 }
 
-function download() {
+function getDownloadAutoUrl() {
 
   let fileName;
   let dataType;

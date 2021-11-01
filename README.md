@@ -31,7 +31,7 @@ This website uses the following Frameworks:
 ## Getting Started
 Here you can find instruction how to deploy the web application in your environment by Docker.
 
-`docker build -t "fly-web:Dockerfile"`
+`docker build . -t "fly-web:Dockerfile"`
 
 `docker run -p 8080:80 fly-web:Dockerfile`
 

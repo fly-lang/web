@@ -1,2 +1,3 @@
 FROM webdevops/php-nginx:7.3
-COPY ./src /app
+COPY public /app
+COPY config/config.php /

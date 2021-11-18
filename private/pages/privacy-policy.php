@@ -1,4 +1,7 @@
-<?php ob_start()?>
+<?php
+$title = 'Privacy Policy';
+?>
+
 <section id="intro">
     <div class="container">
         <h2>Privacy Policy</h2>
@@ -15,7 +18,3 @@
         <br><br><br><br><br><br><br>
     </div>
 </section>
-
-<?php $main = ob_get_clean()?>
-<?php $title = "Privacy Policy"?>
-<?php include_once "template/layout.php" ?>

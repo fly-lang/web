@@ -2,7 +2,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/fly-lang/web">
-    <img src="https://github.com/fly-lang/web/blob/main/img/flylang-logo.png" alt="Logo" width="80" height="80">
+    <img src="https://github.com/fly-lang/web/blob/main/img/fly_logo_w300.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Fly - Web</h3>
@@ -30,14 +30,25 @@ This website uses the following Frameworks:
 
 ## Getting Started
 Here you can find instruction how to deploy the web application in your environment by Docker.
+Build the Docker image:
+`docker build . -t "fly-web:latest"`
 
-`docker build . -t "fly-web:Dockerfile"`
+Now you can start your Docker image at http://localhost:8080
+`docker run -p 8080:80 fly-web:latest`
 
-`docker run -p 8080:80 fly-web:Dockerfile`
+If you prefer working on the code development and see changes in realtime you can bind the source directory:
+```
+docker run -d \
+-p 8080:80 \
+-it \
+--name devweb \
+--mount type=bind,source="$(pwd)"/public,target=/app \
+--mount type=bind,source="$(pwd)"/private,target=/private \
+fly-web:latest
+```
 
-or for working on with continuous changes:
-
-`docker run -d -p 8080:80 -v /path/to/project/web/src:/app fly-web:Dockerfile`
+For stopping
+`docker container stop devweb`
 
 ### Prerequisites
 In order to see the webpages of this site you need:
@@ -55,7 +66,7 @@ For more info about this project:
  ## Contact
 Twitter: [@fly_lang](https://twitter.com/fly_lang)
  
- Email: [dev@flylang.org](mailto:dev@flylang.org)
- 
- Website: [flylang.org](https://flylang.org)
+Email: [dev@flylang.org](mailto:dev@flylang.org)
+
+Website: [flylang.org](https://flylang.org)
  

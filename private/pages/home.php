@@ -1,5 +1,8 @@
-<?php ob_start() ?>
-
+<?php
+    $title = 'Home';
+    $releases = new FlyReleases();
+    $latest = $releases->getLatest();
+?>
 <!--------------------------
 Intro Section
 ---------------------------->
@@ -18,11 +21,18 @@ Intro Section
                     <li><h4>Maintain your <strong>code simple</strong></h4></li>
                     <li><h4>Compiled, Multi-Paradigm, Easy, Fast, Versatile</h4></li>
                 </ul>
+                <script type="text/javascript">
+                    var packages = <?php echo json_encode($latest) ?>;
+                </script>
+
                 <div class="container-fluid" id="download">
-                    <a type="button" onclick="window.location.href=getDownloadAutoUrl()" class="btn btn-info btn-lg">Download <small>(0.0.4)</small></a>
+                    <a type="button" onclick="downloadAutoPackage(packages)" class="btn btn-info btn-lg">Download <small>(<?php echo $latest['version'] ?> Prerelease)</small></a>
                     <a type="button" href="#get-started" class="btn btn-light btn-outline-info btn-lg">Get Started</a>
                 </div>
-                <p>Download packages for <a href="javascript:void(0);" onclick="window.location.href=getDownloadWinUrl()">Windows 64-bit</a>, <a href="javascript:void(0);" onclick="window.location.href=getDownloadMacUrl()">macOS</a>, <a href="javascript:void(0);" onclick="window.location.href=getDownloadLinuxUrl()">Linux</a>.</p>
+                <p>Download packages for
+                    <a href="javascript:void(0);" onclick="downloadPackage('<?php echo $latest['windows']['url'] ?>', '<?php echo $latest['windows']['content_type'] ?>')">Windows 64-bit</a>,
+                    <a href="javascript:void(0);" onclick="downloadPackage('<?php echo $latest['macos']['url'] ?>', '<?php echo $latest['macos']['content_type'] ?>')">macOS</a>,
+                    <a href="javascript:void(0);" onclick="downloadPackage('<?php echo $latest['linux']['url'] ?>', '<?php echo $latest['linux']['content_type'] ?>')">Linux</a>.</p>
             </div>
             <div class="intro-img col-md-4">
                 <img src="img/intro-img.png" alt="" class="img-fluid">
@@ -107,7 +117,3 @@ Home Section
     </div>
 
 </section><!-- #project -->
-
-<?php $main = ob_get_clean() ?>
-<?php $title = "Home" ?>
-<?php include_once "template/layout.php" ?>

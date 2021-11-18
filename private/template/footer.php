@@ -10,9 +10,9 @@ Footer
                     <div class="footer-links">
                         <h3>Links</h3>
                         <ul>
-                            <li><a href="/code-of-conduct.php">Code of Conduct</a></li>
-                            <li><a href="/licenses.php">Licenses</a></li>
-                            <li><a href="/privacy-policy.php">Privacy policy</a></li>
+                            <li><a href="/code-of-conduct">Code of Conduct</a></li>
+                            <li><a href="/licenses">Licenses</a></li>
+                            <li><a href="/privacy-policy">Privacy policy</a></li>
                             <li><a href="https://github.com/fly-lang/web/issues">Report a website bug</a></li>
                         </ul>
                     </div>

@@ -1,4 +1,7 @@
-<?php ob_start() ?>
+<?php
+$title = 'Contribute';
+?>
+
 <!--------------------------
 Contribute Section
 ---------------------------->
@@ -50,7 +53,3 @@ Contribute Section
     </div>
 
 </section>
-
-<?php $main = ob_get_clean() ?>
-<?php $title = "Community" ?>
-<?php include_once "template/layout.php" ?>

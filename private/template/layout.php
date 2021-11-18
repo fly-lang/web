@@ -10,13 +10,13 @@
     <meta property="og:url" content="<?php echo $url = $baseurl . $_SERVER['REQUEST_URI'] ?>" />
     <meta property="og:type" content="website" />
     <meta property="og:description" content="<?php echo $description ?>" />
-    <meta property="og:image" content="<?php echo $baseurl . "/img/flylang-logo.png" ?>>" />
+    <meta property="og:image" content="<?php echo $baseurl . "/img/flylang_logo_w300.png" ?>>" />
     <!-- Twitter OpenGraph -->
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="<?php echo $title ?>" />
     <meta name="twitter:description" content="<?php echo $description ?>" />
     <meta name="twitter:url" content="<?php echo $url ?>" />
-    <meta name="twitter:image" content="<?php echo $baseurl . "/img/flylang-logo.png" ?>" />
+    <meta name="twitter:image" content="<?php echo $baseurl . "/img/flylang_logo_w300.png" ?>" />
 
     <!-- Favicons -->
     <link href="img/favicon.png" rel="icon">
@@ -49,7 +49,7 @@ Header
 Main
 ---------------------------->
 <main id="main">
-<?php echo $main?>
+<?php echo $html?>
 </main>
 <!-- #main -->
 

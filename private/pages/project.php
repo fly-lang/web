@@ -1,4 +1,7 @@
-<?php ob_start() ?>
+<?php
+$title = 'The Project';
+?>
+
 <!--------------------------
 Project Section
 ---------------------------->
@@ -46,7 +49,3 @@ Project Section
         </div>
     </div>
 </section>
-
-<?php $main = ob_get_clean() ?>
-<?php $title = "The Project" ?>
-<?php include_once "template/layout.php" ?>

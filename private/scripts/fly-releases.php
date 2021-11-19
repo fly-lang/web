@@ -39,8 +39,4 @@ class FlyReleases {
         }
         return $packages;
     }
-
-    public function addAll() {
-
-    }
 }

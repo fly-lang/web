@@ -32,12 +32,14 @@ class GithubApi {
     public function getReleases() {
         $filename = $this->TMP_PATH . "github-fly-releases.json";
         $lastModifiedTimestamp = filemtime($filename);
-        $file = fopen($filename, "r+");
-        if (time() - $lastModifiedTimestamp > 86400) {
+        $size = filesize($filename);
+        if ($size == 0 || time() - $lastModifiedTimestamp > 86400) {
             $this->callApiReleases();
+            $file = fopen($filename, "w");
             fwrite($file, $this->json);
         } else {
-            $this->json = fread($file, filesize($filename));
+            $file = fopen($filename, "r");
+            $this->json = fread($file, $size);
         }
         fclose($file);
         return json_decode($this->json);

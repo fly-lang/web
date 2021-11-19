@@ -16,26 +16,24 @@ Intro Section
 
             <div class="intro-info col-md-8">
                 <h1>Fly Programming Language</h1>
-                <ul>
-                    <li><h4>Continue to develop <strong>as you've always done</strong></h4></li>
-                    <li><h4>Maintain your <strong>code simple</strong></h4></li>
-                    <li><h4>Compiled, Multi-Paradigm, Easy, Fast, Versatile</h4></li>
-                </ul>
+                <p>
+                    The Fly programming language was created in 2020 as an alternative to other programming languages.
+                    We aim to be fast, efficient and easy to understand. We have made our syntax quick to write and to
+                    be powerful and versatile so that you can continue to develop great software!
+                </p>
                 <script type="text/javascript">
                     var packages = <?php echo json_encode($latest) ?>;
                 </script>
 
                 <div class="container-fluid" id="download">
-                    <a type="button" onclick="downloadAutoPackage(packages)" class="btn btn-info btn-lg">Download <small>(<?php echo $latest['version'] ?> Prerelease)</small></a>
-                    <a type="button" href="#get-started" class="btn btn-light btn-outline-info btn-lg">Get Started</a>
+                    <a type="button" href="#get-started" class="btn btn-azure btn-lg">Get Started</a>
+                    <a type="button" href="#" onclick="downloadAutoPackage(packages)" class="btn btn-red btn-lg">
+                        Download <small>(<?php echo $latest['version'] ?> Prerelease)</small></a>
                 </div>
                 <p>Download packages for
                     <a href="javascript:void(0);" onclick="downloadPackage('<?php echo $latest['windows']['url'] ?>', '<?php echo $latest['windows']['content_type'] ?>')">Windows 64-bit</a>,
                     <a href="javascript:void(0);" onclick="downloadPackage('<?php echo $latest['macos']['url'] ?>', '<?php echo $latest['macos']['content_type'] ?>')">macOS</a>,
                     <a href="javascript:void(0);" onclick="downloadPackage('<?php echo $latest['linux']['url'] ?>', '<?php echo $latest['linux']['content_type'] ?>')">Linux</a>.</p>
-            </div>
-            <div class="intro-img col-md-4">
-                <img src="img/intro-img.png" alt="" class="img-fluid">
             </div>
         </div>
     </div>
@@ -52,13 +50,17 @@ Home Section
 
         <div class="content">
             <h3>Install latest version</h3>
-            <p><a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.release.url.releases">Download</a> and Install the latest version,
-                by following the <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.install">installation guide</a></p>
+            <p>
+                <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.release.url.releases">Download</a>
+                and install the latest version of Fly by following the
+                <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.install">installation guide</a>
+            </p>
         </div>
 
         <div class="content">
             <h3>Hello World</h3>
-            <p>A classic code example to show basic syntax of Fly programming language.</p>
+            <p>To get started with Fly we will use the classic code example of "Hello world" to demonstrate the basic
+                syntax of the Fly programming language.</p>
             <small class="text-muted">main.fly</small>
             <pre class="fly-code">
                 <code>
@@ -73,8 +75,10 @@ Home Section
 
         <div class="content">
             <h3>Learning Fly</h3>
-            <p>You can start to Fly code from official <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.url">Github Wiki</a> here you can find:</p>
-
+            <p>You can start to learn the Fly language from the official
+                <a target="_blank" href="javascript:void(0);" onclick="window.location.href=config.wiki.url">Github Wiki</a>.
+                Here you can find:
+            </p>
             <div class="row">
                 <div class="col-md-4">
                     <div class="card" style="width: 18rem;">

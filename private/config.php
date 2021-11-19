@@ -11,5 +11,5 @@ $WIKI_LANGUAGE_REFERENCE_URL = $WIKI_URL . '/Fly-Language-Reference';
 $WIKI_COMMAND_GUIDE_URL = $WIKI_URL . '/Fly-Command-Guide';
 $WIKI_PROGRAMMERS_MANUAL_URL = $WIKI_URL . '/Fly-Programmers-Manual';
 
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+//error_reporting(E_ALL);
+//ini_set('display_errors', 1);

@@ -120,4 +120,4 @@ Home Section
         </div>
     </div>
 
-</section><!-- #project -->
+</section><!-- #home -->

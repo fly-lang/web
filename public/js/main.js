@@ -67,6 +67,13 @@
     });
   });
 
+  let a = 'dev';
+  let b = 'flylang.org';
+  let emails = $(".email");
+  for (let i = 0; i < emails.length; i++) {
+    emails[i].href = 'mai' + 'lto:' + a + '@' + b;
+  }
+
 })(jQuery);
 
 function getOsType() {
@@ -93,4 +100,3 @@ function downloadPackage(url, contentType) {
   a.click();
   document.body.removeChild(a);
 }
-

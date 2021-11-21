@@ -1,14 +1,14 @@
 <?php
-$title = 'The Project';
+$title = 'Documentation';
 ?>
 
 <!--------------------------
-Project Section
+Documentation Section
 ---------------------------->
 <section id="intro">
 
     <div class="container">
-        <h2>The Fly Project</h2>
+        <h2>Documentation</h2>
 
         <div class="content">
             <h3>Introduction</h3>

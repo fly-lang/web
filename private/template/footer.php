@@ -21,6 +21,7 @@ Footer
                     <div class="footer-links">
                         <h3>Support</h3>
                         <ul>
+                            <li><a href="/documentation">Documentation</a></li>
                             <li><a href="https://github.com/fly-lang/web/issues">Report a website bug</a></li>
                         </ul>
                     </div>
@@ -28,18 +29,12 @@ Footer
 
                 <div class="col-sm-4">
                     <div class="footer-social">
-                        <h3>Social</h3>
+                        <h3>Contacts</h3>
                         <div class="social-links">
-                            <SCRIPT type='text/javascript'>a = 'dev';
-                                b = 'flylang.org';
-                                c = 'class="email"';
-                                d = '<i class="fa fa-at"></i>';
-                                document.write('<A hre' + 'f="mai' + 'lto:' + a + '@' + b + '" ' + c + '>');
-                                document.write(d + '</a>');
-                            </SCRIPT>
                             <a href="https://twitter.com/fly_lang" class="twitter"><i class="fa fa-twitter"></i></a>
-                            <a href="https://discord.gg/kyFHvTWUUg" class="discord"><i class="fa fa-discord"></i></a>
                             <a href="https://github.com/fly-lang" class="github"><i class="fa fa-github"></i></a>
+                            <a href="https://matrix.to/#/#flylang:matrix.org" class="matrix-org"><i class="fa fa-matrix-org"></i></a>
+                            <a class="email"><i class="fa fa-at"></i></a>
                         </div>
                     </div>
                 </div>

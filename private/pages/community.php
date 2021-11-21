@@ -1,14 +1,14 @@
 <?php
-$title = 'Contribute';
+$title = 'Community';
 ?>
 
 <!--------------------------
-Contribute Section
+Community Section
 ---------------------------->
 <section id="intro">
 
     <div class="container">
-        <h2>Contribute</h2>
+        <h2>Community</h2>
 
         <div class="row">
             <div class="col-lg-12 col-md-12">
@@ -45,28 +45,17 @@ Contribute Section
 
             <div class="col-lg-6 col-md-6">
                 <div class="content">
-                    <h3><SCRIPT type='text/javascript'>a = 'dev';
-                            b = 'flylang.org';
-                            c = 'class="email"';
-                            d = '<i class="fa fa-at"></i>';
-                            document.write('<A hre' + 'f="mai' + 'lto:' + a + '@' + b + '" ' + c + '>');
-                            document.write(d + ' Email</a>');
-                        </SCRIPT></h3>
+                    <h3><a class="email"><i class="fa fa-at"></i> Email</a></h3>
                     For direct contact with the founder and receive reliable information.<br><br>
                 </div>
             </div>
 
             <div class="col-lg-6 col-md-6">
                 <div class="content">
-                    <h3><a href="https://discord.gg/kyFHvTWUUg" class="discord" target="_blank"><i class="fa fa-discord"></i> Discord</a></h3>
-                    Come on the chat channel of Fly project, here you can interact directly with members and people loving open source.
-                </div>
-            </div>
-
-            <div class="col-lg-6 col-md-6">
-                <div class="content">
-                    <h3><a href="https://matrix.to/#/#flylang:matrix.org" class="matrix" target="_blank">[matrix]</a></h3>
-                    Enter in chat wit other developers and share your knowledge.
+                    <h3><a href="https://matrix.to/#/#flylang:matrix.org" class="matrix-org" target="_blank">
+                            <i class="fa fa-matrix-org"></i> Matrix</a></h3>
+                    Come on the chat channel of Fly project, here you can interact directly with members and people
+                    loving open source and share your knowledge.
                 </div>
             </div>
         </div>

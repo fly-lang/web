@@ -1,7 +1,9 @@
 body {
   background: #fff;
-  color: #413e66;
-  font-family: "Open Sans", sans-serif;
+  color: #050043;
+  font-family: "Montserrat", sans-serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.02rem;
 }
 
 a {
@@ -22,48 +24,43 @@ p {
   margin: 5px 0 18px 0;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: "Montserrat", sans-serif;
-  padding: 0;
-  color: #413e66;
-}
-
 h1 {
-  text-align: left;
-  margin: 10px 0 40px 0;
-  font-weight: 700;
-  font-size: 36px;
+  padding: 0;
+  font-weight: 800;
+  font-size: 3rem;
+  color: #143aba;
 }
 
 h2 {
-  text-align: left;
-  margin: 10px 0 24px 0;
-  font-weight: 700;
-  font-size: 32px;
+  padding: 0;
+  font-weight: 800;
+  font-size: 1.8rem;
+  color: #143aba;
 }
 
 h3 {
-  margin: 20px 0 20px 0;
-  font-weight: 400;
-  font-size: 26px;
+  padding: 0;
+  font-weight: 600;
+  font-size: 1.6rem;
+  color: #143aba;
 }
 
 h4 {
-  margin: 0 0 12px 0;
+  padding: 0;
   font-weight: 200;
-  font-size: 20px;
-  font-style: italic;
+  font-size: 1.4rem;
 }
 
 h5 {
-  margin: 0 0 12px 0;
+  padding: 0;
   font-weight: 100;
-  font-size: 18px;
+  font-size: 1.2rem;
+}
+
+h6 {
+  padding: 0;
+  font-weight: 50;
+  font-size: 1.1rem;
 }
 
 .btn-red {
@@ -103,26 +100,36 @@ h5 {
 }
 
 /*******************************
-# Top Bar
+# Header
 *******************************/
+
+#header {
+  transition: all 0.5s;
+  z-index: 997;
+  padding: 0 0 10px 0;
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  border-bottom: 1px solid #eee;
+}
 
 #topbar {
   padding: 2px;
   transition: all 0.5s;
   background-color: #05038a;
-  margin-bottom: 20px;
 }
 
 #topbar .social-links {
   text-align: right;
-  font-size: 30px;
+  font-size: 1.2rem;
 }
 
 #topbar .social-links a {
   color: #ffffff;
-  padding: 4px 12px;
+  padding: 2px 10px;
   display: inline-block;
-  line-height: 1px;
+  line-height: 2rem;
 }
 
 #topbar .social-links a:hover {
@@ -134,48 +141,29 @@ h5 {
 }
 
 #topbar .slogan {
-  font-size: 14px;
-  margin: 0 5px 0 7px;
+  font-size: 0.9rem;
+  margin: 0;
   padding: 0;
-  font-weight: 400;
+  font-weight: 200;
   font-style: italic;
   letter-spacing: 3px;
   text-transform: uppercase;
   color: #ffffff;
   text-decoration: none;
-}
-
-/*******************************
-# Header
-*******************************/
-
-#header {
-  height: 110px;
-  transition: all 0.5s;
-  z-index: 997;
-  padding: 0 0 20px 0;
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-}
-
-.margin-top-100 {
-  margin-top: 60px;
+  line-height: 1rem;
 }
 
 #header.header-scrolled {
   height: auto;
-  padding: 12px 0;
   background-color: #f5f8fd;
   box-shadow: 0 0 30px rgba(127, 137, 161, 0.3);
 }
 
-/** In Home **/
 #header .logo img {
   padding: 0;
+  max-height: 60px;
+  margin-top: 10px;
   margin-left: 10px;
-  max-height: 80px;
 }
 
 #header.header-scrolled .logo img {
@@ -192,52 +180,9 @@ h5 {
   max-height: 50px;
 }
 
-/** in Page **/
-
-#header .logo-page img {
-  padding: 0;
-  margin-left: 10px;
-  max-height: 50px;
-}
-
 .light {
   color: #4583fb;
-  font-size: 10px;
   text-align: right;
-}
-
-/*******************************
-# Intro Section
-*******************************/
-
-top-page {
-  padding-top: 200px;
-}
-
-#intro {
-  width: 100%;
-  height: auto;
-  position: relative;
-  background-color: #ffffff;
-  background-size: cover;
-  padding-top: 200px;
-}
-
-.red-section {
-  background-color: #d2000a;
-}
-
-#intro .intro-bottom {
-  font-style: italic;
-  text-align: center;
-  margin-top: 20px;
-}
-
-#intro .intro-info h2 {
-  margin: 20px 0 5px 0;
-  color: #413e66;
-  font-size: 24px;
-  font-weight: 700;
 }
 
 /*******************************
@@ -254,6 +199,7 @@ top-page {
 }
 
 .main-nav>ul>li {
+  margin-top: 12px;
   position: relative;
   white-space: nowrap;
   float: left;
@@ -265,7 +211,7 @@ top-page {
   color: #d2000a;
   padding: 12px 15px;
   transition: 0.3s;
-  font-size: 18px;
+  font-size: 1.1rem;
   font-family: "Open Sans", sans-serif;
   text-transform: uppercase;
   font-weight: 600;
@@ -276,15 +222,6 @@ top-page {
 .main-nav li:hover>a {
   color: #4583fb;
   text-decoration: none;
-}
-
-.fly-code {
-  background-color: #eeeeee;
-}
-
-.card {
-  margin: 10px;
-  height: 12rem;
 }
 
 /* Mobile Navigation */
@@ -298,8 +235,9 @@ top-page {
   left: -260px;
   width: 260px;
   padding-top: 18px;
-  background: rgba(40, 38, 70, 0.8);
+  background-color: #05038a;
   transition: 0.4s;
+  opacity: 0.8;
 }
 
 .mobile-nav * {
@@ -319,7 +257,7 @@ top-page {
 .mobile-nav a:hover,
 .mobile-nav .active>a,
 .mobile-nav li:hover>a {
-  color: #d2000a;
+  color: #4583fb;
   text-decoration: none;
 }
 
@@ -355,7 +293,7 @@ top-page {
   z-index: 9998;
   border: 0;
   background: none;
-  font-size: 24px;
+  font-size: 1.8rem;
   transition: all 0.4s;
   outline: none !important;
   line-height: 1;
@@ -365,7 +303,7 @@ top-page {
 
 .mobile-nav-toggle i {
   margin: 18px 18px 0 0;
-  color: #065e77;
+  color: #4583fb;
 }
 
 .mobile-nav-overly {
@@ -375,7 +313,7 @@ top-page {
   top: 0;
   left: 0;
   position: fixed;
-  background: rgba(91, 86, 158, 0.8);
+  background-color: #050043;
   overflow: hidden;
   display: none;
 }
@@ -393,25 +331,67 @@ top-page {
 }
 
 /*******************************
+# Intro Section
+*******************************/
+
+#intro {
+  width: 100%;
+  height: auto;
+  position: relative;
+  background-color: #ffffff;
+  background-size: cover;
+  padding-top: 160px;
+}
+
+#title {
+  color: #d2000a;
+  padding: 0;
+  font-weight: 1000;
+  font-size: 4rem;
+  display: block;
+  text-transform: uppercase;
+}
+
+#subtitle {
+  font-weight: 100;
+  font-size: 1.8rem;
+  text-align: left;
+}
+
+#download-btn {
+  margin-top: 40px;
+  width: 100%;
+  text-align: center;
+}
+
+#download-btn .download {
+  font-size: 1.6rem;
+  text-transform: uppercase;
+}
+
+#download-packages {
+  margin-top: 14px;
+  text-align: center;
+  display: block;
+}
+
+section.red {
+  background-color: #d2000a;
+}
+
+#intro .intro-bottom {
+  font-style: italic;
+  text-align: center;
+  margin-top: 20px;
+}
+
+/*******************************
 # Sections
 *******************************/
 
-/* Section with background
---------------------------------*/
-
-.section-bg {
-  background: #f5f8fd;
+main section {
+  padding: 20px 10px;
 }
-
-/* Container Section
---------------------------------*/
-
-#main .container {
-  padding: 40px 10px;
-}
-
-/* Content Section
---------------------------------*/
 
 .content {
   padding-top: 40px;
@@ -439,28 +419,39 @@ top-page {
 }
 
 /*******************************
+# Misc
+*******************************/
+
+.fly-code {
+  background-color: #eeeeee;
+}
+
+.card {
+  margin: 10px;
+  height: 12rem;
+}
+
+
+/*******************************
 # Footer
 *******************************/
 
 #footer {
   padding: 0 0 20px 0;
-  font-size: 16px;
   background-color: #05038a;
   color: #ffffff;
+  font-size: 1rem;
 }
 
 #footer .footer-top {
   padding: 20px 0;
 }
 
-#footer .footer-top h3 {
-  font-size: 18px;
+#footer .footer-top h4 {
+  font-size: 1.1rem;
   margin: 40px 0 20px 0;
   line-height: 1;
-  font-family: "Montserrat", sans-serif;
   color: #ffffff;
-  font-weight: 400;
-  letter-spacing: 3px;
   text-transform: uppercase;
 }
 
@@ -479,7 +470,7 @@ top-page {
 }
 
 #footer .footer-top .social-links a {
-  font-size: 28px;
+  font-size: 1.6rem;
   display: inline-block;
   background: #ffffff;
   color: #05038a;
@@ -504,7 +495,7 @@ top-page {
 #footer .footer-bottom {
   text-align: center;
   padding-top: 20px;
-  font-size: 18px;
+  font-size: 1.1rem;
 }
 
 /*******************************
@@ -512,17 +503,19 @@ top-page {
 *******************************/
 
 @media (max-width: 991px) {
+
+  #header .logo img {
+    max-height: 60px;
+  }
+
   #topbar .social-links {
     display: none;
   }
 
-  /*#header {*/
-  /*  height: 70px;*/
-  /*  padding: 15px 0;*/
-  /*}*/
 }
 
 @media (max-width: 767px) {
+
   #intro {
     height: auto;
     padding: 190px 0 0 0;
@@ -551,4 +544,15 @@ top-page {
   #footer .footer-top .social-links a {
     margin-bottom: 25px;
   }
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("Montserrat-Regular.ttf");
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("Montserrat-Bold.ttf");
+  font-weight: bold;
 }

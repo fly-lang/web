@@ -1,14 +1,14 @@
 <!--------------------------
 Footer
 ---------------------------->
-<footer id="footer" class="section-bg">
+<footer id="footer" >
     <div class="footer-top">
         <div class="container">
             <div class="row">
 
                 <div class="col-sm-4">
                     <div class="footer-links">
-                        <h3>Terms and Polices</h3>
+                        <h4>Terms and Polices</h4>
                         <ul>
                             <li><a href="/code-of-conduct">Code of Conduct</a></li>
                             <li><a href="/licenses">Licenses</a></li>
@@ -19,7 +19,7 @@ Footer
 
                 <div class="col-sm-4">
                     <div class="footer-links">
-                        <h3>Support</h3>
+                        <h4>Support</h4>
                         <ul>
                             <li><a href="/documentation">Documentation</a></li>
                             <li><a href="https://github.com/fly-lang/web/issues">Report a website bug</a></li>
@@ -29,7 +29,7 @@ Footer
 
                 <div class="col-sm-4">
                     <div class="footer-social">
-                        <h3>Contacts</h3>
+                        <h4>Contacts</h4>
                         <div class="social-links">
                             <a href="https://twitter.com/fly_lang" class="twitter"><i class="fa fa-twitter"></i></a>
                             <a href="https://github.com/fly-lang" class="github"><i class="fa fa-github"></i></a>

@@ -1,6 +1,6 @@
 body {
   background: #fff;
-  color: #050043;
+  color: #070066;
   font-family: "Montserrat", sans-serif;
   font-size: 1.1rem;
   letter-spacing: 0.02rem;
@@ -36,12 +36,13 @@ h2 {
   font-weight: 800;
   font-size: 1.8rem;
   color: #143aba;
+  text-align: center;
 }
 
 h3 {
   padding: 0;
-  font-weight: 600;
-  font-size: 1.6rem;
+  font-weight: 200;
+  font-size: 1.4rem;
   color: #143aba;
 }
 
@@ -330,67 +331,78 @@ h6 {
   color: #fff;
 }
 
+
 /*******************************
 # Intro Section
 *******************************/
 
-#intro {
-  width: 100%;
-  height: auto;
-  position: relative;
-  background-color: #ffffff;
-  background-size: cover;
-  padding-top: 160px;
-}
-
-#title {
+#intro .title {
   color: #d2000a;
   padding: 0;
   font-weight: 1000;
   font-size: 4rem;
   display: block;
-  text-transform: uppercase;
 }
 
-#subtitle {
+#intro .subtitle {
   font-weight: 100;
   font-size: 1.8rem;
   text-align: left;
 }
 
-#download-btn {
+#intro .download-btn {
   margin-top: 40px;
   width: 100%;
   text-align: center;
 }
 
-#download-btn .download {
+#intro .download {
   font-size: 1.6rem;
   text-transform: uppercase;
 }
 
-#download-packages {
+#intro .version {
+  font-size: 1.2rem;
+}
+
+#intro .download-packages {
   margin-top: 14px;
   text-align: center;
   display: block;
-}
-
-section.red {
-  background-color: #d2000a;
-}
-
-#intro .intro-bottom {
-  font-style: italic;
-  text-align: center;
-  margin-top: 20px;
+  font-size: 1.1rem;
 }
 
 /*******************************
 # Sections
 *******************************/
 
+#main {
+  margin-top: 120px;
+}
+
 main section {
-  padding: 20px 10px;
+  padding: 40px 0px;
+}
+
+.bg-red {
+  background-color: #d2000a;
+}
+
+.bg-red h2, .bg-red h1 {
+  color: #94b9fd;
+}
+
+.bg-blue {
+  background-color: #070066;
+  color: #ffffff;
+}
+
+.bg-blue h2 {
+  color: #eeeeee;
+}
+
+.bg-blue h3 {
+  color: #94b9fd;
 }
 
 .content {
@@ -512,26 +524,21 @@ main section {
     display: none;
   }
 
+  #main {
+    margin-top: 80px;
+  }
+
+  #intro .title {
+    font-size: 2rem;
+  }
+
+  #intro .subtitle {
+    font-size: 1.4rem;
+  }
+
 }
 
 @media (max-width: 767px) {
-
-  #intro {
-    height: auto;
-    padding: 190px 0 0 0;
-  }
-
-  #intro .container {
-    height: auto !important;
-  }
-
-  #intro .intro-img {
-    width: 100%;
-  }
-
-  #intro .intro-info {
-    padding-top: 40px;
-  }
 
   #main .container {
     padding-left: 20px;

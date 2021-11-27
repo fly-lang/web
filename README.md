@@ -2,7 +2,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/fly-lang/web">
-    <img src="https://github.com/fly-lang/web/blob/main/public/img/fly_logo" alt="Logo">
+    <img src="https://github.com/fly-lang/web/blob/main/public/img/fly_logo.png" alt="Logo">
   </a>
 
   <h3 align="center">Fly - Web</h3>

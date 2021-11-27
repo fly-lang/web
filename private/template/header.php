@@ -1,5 +1,5 @@
 <div class="logo float-left">
-    <a href="/" class="scrollto img-fluid"><img src="img/fly_logo_w300.png" alt=""></a>
+    <a href="/" class="scrollto img-fluid"><img src="img/fly_logo.png" alt=""></a>
 </div>
 <div class="container">
     <nav class="main-nav float-left d-none d-lg-block">

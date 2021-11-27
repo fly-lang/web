@@ -13,9 +13,9 @@
 </div>
 <div class="social-nav float-right">
     <ul>
-        <li><a href="https://twitter.com/fly_lang" class="twitter"><i class="fa fa-twitter"></i></a></li>
-        <li><a href="https://github.com/fly-lang" class="github"><i class="fa fa-github"></i></a></li>
-        <li><a href="https://matrix.to/#/#flylang:matrix.org" class="matrix-org"><i class="fa fa-matrix-org"></i></a></li>
+        <li><a href="https://twitter.com/fly_lang" class="twitter" target="_blank"><i class="fa fa-twitter"></i></a></li>
+        <li><a href="https://github.com/fly-lang" class="github" target="_blank"><i class="fa fa-github"></i></a></li>
+        <li><a href="https://matrix.to/#/#flylang:matrix.org" class="matrix-org" target="_blank"><i class="fa fa-matrix-org"></i></a></li>
         <li><a class="email"><i class="fa fa-at"></i></a></li>
     </ul>
 </div>

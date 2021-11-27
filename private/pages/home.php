@@ -41,7 +41,7 @@ Home Section
 <section class="bg-blue">
 
     <div class="container" id="get-started">
-        <h2>- Get Started -</h2>
+        <h2>Get Started</h2>
 
         <div class="content">
             <h3>First Example</h3>
@@ -50,11 +50,11 @@ Home Section
             <small class="fly-filename">main.fly</small>
             <pre class="fly-code">
                 <code>
-        import std
+    import std
 
-        main() {
-            std.print("Hello World!");
-        }
+    main() {
+        std.print("Hello World!");
+    }
                 </code>
             </pre>
         </div>
@@ -62,33 +62,26 @@ Home Section
         <div class="content">
             <h3>Learn Fly</h3>
             <p>You can start to learn the Fly language from the official
-                <a target="_blank" href="<? echo $WIKI_URL?>" target="_blank">Github Wiki</a>.
-                Here you can find:
+                <a target="_blank" href="<? echo $WIKI_URL?>" target="_blank">Github Wiki</a> where you can find how to
+                start to play with Fly programming language.
             </p>
+            <br>
             <div class="row">
                 <div class="col-md-4">
-                    <h4>
-                        <a href="<? echo $WIKI_LANGUAGE_REFERENCE_URL?>" target="_blank">
-                            Language Reference
-                        </a>
-                    </h4>
-                    <p class="card-text">The main reference to Fly language syntax</p>
+                    <h4>Language Reference</h4>
+                    Learn the <a href="<? echo $WIKI_LANGUAGE_REFERENCE_URL?>" target="_blank">language reference</a>
+                    <p> how to write Fly code and enhance you skills.</p>
                 </div>
                 <div class="col-md-4">
-                    <h4>
-                        <a href="<? echo $WIKI_COMMAND_GUIDE_URL?>" target="_blank">
-                            Command Guide
-                        </a>
-                    </h4>
-                    <p class="card-text">The guide to launch Fly command and how to use all different options.</p>
+                    <h4>Command Guide</h4>
+                    <p>Read the <a href="<? echo $WIKI_COMMAND_GUIDE_URL?>" target="_blank">command guide</a>
+                        to launch Fly command and use all different options.</p>
                 </div>
                 <div class="col-md-4">
-                    <h4>
-                        <a href="<? echo $WIKI_PROGRAMMERS_MANUAL_URL?>" target="_blank">
-                            Programmer's Manual
-                        </a>
-                    </h4>
-                    <p class="card-text">For better understand compiler functions or starting to contribute to project development.</p>
+                    <h4>Programmer's Manual</h4>
+
+                    <p>Follow <a href="<? echo $WIKI_PROGRAMMERS_MANUAL_URL?>" target="_blank">the manual</a>
+                        for better understanding compiler functions and contributing to project development.</p>
                 </div>
             </div>
         </div>

@@ -26,42 +26,42 @@ p {
 
 h1 {
   padding: 0;
-  font-weight: 800;
-  font-size: 3rem;
+  font-weight: 1000;
+  font-size: 4rem;
   color: #143aba;
 }
 
 h2 {
   padding: 0;
-  font-weight: 800;
-  font-size: 1.8rem;
+  font-weight: 1000;
+  font-size: 2rem;
   color: #143aba;
   text-align: center;
 }
 
 h3 {
   padding: 0;
-  font-weight: 200;
-  font-size: 1.6rem;
+  font-weight: 800;
+  font-size: 1.8rem;
   color: #143aba;
 }
 
 h4 {
   padding: 0;
-  font-weight: 200;
-  font-size: 1.4rem;
+  font-weight: 600;
+  font-size: 1.6rem;
 }
 
 h5 {
   padding: 0;
-  font-weight: 100;
-  font-size: 1.2rem;
+  font-weight: 400;
+  font-size: 1.4rem;
 }
 
 h6 {
   padding: 0;
-  font-weight: 50;
-  font-size: 1.1rem;
+  font-weight: 200;
+  font-size: 1.2rem;
 }
 
 .btn-red {
@@ -361,7 +361,7 @@ h6 {
   color: #050043;
   padding: 0;
   font-weight: 1000;
-  font-size: 4rem;
+  font-size: 5rem;
   display: block;
 }
 
@@ -422,7 +422,7 @@ main section {
   color: #eeeeee;
 }
 
-.bg-blue h3 {
+.bg-blue h3, .bg-blue h4 {
   color: #94b9fd;
 }
 
@@ -507,6 +507,10 @@ main section {
   padding-top: 0;
 }
 
+#footer a {
+  color: #94b9fd;
+}
+
 #footer .footer-top .social-links a {
   font-size: 1.6rem;
   display: inline-block;
@@ -522,7 +526,7 @@ main section {
   transition: 0.3s;
 }
 
-#footer .footer-top .social-links a:hover {
+#footer a:hover, #footer .social-links a:hover {
   color: #d2000a;
 }
 

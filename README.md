@@ -1,4 +1,3 @@
-<br />
 <p align="center">
   <a href="https://github.com/fly-lang/web">
     <img src="https://github.com/fly-lang/graphics/blob/main/logo/fly_logo_300.png?raw=true" alt="Logo" width="300" height="300">

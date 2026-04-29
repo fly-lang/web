@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Fly{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-text">
+      <h1>Fly</h1>
+      <p class="hero-sub">A programming language for writing easily and quickly all types of software.</p>
+      <div class="hero-actions">
+        <a href="/install/" class="btn btn-primary">Get Started</a>
+        <a href="/documentation/" class="btn btn-outline">Learn More</a>
+      </div>
+      <p class="hero-links">
+        <a href="{{ config.extra.github_repo }}/releases" target="_blank" rel="noopener">Latest release</a>
+        &nbsp;·&nbsp;
+        <a href="{{ config.extra.github_repo }}" target="_blank" rel="noopener">View on GitHub</a>
+      </p>
+    </div>
+    <div class="hero-code">
+      <div class="code-window">
+        <div class="code-bar">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span class="code-file">main.fly</span>
+        </div>
+        <pre class="code-pre"><code><span class="ck">import</span> std
+
+<span class="cf">main</span>() {
+    std.<span class="cf">print</span>(<span class="cs">"Hello, World!"</span>)
+}</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="wrap">
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Fast</h3>
+        <p>Built on LLVM, Fly compiles to optimised native code for all major platforms.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">✍️</div>
+        <h3>Simple</h3>
+        <p>Clean, readable syntax designed to be easy to write and understand with no unnecessary complexity.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Powerful</h3>
+        <p>Multi-paradigm with procedural, object-oriented, and functional programming support.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="highlight">
+  <div class="wrap">
+    <div class="highlight-grid">
+      <div class="highlight-text">
+        <h2>Error handling, rethought</h2>
+        <p>
+          Fly replaces try-catch with <code>fail</code> and <code>handle</code> —
+          more concise and easier to read.
+        </p>
+        <a href="/documentation/" class="btn btn-blue">Read the Docs</a>
+      </div>
+      <div class="highlight-code">
+        <div class="code-window">
+          <div class="code-bar">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <pre class="code-pre"><code><span class="cf">readFile</span>(<span class="ck">const</span> <span class="ct">string</span> path) {
+    <span class="ck">if</span> (path == <span class="cs">""</span>) {
+        <span class="ck">fail</span> <span class="cs">"Invalid path"</span>
+    }
+}
+
+<span class="cf">main</span>() {
+    <span class="ct">error</span> err <span class="ck">handle</span> {
+        readFile(<span class="cs">""</span>)
+    }
+    <span class="ck">if</span> (err) {
+        <span class="cc">// handle gracefully</span>
+    }
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="wrap">
+    <h2>Ready to fly?</h2>
+    <p>Install Fly and start building today.</p>
+    <a href="/install/" class="btn btn-primary btn-lg">Install Fly</a>
+  </div>
+</section>
+
+{% endblock %}

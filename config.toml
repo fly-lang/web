@@ -1,0 +1,16 @@
+base_url = "https://flylang.org"
+title = "Fly"
+description = "A programming language for writing easily and quickly all types of software."
+compile_sass = true
+highlight_code = true
+highlight_theme = "base16-ocean-dark"
+minify_html = false
+generate_feed = false
+
+[extra]
+github_org   = "https://github.com/fly-lang"
+github_repo  = "https://github.com/fly-lang/fly"
+releases_api = "https://api.github.com/repos/fly-lang/fly/releases/latest"
+twitter      = "https://twitter.com/fly_lang"
+matrix       = "https://matrix.to/#/#flylang:matrix.org"
+email        = "dev@flylang.org"

@@ -1,70 +1,140 @@
 <p align="center">
-  <a href="https://github.com/fly-lang/web">
-    <img src="https://github.com/fly-lang/graphics/blob/main/logo/fly_logo_300.png?raw=true" alt="Logo" width="300" height="300">
+  <a href="https://flylang.org">
+    <img src="https://github.com/fly-lang/graphics/blob/main/logo/fly_logo_300.png?raw=true" alt="Fly Logo" width="180">
   </a>
-
-  <h3 align="center">Fly - Web</h3>
-
-  <p align="center">
-    Website of the Fly Project
-    <br />
-    <br />
-    <a href="https://flylang.org">View Website</a>
-    ·
-    <a href="https://github.com/fly-lang/web/issues">Report Bug / Request Feature</a>
-    ·
-    <a href="https://github.com/fly-lang/web/discussions">Open a Discussion</a>
-  </p>
 </p>
 
-## About the Project
-This repository contains the source code of the website for the Fly Project, it contains web pages, images and all files need to working.
+<h3 align="center">flylang.org</h3>
 
-### Build with
-This website uses the following Frameworks:
-- [JQuery](https://jquery.com/)
-- [Bootstrap](https://getbootstrap.com/)
-- [Fork Awesome](https://forkaweso.me/)
+<p align="center">
+  Source code of the official <a href="https://flylang.org">Fly Programming Language</a> website.
+  <br><br>
+  <a href="https://flylang.org">flylang.org</a>
+  ·
+  <a href="https://github.com/fly-lang/web/issues">Report a Bug</a>
+  ·
+  <a href="https://github.com/fly-lang/web/discussions">Discussions</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/fly-lang/web/actions/workflows/deploy.yml">
+    <img src="https://github.com/fly-lang/web/actions/workflows/deploy.yml/badge.svg" alt="Deploy">
+  </a>
+  <a href="https://flylang.org">
+    <img src="https://img.shields.io/website?url=https%3A%2F%2Fflylang.org&label=flylang.org" alt="Website">
+  </a>
+  <a href="https://github.com/fly-lang/web/blob/main/LICENSE.txt">
+    <img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License">
+  </a>
+</p>
+
+---
+
+## About
+
+This repository contains the source of [flylang.org](https://flylang.org), built with
+[Zola](https://www.getzola.org/) (a static site generator) and deployed to
+[Cloudflare Pages](https://pages.cloudflare.com/) on every push to `main`.
+
+## Tech Stack
+
+| Layer | Tool |
+|-------|------|
+| Static site generator | [Zola](https://www.getzola.org/) 0.19+ |
+| Styles | SCSS (compiled by Zola) |
+| Hosting | [Cloudflare Pages](https://pages.cloudflare.com/) |
+| CI/CD | GitHub Actions |
 
 ## Getting Started
-Here you can find instruction how to deploy the web application in your environment by Docker.
-Build the Docker image:
-`docker build . -t "fly-web:latest"`
-
-Now you can start your Docker image at http://localhost:8080
-`docker run -p 8080:80 fly-web:latest`
-
-If you prefer working on the code development and see changes in realtime you can bind the source directory:
-```
-docker run -d \
--p 8080:80 \
--it \
---name devweb \
---mount type=bind,source="$(pwd)"/public,target=/app \
---mount type=bind,source="$(pwd)"/private,target=/private \
-fly-web:latest
-```
-
-For stopping
-`docker container stop devweb`
 
 ### Prerequisites
-In order to see the webpages of this site you need:
- - PHP (min version 5.X)
- - Webserver with PHP module support like: Apache or Nginx
 
-## Usage
-You can contribute to this project for improve indirectly the Fly Programming Language main project.
-You can deploy this website in your environment for fixes and enhancements, or only for testing.
-For more info about this project:
- - For how to contribute see [CONTRIBUTING.md](CONTRIBUTING.md)
- - For know Authors see [AUTHORS.md](AUTHORS.md)
- - See [LICENSE](LICENSE)
- 
- ## Contact
-Twitter: [@fly_lang](https://twitter.com/fly_lang)
- 
-Email: [dev@flylang.org](mailto:dev@flylang.org)
+- [Zola](https://www.getzola.org/documentation/getting-started/installation/) 0.19+
 
-Website: [flylang.org](https://flylang.org)
- 
+### Local development
+
+```bash
+git clone https://github.com/fly-lang/web.git
+cd web
+zola serve
+```
+
+The site is available at `http://127.0.0.1:1111` with live reload on every change.
+
+### Build
+
+```bash
+zola build
+```
+
+Output is written to the `public/` directory.
+
+## Project Structure
+
+```
+web/
+├── config.toml          # Zola configuration
+├── content/             # Markdown pages
+│   ├── _index.md        # Home
+│   ├── install.md       # Install page
+│   ├── documentation.md
+│   ├── community.md
+│   ├── code-of-conduct.md
+│   ├── privacy-policy.md
+│   └── licenses.md
+├── templates/           # Tera HTML templates
+│   ├── base.html        # Shared layout (nav + footer)
+│   ├── index.html       # Home page
+│   ├── page.html        # Generic page
+│   └── install.html     # Install page (dynamic releases)
+├── sass/
+│   └── main.scss        # All styles
+├── static/              # Copied as-is to public/
+│   ├── img/
+│   ├── fonts/
+│   └── js/
+│       └── install.js   # Fetches latest release from GitHub API
+└── .github/
+    └── workflows/
+        └── deploy.yml   # Build → Cloudflare Pages
+```
+
+## Deployment
+
+Deployments are fully automated:
+
+- **Push to `main`** → production deploy at [flylang.org](https://flylang.org)
+- **Pull request** → preview deploy with a unique URL
+
+### Required GitHub Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Pages edit permission |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
+
+## Contributing
+
+Contributions are welcome — content fixes, design improvements, new sections.
+
+1. Read the [Code of Conduct](CODE_OF_CONDUCT.md).
+2. Fork the repo and create a branch.
+3. Run `zola serve` locally to preview your changes.
+4. Open a pull request — a preview deploy will be created automatically.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
+
+## Contact
+
+| | |
+|-|-|
+| Website | [flylang.org](https://flylang.org) |
+| Email | [dev@flylang.org](mailto:dev@flylang.org) |
+| Twitter / X | [@fly_lang](https://twitter.com/fly_lang) |
+| Matrix | [#flylang:matrix.org](https://matrix.to/#/#flylang:matrix.org) |
+| GitHub | [fly-lang](https://github.com/fly-lang) |
+
+## License
+
+Code — [Apache License 2.0](LICENSE.txt)  
+Artwork — [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)

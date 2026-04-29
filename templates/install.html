@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Install{% endblock %}
+
+{% block extra_head %}
+<script>window.FLY_RELEASES_API = "{{ config.extra.releases_api }}";</script>
+{% endblock %}
+
+{% block content %}
+
+<section class="page-hero">
+  <div class="wrap">
+    <h1>Install Fly</h1>
+  </div>
+</section>
+
+<section class="page-body">
+  <div class="wrap wrap-narrow">
+
+    <div class="install-card">
+      <h2>Latest Release</h2>
+      <p id="js-version" class="install-version">Loading…</p>
+      <div class="install-detect">
+        <p>Download for your platform:</p>
+        <div class="install-btns" id="js-detect-btns">
+          <span class="spinner"></span>
+        </div>
+      </div>
+    </div>
+
+    <h2>All Platforms</h2>
+    <table class="install-table" id="js-table">
+      <thead>
+        <tr>
+          <th>Platform</th>
+          <th>Architecture</th>
+          <th>Version</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="js-tbody">
+        <tr><td colspan="4"><span class="spinner"></span></td></tr>
+      </tbody>
+    </table>
+
+    {{ page.content | safe }}
+
+  </div>
+</section>
+
+<script src="/js/install.js"></script>
+{% endblock %}

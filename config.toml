@@ -2,10 +2,12 @@ base_url = "https://flylang.org"
 title = "Fly"
 description = "A programming language for writing easily and quickly all types of software."
 compile_sass = true
-highlight_code = true
-highlight_theme = "base16-ocean-dark"
 minify_html = false
 generate_feed = false
+
+[markdown]
+highlight_code = true
+highlight_theme = "base16-ocean-dark"
 
 [extra]
 github_org   = "https://github.com/fly-lang"

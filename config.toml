@@ -3,7 +3,7 @@ title = "Fly"
 description = "A programming language for writing easily and quickly all types of software."
 compile_sass = true
 minify_html = false
-generate_feed = false
+generate_feeds = false
 
 [markdown]
 highlight_code = true

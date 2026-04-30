@@ -17,6 +17,9 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/fly-lang/web/actions/workflows/deploy.yml">
+    <img src="https://github.com/fly-lang/web/actions/workflows/deploy.yml/badge.svg" alt="Deploy">
+  </a>
   <a href="https://flylang.org">
     <img src="https://img.shields.io/website?url=https%3A%2F%2Fflylang.org&label=flylang.org" alt="Website">
   </a>
@@ -39,7 +42,8 @@ This repository contains the source of [flylang.org](https://flylang.org), built
 |-------|------|
 | Static site generator | [Zola](https://www.getzola.org/) 0.19+ |
 | Styles | SCSS (compiled by Zola) |
-| Hosting & CI/CD | [Cloudflare Pages](https://pages.cloudflare.com/) (native GitHub integration) |
+| Hosting | [Cloudflare Pages](https://pages.cloudflare.com/) |
+| CI/CD | GitHub Actions |
 
 ## Getting Started
 
@@ -85,17 +89,29 @@ web/
 │   └── install.html     # Install page (dynamic releases)
 ├── sass/
 │   └── main.scss        # All styles
-└── static/              # Copied as-is to public/
-    ├── img/
-    ├── fonts/
-    └── js/
-        └── install.js   # Fetches latest release from GitHub API
+├── static/              # Copied as-is to public/
+│   ├── img/
+│   ├── fonts/
+│   └── js/
+│       └── install.js   # Fetches latest release from GitHub API
+└── .github/
+    └── workflows/
+        └── deploy.yml   # Build Zola → deploy su Cloudflare Pages
 ```
 
 ## Deployment
 
-Deployment is handled natively by **Cloudflare Pages** — no GitHub Actions needed.
-Every push to `main` triggers a production deploy; every pull request gets an automatic preview URL.
+Deployments sono automatici tramite GitHub Actions:
+
+- **Push su `main`** → build + deploy in produzione su [flylang.org](https://flylang.org)
+- **Pull request** → build + preview deploy con URL univoco
+
+### Secret richiesti su GitHub
+
+| Secret | Dove trovarlo |
+|--------|---------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare → sidebar destra della home |
 
 ## Contributing
 

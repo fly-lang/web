@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }}{% endblock %}
+{% block description %}{{ page.description | default(value=config.description) }}{% endblock %}
+
+{% block content %}
+
+<div class="docs-layout">
+
+  <aside class="docs-sidebar">
+    <nav class="docs-nav">
+      <p class="docs-nav-heading">Documentation</p>
+      <ul>
+        <li><a href="{{ get_url(path='docs/language-reference') }}"
+          {% if page.slug == 'language-reference' %}class="active"{% endif %}>
+          Language Reference
+        </a></li>
+        <li><a href="{{ get_url(path='docs/developer-reference') }}"
+          {% if page.slug == 'developer-reference' %}class="active"{% endif %}>
+          AST &amp; Sema Reference
+        </a></li>
+      </ul>
+    </nav>
+
+    {% if page.toc %}
+    <nav class="docs-toc">
+      <p class="docs-nav-heading">On this page</p>
+      <ul>
+        {% for h in page.toc %}
+        <li class="toc-{{ h.level }}">
+          <a href="{{ h.permalink | safe }}">{{ h.title }}</a>
+          {% if h.children %}
+          <ul>
+            {% for child in h.children %}
+            <li class="toc-{{ child.level }}">
+              <a href="{{ child.permalink | safe }}">{{ child.title }}</a>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </nav>
+    {% endif %}
+  </aside>
+
+  <article class="docs-content">
+    {{ page.content | safe }}
+  </article>
+
+</div>
+
+{% endblock %}

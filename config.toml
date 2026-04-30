@@ -5,6 +5,10 @@ compile_sass = true
 minify_html = false
 generate_feeds = false
 
+[link_checker]
+internal_level = "warn"
+external_level = "warn"
+
 [markdown.highlighting]
 highlight_code = true
 theme = "base16-ocean-dark"

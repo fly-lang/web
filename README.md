@@ -47,9 +47,34 @@ This repository contains the source of [flylang.org](https://flylang.org), built
 
 ## Getting Started
 
-### Prerequisites
+### Install Zola
 
-- [Zola](https://www.getzola.org/documentation/getting-started/installation/) 0.19+
+**macOS (Homebrew)**
+```bash
+brew install zola
+```
+
+**Linux (snap)**
+```bash
+snap install zola --edge
+```
+
+**Linux (manual)**
+```bash
+ZOLA_VERSION="0.19.2"
+curl -sL "https://github.com/getzola/zola/releases/download/v${ZOLA_VERSION}/zola-v${ZOLA_VERSION}-x86_64-unknown-linux-gnu.tar.gz" | tar xz
+sudo mv zola /usr/local/bin/
+```
+
+**Windows (winget)**
+```bash
+winget install getzola.zola
+```
+
+Verify the installation:
+```bash
+zola --version
+```
 
 ### Local development
 
@@ -112,17 +137,6 @@ Deployments sono automatici tramite GitHub Actions:
 |--------|---------------|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare → sidebar destra della home |
-
-## Contributing
-
-Contributions are welcome — content fixes, design improvements, new sections.
-
-1. Read the [Code of Conduct](CODE_OF_CONDUCT.md).
-2. Fork the repo and create a branch.
-3. Run `zola serve` locally to preview your changes.
-4. Open a pull request — a preview deploy will be created automatically.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
 ## Contact
 

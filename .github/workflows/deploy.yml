@@ -26,7 +26,9 @@ jobs:
           sudo mv zola /usr/local/bin/
 
       - name: Build
-        run: zola build
+        run: |
+          zola --version
+          zola build
 
       - name: Deploy
         uses: cloudflare/pages-action@v1

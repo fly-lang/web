@@ -5,9 +5,9 @@ compile_sass = true
 minify_html = false
 generate_feeds = false
 
-[markdown]
+[markdown.highlighting]
 highlight_code = true
-highlight_theme = "base16-ocean-dark"
+theme = "base16-ocean-dark"
 
 [extra]
 github_org   = "https://github.com/fly-lang"

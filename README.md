@@ -17,9 +17,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/fly-lang/web/actions/workflows/deploy.yml">
-    <img src="https://github.com/fly-lang/web/actions/workflows/deploy.yml/badge.svg" alt="Deploy">
-  </a>
   <a href="https://flylang.org">
     <img src="https://img.shields.io/website?url=https%3A%2F%2Fflylang.org&label=flylang.org" alt="Website">
   </a>
@@ -42,8 +39,7 @@ This repository contains the source of [flylang.org](https://flylang.org), built
 |-------|------|
 | Static site generator | [Zola](https://www.getzola.org/) 0.19+ |
 | Styles | SCSS (compiled by Zola) |
-| Hosting | [Cloudflare Pages](https://pages.cloudflare.com/) |
-| CI/CD | GitHub Actions |
+| Hosting & CI/CD | [Cloudflare Pages](https://pages.cloudflare.com/) (native GitHub integration) |
 
 ## Getting Started
 
@@ -89,29 +85,17 @@ web/
 │   └── install.html     # Install page (dynamic releases)
 ├── sass/
 │   └── main.scss        # All styles
-├── static/              # Copied as-is to public/
-│   ├── img/
-│   ├── fonts/
-│   └── js/
-│       └── install.js   # Fetches latest release from GitHub API
-└── .github/
-    └── workflows/
-        └── deploy.yml   # Build → Cloudflare Pages
+└── static/              # Copied as-is to public/
+    ├── img/
+    ├── fonts/
+    └── js/
+        └── install.js   # Fetches latest release from GitHub API
 ```
 
 ## Deployment
 
-Deployments are fully automated:
-
-- **Push to `main`** → production deploy at [flylang.org](https://flylang.org)
-- **Pull request** → preview deploy with a unique URL
-
-### Required GitHub Secrets
-
-| Secret | Description |
-|--------|-------------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Pages edit permission |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
+Deployment is handled natively by **Cloudflare Pages** — no GitHub Actions needed.
+Every push to `main` triggers a production deploy; every pull request gets an automatic preview URL.
 
 ## Contributing
 

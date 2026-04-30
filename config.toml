@@ -16,7 +16,7 @@ theme = "base16-ocean-dark"
 [extra]
 github_org   = "https://github.com/fly-lang"
 github_repo  = "https://github.com/fly-lang/fly"
-releases_api = "https://api.github.com/repos/fly-lang/fly/releases/latest"
+releases_api = "https://api.github.com/repos/fly-lang/fly/releases"
 twitter      = "https://twitter.com/fly_lang"
 matrix       = "https://matrix.to/#/#flylang:matrix.org"
 email        = "dev@flylang.org"

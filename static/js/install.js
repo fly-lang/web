@@ -18,9 +18,12 @@ async function load() {
   try {
     const res = await fetch(API);
     if (!res.ok) throw new Error(res.statusText);
-    release = await res.json();
+    const releases = await res.json();
+    release = releases[0];
+    if (!release) throw new Error('No releases found');
   } catch {
     document.getElementById('js-version').textContent = 'Could not load release info.';
+    document.getElementById('js-detect-btns').innerHTML = '';
     document.getElementById('js-tbody').innerHTML =
       '<tr><td colspan="4">Failed to fetch releases from GitHub.</td></tr>';
     return;

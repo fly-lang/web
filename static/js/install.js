@@ -1,9 +1,9 @@
 const API = window.FLY_RELEASES_API;
 
 const PLATFORMS = [
-  { key: 'windows', label: 'Windows 64-bit', match: asset => /windows.*x64|x64.*windows/i.test(asset.name) },
+  { key: 'windows', label: 'Windows 64-bit', match: asset => /win/i.test(asset.name) },
   { key: 'macos',   label: 'macOS',           match: asset => /macos|darwin/i.test(asset.name) },
-  { key: 'linux',   label: 'Linux 64-bit',    match: asset => /linux.*x64|x64.*linux/i.test(asset.name) },
+  { key: 'linux',   label: 'Linux 64-bit',    match: asset => /linux/i.test(asset.name) },
 ];
 
 function detectOS() {
@@ -19,8 +19,8 @@ async function load() {
     const res = await fetch(API);
     if (!res.ok) throw new Error(res.statusText);
     const releases = await res.json();
-    release = releases[0];
-    if (!release) throw new Error('No releases found');
+    release = releases.find(r => r.assets.length > 0);
+    if (!release) throw new Error('No releases with assets found');
   } catch {
     document.getElementById('js-version').textContent = 'Could not load release info.';
     document.getElementById('js-detect-btns').innerHTML = '';

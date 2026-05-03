@@ -1,11 +1,11 @@
 +++
-title = "AST & Sema Reference"
+title = "Fly Compiler Internals"
 description = "Compiler internals reference — AST nodes, Sema objects, symbol resolution, Parser and CodeGen pipeline."
 template = "docs-page.html"
 weight = 2
 +++
 
-# Fly AST & Sema Reference
+# Fly Compiler Internals
 
 This document describes every Abstract Syntax Tree (AST) construct produced by the Fly parser and how those nodes are translated into Semantic Analysis (Sema) objects before the CodeGen pass. It includes detailed examples from the test suite and concentrates on symbol table formation and on the `SemaType`, `SemaVar`, `SemaCall`, and `SemaMember*` families that participate in symbol resolution.
 
@@ -248,14 +248,15 @@ void func() {
 - `VAL_ARRAY` - Array literals
 - `VAL_STRUCT` - Struct initialization literals
 - `VAL_NULL` - Null literal
-- `VAL_DEFAULT` - Default value placeholder
+- `VAL_DEFAULT` - Default value placeholder (zero/null initialization)
+- `VAL_ENUM` - Enum entry reference value
+- `VAL_UNSET` - Unset value (index 0 for uninitialized enum slots)
 
 **Common Fields**:
 - **`ValueKind`**: Identifies concrete value type
-- **`Sema`**: `SemaValue*` pointer
 
 **Predicates**:
-- `isBool()`, `isNumber()`, `isString()`, `isArray()`, `isStruct()`, `isNull()`, `isDefault()`
+- `isBool()`, `isNumber()`, `isString()`, `isArray()`, `isStruct()`, `isNull()`, `isDefault()`, `isUnset()`
 
 #### ASTBoolValue
 **Purpose**: Boolean literal values.
@@ -361,6 +362,11 @@ MyClass obj = null
 string str = null
 ```
 
+#### ASTUnsetValue
+**Purpose**: Represents the unset/uninitialized state for enum variables (index 0). Emitted when an enum variable is declared without an initializer.
+
+**Kind**: `VAL_UNSET`
+
 ### 3.4 Expressions
 
 #### ASTExpr Base
@@ -382,7 +388,8 @@ string str = null
 - **`ExprKind`**: Identifies concrete expression type
 - **`Parent`**: `ASTExpr*` - parent expression in tree
 - **`Child`**: `ASTExpr*` - child expression (for chaining)
-- **`Sema`**: `SemaExpr*` - semantic representation (provides type information)
+
+**Note**: `ASTExpr` carries no `Sema*` pointer. Name-resolved nodes (`ASTIdentifier`, `ASTCall`, `ASTMember`) store a `Symbol*` (`ResolvedSymbol`) that the resolver fills in. The full Sema tree is built separately and not back-linked from the AST.
 
 #### ASTIdentifier
 **Purpose**: References to variables, parameters, or named entities.
@@ -390,7 +397,7 @@ string str = null
 **Structure**:
 - **`Name`**: `llvm::StringRef` - identifier name
 - **`Var`**: `ASTVar*` - referenced variable declaration (may be set during parsing)
-- **`Sema`**: `SemaVar*` - semantic representation of the referenced entity
+- **`ResolvedSymbol`**: `Symbol*` - filled by the Resolver; points to the `Symbol` entry in the scope chain
 
 **Examples**:
 ```cpp
@@ -444,6 +451,7 @@ Test a = Test.A
 - **`Name`**: `llvm::StringRef` - function/method name
 - **`Parent`**: `ASTExpr*` - for method calls (object instance), inherited from `ASTExpr`
 - **`Args`**: `SmallVector<ASTArg*, 8>` - call arguments
+- **`ResolvedSymbol`**: `Symbol*` - filled by the Resolver; points to the matching `SemaFunctionBase`
 - **`CallKind`**: `ASTCallKind` enum
   - `CALL_DIRECT` - Regular function/method call
   - `CALL_NEW` - Constructor with `new` keyword
@@ -655,6 +663,7 @@ float f = (float)intValue
 
 **Statement Kinds** (`ASTStmtKind`):
 - `STMT_BLOCK` - Block of statements
+- `STMT_DECL` - Local variable declaration (`ASTDeclStmt`)
 - `STMT_EXPR` - Expression statement
 - `STMT_IF` - If/elsif/else conditionals
 - `STMT_SWITCH` - Switch/case statement
@@ -722,7 +731,7 @@ void func(int a, int b) {
 - Increment/decrement operations
 - Any expression executed for side effects
 
-**IMPORTANT**: Assignments are now represented using `ASTExprStmt` containing an `ASTBinary` with `OP_BINARY_ASSIGN`, not a separate `ASTAssignStmt` class.
+**IMPORTANT**: Assignments to existing variables use `ASTExprStmt` with `OP_BINARY_ASSIGN`. Local variable *declarations* (first introduction of a variable) use `ASTDeclStmt` (see below), not `ASTExprStmt`.
 
 **Example**:
 ```cpp
@@ -730,6 +739,25 @@ a = 5              // ASTExprStmt(Expr=ASTBinary(OP_BINARY_ASSIGN, ...))
 func()             // ASTExprStmt(Expr=ASTCall("func"))
 a++                // ASTExprStmt(Expr=ASTUnary(OP_UNARY_POST_INCR, ...))
 ```
+
+#### ASTDeclStmt
+**Purpose**: Local variable declaration statement. Wraps an `ASTLocalVar` with an optional initializer expression. Used whenever a new variable is introduced inside a function body or block.
+
+**Location**: `include/AST/ASTDeclStmt.h`
+
+**Structure**:
+- **`LocalVar`**: `ASTLocalVar*` - the declared variable
+- **`Expr`**: `ASTExpr*` - optional initializer (null if no initializer)
+
+**Syntax**: `Type Identifier ['=' Expression]`
+
+**Example**:
+```cpp
+int x = 42        // ASTDeclStmt(LocalVar=ASTLocalVar("x", int), Expr=ASTNumberValue("42"))
+string s          // ASTDeclStmt(LocalVar=ASTLocalVar("s", string), Expr=null)
+```
+
+**Key distinction**: An assignment to an *already declared* variable (`x = 5`) generates `ASTExprStmt(OP_BINARY_ASSIGN)`. The *first declaration* (`int x = 5`) generates `ASTDeclStmt`.
 
 #### ASTIfStmt
 **Purpose**: Conditional branching with if/elsif/else.
@@ -1085,10 +1113,10 @@ public struct Test {
 
 **Additional Fields**:
 - **`Enum`**: `ASTEnum*` - reference to the parent enum
-- **`Index`**: `uint32_t` - the numeric value/index of this entry (1-based)
-- **`Comment`**: `llvm::StringRef` - documentation comment
+- **`Index`**: `uint32_t` - numeric index, initialized to 0 and set by the Resolver via `setIndex()`
+- **`Sym`**: `Symbol*` - symbol table entry, set during resolution
 
-**Syntax**: Identifier in space-separated list (note: not comma-separated)
+**Syntax**: Comma-separated identifiers inside the enum block
 
 **Example**:
 ```cpp
@@ -1097,12 +1125,6 @@ public enum Status { IDLE, RUNNING, STOPPED }
 //   [0]: Name="IDLE"
 //   [1]: Name="RUNNING"
 //   [2]: Name="STOPPED"
-```
-
-**Test Example** (`ParserClassTest.cpp - Enum test`):
-```cpp
-public enum Test { A, B, C }
-// Enum with 3 entries, comma-separated
 ```
 
 ### 3.7 Functions and Methods
@@ -1117,11 +1139,10 @@ public enum Test { A, B, C }
 - **`ReturnType`**: `ASTType*` - return type
 - **`Modifiers`**: `SmallVector<ASTModifier*, 8>` - Visibility and other modifiers
 - **`Params`**: `SmallVector<ASTParam*, 8>` - parameter list
-- **`Body`**: `ASTBlockStmt*` - function body (null for declarations)
+- **`Body`**: `ASTBlockStmt*` - function body (null for header-only declarations)
 - **`FunctionKind`**: `ASTFunctionKind` - distinguishes between functions and methods
   - `F_FUNCTION` - Regular function
   - `F_METHOD` - Method (used by `ASTMethod` subclass)
-- **`Comment`**: `ASTComment*` - documentation comment
 
 **Syntax**:
 ```
@@ -1195,7 +1216,6 @@ public class Test {
 - **`Modifiers`**: `SmallVector<ASTModifier*, 8>` - Visibility and other modifiers
 - **`Bases`**: `SmallVector<ASTType*, 4>` - base classes/interfaces (**comma-separated**)
 - **`Nodes`**: `SmallVector<ASTNode*, 8>` - members (attributes, methods, constructors)
-- **`Comment`**: `ASTComment*` - documentation
 
 **Syntax**:
 ```
@@ -1269,29 +1289,26 @@ void func() {
 - **`Name`**: `llvm::StringRef` - enum name
 - **`Modifiers`**: `SmallVector<ASTModifier*, 8>` - Visibility modifiers
 - **`Bases`**: `SmallVector<ASTType*, 4>` - optional base types/interfaces (comma-separated)
-- **`Nodes`**: `SmallVector<ASTNode*, 8>` - contains enum entries and other declarations
-- **`Comment`**: `ASTComment*`
-
-**Note**: Enum values are stored internally in a `StringMap<ASTEnumEntry*> Vars` field, not directly in `Nodes`.
+- **`Nodes`**: `SmallVector<ASTNode*, 8>` - contains enum entries in declaration order
 
 **Syntax**:
 ```
-[Modifiers] 'enum' Identifier [':' Base (',' Base)*] '{' Entry [Entry]* '}'
+[Modifiers] 'enum' Identifier [':' Base (',' Base)*] '{' Entry [',' Entry]* '}'
 ```
 
-**CRITICAL**: Enum entries are **space-separated**, not comma-separated.
+**CRITICAL**: Enum entries are **comma-separated** (trailing comma is accepted).
 
 **Test Example** (`ParserClassTest.cpp - Enum test`):
 ```cpp
 public enum Test {
-  A B C
+  A, B, C
 }
 // ASTEnum:
 //   Name = "Test"
 //   Modifiers = [public]
-//   Vars["A"] = ASTEnumEntry("A", Index=1)
-//   Vars["B"] = ASTEnumEntry("B", Index=2)
-//   Vars["C"] = ASTEnumEntry("C", Index=3)
+//   Nodes[0] = ASTEnumEntry("A")
+//   Nodes[1] = ASTEnumEntry("B")
+//   Nodes[2] = ASTEnumEntry("C")
 ```
 
 **Usage Example**:
@@ -1301,23 +1318,21 @@ void main() {
     a = Test.B        // Assignment of enum value
     Test c = a        // Variable-to-variable assignment
 }
-// Accessing enum entries uses ASTIdentifier expressions
 ```
 
-**With Base Types** (theoretical):
+**With Base Types**:
 ```cpp
-public enum Status : BaseEnum, Interface {
-    IDLE RUNNING STOPPED
+public enum Status : BaseEnum {
+    IDLE, RUNNING, STOPPED
 }
-// Bases parsed comma-separated like classes, entries space-separated
+// Bases comma-separated; entries also comma-separated
 ```
 
 **Resolution**:
 1. Parser creates `ASTEnum` with name and modifiers
-2. Parses space-separated entry list
-3. Each entry becomes `ASTEnumEntry` stored in the `Vars` StringMap
-4. Resolver creates semantic representations for the enum type and entries
-5. Entries are indexed starting from 1
+2. Parses comma-separated entry list; each becomes an `ASTEnumEntry` appended to `Nodes`
+3. Resolver creates `SemaEnumType` with an `Entries: StringMap<SemaEnumEntry*>` for fast lookup
+4. Each `SemaEnumEntry` gets its index assigned sequentially via `setIndex()`
 
 ### 3.10 Modifiers
 
@@ -1494,30 +1509,34 @@ ASTFunction("process")
 ## 5. Sema Fundamentals
 | Component | Location | Notes |
 |-----------|----------|-------|
-| `SemaNode` | `include/Sema/SemaNode.h` | Base class with `SemaKind` enumeration (module, namespace, import, type, var, call, op, function, class, attribute, method, enum, enum entry, value).
-| `SemaExpr` | `include/Sema/SemaExpr.h` | Adds parent/child expression linkage and cached `SemaType*`.
-| `SemaFunctionBase` | `include/Sema/SemaFunctionBase.h` | Common state for free functions and class methods: mangled name, params, locals, return type, error handler, `CodeGenFunctionBase*` placeholder.
+| `SemaNode` | `include/Sema/SemaNode.h` | Base class carrying a `SemaKind` enum. The full list of kinds covers: NAMESPACE, IMPORT, type variants (TYPE_VOID, TYPE_BOOL, TYPE_INTEGER, TYPE_FLOAT, TYPE_STRING, TYPE_ERROR, TYPE_ARRAY, TYPE_CLASS, TYPE_ENUM), variable kinds (PARAM_VAR, LOCAL_VAR, ERROR_VAR, ATTRIBUTE, INSTANCE_VAR), expression kinds (MEMBER, CALL, UNARY, BINARY, TERNARY, CAST), top-level (FUNCTION, METHOD), value kinds (ENUM_ENTRY, ENUM_LIST, VALUE), and all statement kinds (STMT_BLOCK, STMT_DECL, STMT_EXPR, STMT_RETURN, STMT_IF, STMT_SWITCH, STMT_LOOP, STMT_LOOP_IN, STMT_DELETE, STMT_BREAK, STMT_CONTINUE, STMT_FAIL, STMT_HANDLE).
+| `SemaExpr` | `include/Sema/SemaExpr.h` | Extends `SemaNode`. Adds parent/child expression linkage, a `SemaType*`, and a `CodeGenExpr*` placeholder.
+| `SemaFunctionBase` | `include/Sema/SemaFunctionBase.h` | Common state for free functions and class methods: `SymbolTable* Scope`, params, locals, return type, `NamespaceName` (flattened), `SemaError* ErrorHandler`, `bool Fallible`, `SemaBlockStmt* Body`, and a pure `getCodeGen()`.
 | `SemaBuilder` | `include/Sema/SemaBuilder.h` | Factory for every Sema subtype (functions, classes, vars, literals, calls, etc.).
-| `Resolver` | `include/Sema/Resolver.h`, `src/Sema/Resolver.cpp` | Main visitor bridging AST to Sema. Manages scopes, modules, name spaces, classes/enums, and expressions.
-| `Registry` | `include/Sema/Registry.h` | Tracks modules, namespaces, and built-in scopes used by the resolver.
+| `Resolver` | `include/Sema/Resolver.h`, `compiler/Sema/Resolver.cpp` | Main visitor bridging AST to Sema. Manages scopes, modules, namespaces, classes/enums, and expressions.
+| `Registry` | `include/Sema/Registry.h` | Tracks modules, namespaces, and built-in/global scopes. Provides `LookupBuiltinType`, `LookupFunction`, `LookupName`, and `getOrCreateNameSpace`.
 
 ## 6. Sema Types (Detailed)
-`SemaType` encapsulates semantic type identity and default value behavior.
-- **Core fields**: immutable `Id`, `SemaTypeKind`, `Name`, optional `SemaValue* DefaultValue`. Predicates (`isBool`, `isInteger`, `isArray`, etc.) drive type checking.
-- **Equality**: pointer equality wrappers plus `isEquals` for structural checks (arrays compare element types/size expressions).
+`SemaType` encapsulates semantic type identity.
+- **Core fields**: immutable `Id` (`size_t`), `Name` (`std::string`), `CodeGenType* CG`. The `SemaKind` inherited from `SemaNode` serves as the type discriminator (e.g. `TYPE_BOOL`, `TYPE_INTEGER`, `TYPE_ARRAY`). Predicates (`isBool`, `isInteger`, `isArray`, etc.) wrap `getKind()`.
+- **Equality**: pointer equality wrappers plus `isEquals` for structural checks (arrays compare element types and size).
 
 ### Derived Types
 | Class | Notes |
 |-------|-------|
-| `SemaIntType` | Wraps `SemaIntTypeKind` (byte/ushort/short/uint/int/ulong/long). Signedness is encoded by the enum value (low bit indicates signed).
-| `SemaFloatType` | Wraps `SemaFloatTypeKind` (`float`, `double`).
-| `SemaArrayType` | References the element `SemaType*` and AST size expression for deferred constant folding.
-| `SemaClassType` | Rich type representing class/interface/struct definitions. Holds module/namespace ownership, symbol table, nodes (attributes, methods, ctors), visibility, constant flag, base classes, `this` instance, maps of attributes/methods/ctors, and optional comment/CodeGen objects.
-| `SemaEnumType` | Similar management for enums: symbol table, base enums, visibility, constant flag, entry map.
-| `SemaErrorType` | Sentinel type returned when resolution fails to prevent cascading issues.
+| `SemaBoolType` | Singleton boolean type (`bool`). Kind: `TYPE_BOOL`.
+| `SemaNumberType` | Intermediate abstract base for `SemaIntType` and `SemaFloatType`. Carries a numeric `Rank` for implicit conversion ordering.
+| `SemaIntType` | Wraps `SemaIntTypeKind` (byte=8, ushort=16, uint=32, ulong=64, short=15, int=31, long=63). Odd values are signed, even are unsigned.
+| `SemaFloatType` | Wraps `SemaFloatTypeKind` (`float`=32, `double`=64).
+| `SemaStringType` | Singleton string type (`string`). Kind: `TYPE_STRING`.
+| `SemaVoidType` | Singleton void type. Kind: `TYPE_VOID`.
+| `SemaArrayType` | References the element `SemaType*`, a compile-time `Size` (`uint64_t`), and an optional `SizeExpr` (`SemaExpr*`) for expressions resolved at compile time.
+| `SemaClassType` | Rich type for class/interface/struct. Holds module reference, `SymbolTable* Symbols`, nodes, `SemaVisibilityKind`, `Constant`/`Abstract`/`Final` flags, base classes (`SmallVector<SemaClassType*>`), `SemaClassInstance* This`, attribute/method/constructor maps, optional comment, and `CodeGenClass*`.
+| `SemaEnumType` | Enum type with `SymbolTable* Symbols`, `Nodes`, `SuperEnums: StringMap<SemaEnumType*>`, `Entries: StringMap<SemaEnumEntry*>`, visibility, constant flag, and optional comment.
+| `SemaErrorType` | Sentinel type for failed resolution (prevents diagnostic cascades).
 
 ### Builtins
-`SemaBuiltin` exposes singleton getters for primitive types and creates array types when needed. Resolver consults `Registry::LookupBuiltinType` before searching namespaces.
+`SemaBuiltin` exposes static singleton getters (`getBoolType()`, `getIntType()`, etc.) for all primitive types, and creates `SemaArrayType` instances on demand. The Resolver consults `Registry::LookupBuiltinType` before searching namespaces.
 
 ## 7. Symbol Table & Scope Model
 - `SymbolTable` (`include/Sema/SymbolTable.h`) implements a scoped lookup chain backed by `llvm::StringMap<Symbol*>`. `pushScope()` creates a child table linked via `Parent`.
@@ -1526,21 +1545,23 @@ ASTFunction("process")
 - Symbols are inserted immediately after SemaBuilder creates the corresponding semantic object (e.g., a function symbol inserted in the parent scope before resolving the body).
 
 ## 8. Sema Variables (Detailed)
-`SemaVar` (`include/Sema/SemaVar.h`) is the semantic counterpart for any named storage.
-- **Core fields**: owning `ASTVar*`, `SemaVarKind` (param, local, member, error, class attribute, class instance, enum entry), `Constant` flag (derived from modifiers), `CodeGenVarBase*` placeholder.
-- **Naming**: `getName()` defers to the AST by default; some subclasses override for synthetic identifiers (`SemaClassInstance` uses "this").
+`SemaVar` (`include/Sema/SemaVar.h`) is the semantic counterpart for any named storage. It extends `SemaExpr`.
+- **Core fields**: `ASTVar* AST`, `bool Constant` (derived from modifiers), `SemaAlloc* Alloc` (non-owning; either a `SemaSmartAlloc` for smart-pointer heap objects or a `SemaStringAlloc` for heap strings). The variable *kind* is encoded in the `SemaKind` inherited from `SemaNode` (PARAM_VAR, LOCAL_VAR, ERROR_VAR, ATTRIBUTE, INSTANCE_VAR).
+- **Naming**: `getName()` defers to the AST by default; `SemaClassInstance` overrides to return "this".
+- **CodeGen**: `getCodeGen()` / `setCodeGen(CodeGenVar*)` live on `SemaVar` directly.
 
 ### Subclasses
 | Class | Purpose |
 |-------|---------|
-| `SemaLocalVar` | Function/block locals. Owns `CodeGenVar*` placeholder.
-| `SemaParam` | Function parameter variables; retains order and codegen slot.
-| `SemaMemberVar` | Result of resolving an `ASTMember` expression. Stores pointer to the underlying `SemaClassAttribute*`, (optional) `CodeGenVar*`, and inherits constant flag from attribute definition.
-| `SemaClassAttribute` | Declaration-time representation of class/struct fields. Records parent `SemaClassType`, visibility, static flag, inherited attribute reference, comment, and codegen slot.
-| `SemaClassInstance` | Synthetic `this` variable for methods. Maintains a map from base type id → base instance to support `super` style access.
-| `SemaEnumEntry` | Enum constants, each with index, comment, and `CodeGenEnumEntry*` placeholder.
+| `SemaLocalVar` | Function/block locals. Kind: `LOCAL_VAR`.
+| `SemaParam` | Function parameter variables; retains index and codegen slot. Kind: `PARAM_VAR`.
+| `SemaError` | Semantic variable for `error` declarations in `handle` blocks. Extends `SemaVar`. Kind: `ERROR_VAR`. Has `CodeGenError*`.
+| `SemaMember` | Result of resolving an `ASTMember` expression. Extends `SemaExpr` (not `SemaVar`). Holds `ASTMember& AST` and `SemaExpr* Ref` (the resolved attribute or enum entry).
+| `SemaClassAttribute` | Declaration-time representation of class/struct fields. Records `SemaClassType& Class`, visibility, static flag, `Inherited` (for base-class attributes), comment, and `CodeGenVar*`.
+| `SemaClassInstance` | Synthetic `this` variable for methods. Kind: `INSTANCE_VAR`.
+| `SemaEnumEntry` | Enum constant. Extends `SemaExpr`. Holds `ASTEnumEntry& AST`, `size_t Index`, optional comment, and `CodeGenEnumEntry*`.
 
-The resolver inserts matching `Symbol`s for each declaration so that future identifier/member lookups retrieve the `SemaVar` instead of raw AST nodes.
+The resolver inserts matching `Symbol`s for each declaration so that future identifier/member lookups find the correct `SemaNode`.
 
 ## 9. Assignment Statement Resolution
 Assignment statements in Fly follow a specific AST structure that distinguishes between the assignment operator `=` and other operators like equality `==`.
@@ -1603,16 +1624,17 @@ void func(bool result, int a) {
 (Similar compound patterns for `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`)
 
 ## 10. Member Access Resolution
-1. Parser produces `ASTMember` nodes (holding name, parent expression pointer, `ASTVar*` for the definition).
+1. Parser produces `ASTMember` nodes (holding name and parent expression pointer).
 2. Resolver evaluates the parent expression to obtain a `SemaExpr*`. If the parent is a namespace, class, enum, or call, it delegates to the correct `ResolveChild` overload.
-3. `ResolveChildMember` locates the target attribute via `SemaClassType::LookupAttribute`. It instantiates a `SemaMemberVar` via `SemaBuilder::CreateMemberVar`, linking the AST member, parent expression, and referenced `SemaClassAttribute`.
-4. The resulting `SemaMemberVar` inherits the attribute's type, visibility, constant flag, and inserted symbol table entry (typically within the class scope when the attribute is declared, and within the current expression scope for temporary references).
+3. The resolver locates the target via the parent type's symbol table (e.g. `SemaClassType::LookupAttribute`, `SemaEnumType::LookupEntry`). It instantiates a `SemaMember` via `SemaBuilder`, linking the `ASTMember`, parent `SemaExpr*`, and the resolved `SemaExpr* Ref`.
+4. The resulting `SemaMember` derives its `SemaType` from the referenced attribute or enum entry.
 
 ## 11. Calls & Function Binding
 `SemaCall` (`include/Sema/SemaCall.h`) represents invocation expressions and stores:
-- Reference to the originating `ASTCall` (`getAST`).
-- Target `SemaFunctionBase*` (free function or class method) once resolved (`setFunction`).
-- Optional `SemaErrorHandler*` for `fail/handle` constructs.
+- Reference to the originating `ASTCall&` (`getAST`).
+- Target `SemaFunctionBase*` (free function or class method) once resolved.
+- Optional `SemaError*` (`ErrorHandler`) for `fail/handle` constructs.
+- `SmallVector<SemaExpr*, 8> Args` — resolved argument expressions.
 - `isNew()` convenience for constructor expressions.
 
 Resolution steps:
@@ -1629,11 +1651,11 @@ Every expression node (`ASTExpr`) holds a pointer to its semantic counterpart (`
 - **Class Methods**: `SemaClassMethod` extends `SemaFunctionBase` with owning class, `this` instance, visibility, static flag, overridden method, comment, and `CodeGenClassMethod*`.
 - **Classes**: `SemaClassType` (see §5), plus `SemaClassAttribute` for fields and `SemaClassInstance` for `this`.
 - **Enums**: `SemaEnumType` with entry nodes (`SemaEnumEntry`). 
-  - **Syntax**: `[Modifiers] 'enum' Identifier [':' BaseType] '{' Entry (',' Entry)* '}'`
-  - **Example**: `public enum Status { IDLE, RUNNING, STOPPED }` creates an `ASTEnum` with three `ASTEnumEntry` children.
-  - **Resolution**: Parser produces comma-separated `ASTEnumEntry` nodes. Resolver creates `SemaEnumType`, inserts it into the parent scope, then adds each `SemaEnumEntry` (with index, name, and `CodeGenEnumEntry*` slot) to the enum's symbol table.
-  - **Member Access**: `Status.IDLE` is parsed as `ASTMember(parent=ASTIdentifier("Status"), name="IDLE")`. Resolver looks up `Status` → `SemaEnumType`, then finds `IDLE` in the enum's entry map, returning a `SemaEnumEntry`.
-  - **Base Types**: Optional `: BaseType` allows enums to extend other enums or interfaces. Resolver validates the base chain and populates `SemaEnumType::getBases()`.
+  - **Syntax**: `[Modifiers] 'enum' Identifier [':' BaseEnum (',' BaseEnum)*] '{' Entry [',' Entry]* '}'`
+  - **Example**: `public enum Status { IDLE, RUNNING, STOPPED }` creates an `ASTEnum` with three `ASTEnumEntry` children in `Nodes`.
+  - **Resolution**: Resolver creates `SemaEnumType`, inserts it into the parent scope, then adds each `SemaEnumEntry` (with sequential index and `CodeGenEnumEntry*` slot) to `Entries: StringMap<SemaEnumEntry*>`.
+  - **Member Access**: `Status.IDLE` is parsed as `ASTMember(parent=ASTIdentifier("Status"), name="IDLE")`. Resolver looks up `Status` → `SemaEnumType`, then finds `IDLE` via `LookupEntry()`, returning a `SemaEnumEntry` wrapped in a `SemaMember`.
+  - **Base Enums**: Optional `: BaseEnum` (comma-separated). Resolver validates and populates `SuperEnums: StringMap<SemaEnumType*>`.
 
 ## 14. Error Handling with fail/handle
 
@@ -1676,8 +1698,8 @@ The parser makes the expression optional by checking if the next token is a stat
 4. `ParseHandleStmt` consumes `handle`, parses the statement/block, and creates `ASTHandleStmt` with the identifier as `ErrorHandler`.
 
 **Resolution**:
-- The error variable becomes a `SemaLocalVar` with type `SemaErrorType`.
-- `SemaErrorHandler` tracks the relationship between the call and the error variable.
+- The error variable becomes a `SemaError` (extends `SemaVar`, kind `ERROR_VAR`) with `SemaErrorType`.
+- `SemaFunctionBase::ErrorHandler` and `SemaCall::ErrorHandler` (`SemaError*`) track the fail/handle relationship.
 - The handle block's statements are resolved within a nested scope.
 
 ## 15. Scope & Symbol Resolution Flow
@@ -1685,7 +1707,7 @@ The parser makes the expression optional by checking if the next token is a stat
 2. **Imports**: `SemaImport` nodes are created. Symbols for imported namespaces are not immediately inserted; instead, resolver stores symbol tables for deferred lookup.
 3. **Global Vars / Functions / Classes / Enums**: For each declaration, resolver creates the Sema object, inserts a symbol in the parent scope, then resolves nested content (e.g., function body, class members) under a pushed scope.
 4. **Statements & Expressions**: Blocks call `EnterScope`/`ExitScope`. Locals are inserted into block-level symbol tables before resolving their initializers. Expressions delegate to `ResolveExpr`, `ResolveParent`, and `ResolveChild*` helpers.
-5. **Errors**: Diagnostics are emitted through `Diag`. When a binding fails, resolver attaches `SemaErrorType` or `SemaVarKind::ERROR_VAR` placeholders so the pass can continue.
+5. **Errors**: Diagnostics are emitted through `Diag`. When a binding fails, resolver attaches `SemaErrorType` or uses `SemaKind::ERROR_VAR` placeholders so the pass can continue.
 
 ## 16. Worked Example: Local Variable Reference
 1. Parser builds `ASTLocalVar` for `let x: int = 1;` and later an `ASTIdentifier` for `x`.
@@ -1702,12 +1724,13 @@ The table below lists every header in `include/AST/` and the primary constructs 
 | `ASTBase.h` | `ASTBase`, `ASTKind` | Base mixed into every AST node for location/kind. |
 | `ASTBlockStmt.h` | `ASTBlockStmt` | Statement sequencing plus local variable registry. |
 | `ASTBreakStmt.h` | `ASTBreakStmt` | `break` statement AST. |
-| `ASTBuilder*.h` | `ASTBuilder`, `ASTBuilderStmt`, `ASTBuilderIfStmt`, `ASTBuilderLoopStmt`, `ASTBuilderSwitchStmt` | Parsing-time helpers that manufacture AST nodes for different syntactic categories. |
+| `ASTBuilder*.h` | `ASTBuilder`, `ASTBuilderStmt`, `ASTBuilderIfStmt`, `ASTBuilderLoopStmt`, `ASTBuilderLoopInStmt`, `ASTBuilderSwitchStmt` | Parsing-time helpers that manufacture AST nodes for different syntactic categories. |
 | `ASTCall.h` | `ASTCall`, `ASTCallKind` | Call expressions, including `new`/`new_shared` variants and argument storage. |
 | `ASTCast.h` | `ASTCast` | Explicit cast expressions with target `ASTType`. |
 | `ASTClass.h` | `ASTClass`, `ASTClassKind` | Class/interface/struct declarations storing modifiers, members, and bases. |
 | `ASTComment.h` | `ASTComment` | Doc-block/lint comment capture feeding into `SemaComment`. |
 | `ASTContinueStmt.h` | `ASTContinueStmt` | `continue` statement AST. |
+| `ASTDeclStmt.h` | `ASTDeclStmt` | Local variable declaration statement wrapping `ASTLocalVar` and optional initializer expression. |
 | `ASTDeleteStmt.h` | `ASTDeleteStmt` | `delete` statement AST for memory/resource cleanup. |
 | `ASTEnum.h` | `ASTEnum` | Enum declarations with comma-separated entries, modifiers, and optional base types. |
 | `ASTEnumEntry.h` | `ASTEnumEntry` | Individual enum entries tied to `SemaEnumEntry`. |
@@ -1722,14 +1745,16 @@ The table below lists every header in `include/AST/` and the primary constructs 
 | `ASTLocalVar.h` | `ASTLocalVar` | Local variable declarations bridging to `SemaLocalVar`. |
 | `ASTLoopInStmt.h` | `ASTLoopInStmt` | `for-in` style looping construct. |
 | `ASTLoopStmt.h` | `ASTLoopStmt` | Traditional loop statements (while/for). |
-| `ASTMember.h` | `ASTMember` | Member access expressions that link to `SemaMemberVar`. |
+| `ASTMember.h` | `ASTMember` | Member access expressions resolved to a `SemaMember` node. |
 | `ASTMethod.h` | `ASTMethod` | Class-scoped function definitions. |
 | `ASTModifier.h` | `ASTModifier`, `ASTModifierKind` | Encodes `public/private/protected/static/const`. |
 | `ASTModule.h` | `ASTModule` | Translation unit root storing namespace and toplevel node order. |
 | `ASTName.h` | `ASTName` | Qualified identifier segment used by imports/types. |
 | `ASTNameSpace.h` | `ASTNameSpace` | Namespace declarations referencing `ASTName` chains. |
 | `ASTNode.h` | `ASTNode` | Base class for visitable nodes with `Visited` flag. |
-| `ASTOp.h` | `ASTUnary`, `ASTBinary`, `ASTTernary`, `Precedence` and enum variants | All operator expressions and precedence utilities. Assignments use `OP_BINARY_ASSIGN`. Note: These are found in separate headers (`ASTUnary.h`, `ASTBinary.h`, `ASTTernary.h`). |
+| `ASTUnary.h` | `ASTUnary`, `ASTUnaryKind` | Unary operator expressions (pre/post increment/decrement, logical not). |
+| `ASTBinary.h` | `ASTBinary`, `ASTBinaryKind` | Binary operator expressions. Includes arithmetic, bitwise, logical, comparison, and assignment operators. `OP_BINARY_ASSIGN` is the assignment operator. |
+| `ASTTernary.h` | `ASTTernary` | Ternary conditional expression (`cond ? true : false`). |
 | `ASTParam.h` | `ASTParam` | Function/method parameter declaration nodes. |
 | `ASTReturnStmt.h` | `ASTReturnStmt` | `return` statement AST. |
 | `ASTRuleStmt.h` | `ASTRuleStmt` | Rule-based statement used by pattern/DSL features. |
@@ -1745,38 +1770,61 @@ All headers in `include/Sema/` are catalogued below with their primary exports.
 
 | Header | Key Types / Responsibilities | Notes |
 |--------|------------------------------|-------|
-| `Helper.h` | Utility helpers | Shared resolver/builder helpers (string munging, diagnostics glue). |
-| `Registry.h` | `Registry`, `LocalScope` | Global registry of modules, namespaces, builtin scope, and function bodies. |
+| `Helper.h` | Utility helpers | Shared resolver/builder helpers (diagnostics glue, string utilities). |
+| `Registry.h` | `Registry`, `LocalScope` | Global registry of modules, namespaces, builtin/global scopes. `LocalScope` pairs a `SemaFunctionBase*` with a `SymbolTable*`. |
 | `Resolver.h` | `Resolver` | AST visitor driving semantic binding and scope management. |
-| `Sema.h` | `Sema` | Entry point coordinating builder, resolver, validator, diagnostics, and context. |
+| `SemaAlloc.h` | `SemaAlloc` | Base class for heap-allocation tracking objects attached to `SemaVar`. |
+| `SemaBinary.h` | `SemaBinary` | Semantic binary operator node. |
+| `SemaBlockStmt.h` | `SemaBlockStmt` | Semantic block statement; owns alloc list for smart/string pointers. |
+| `SemaBreakStmt.h` | `SemaBreakStmt` | Semantic `break` statement. |
 | `SemaBuilder.h` | `SemaBuilder` | Factory/static creators for every Sema node class. |
-| `SemaBuilderModifiers.h` | Modifier helpers | Converts `ASTModifier`s into semantic visibility/const/static flags. |
-| `SemaBuiltin.h` | `SemaBuiltin` | Singleton accessors for builtin `SemaType`s and array type creation. |
-| `SemaCall.h` | `SemaCall` | Semantic representation of call expressions (see §9). |
-| `SemaClassAttribute.h` | `SemaClassAttribute` | Semantic record for declared class members including visibility/statics. |
-| `SemaClassInstance.h` | `SemaClassInstance` | Synthetic `this` variable plus base-instance mapping. |
-| `SemaClassMethod.h` | `SemaClassMethod`, `SemaClassMethodKind` | Class methods/ctors/abstract functions extending `SemaFunctionBase`. |
-| `SemaClassType.h` | `SemaClassType`, `SemaClassKind` | Full semantic class metadata (symbols, bases, members, codegen hooks). |
-| `SemaComment.h` | `SemaComment` | Wraps `ASTComment` for later documentation use. |
-| `SemaEnumEntry.h` | `SemaEnumEntry` | Semantic enum constants with indices/codegen link. |
-| `SemaEnumType.h` | `SemaEnumType` | Enum semantic metadata (symbols, entries, bases). |
-| `SemaErrorHandler.h` | `SemaErrorHandler` | Tracks `fail/handle` constructs associated with calls and functions. |
-| `SemaExpr.h` | `SemaExpr` | Semantic base for all expressions with parent/child chain. |
-| `SemaFunction.h` | `SemaFunction` | Free-function semantic node with module/scope/comment info. |
-| `SemaFunctionBase.h` | `SemaFunctionBase` | Shared functionality across `SemaFunction` and `SemaClassMethod`. |
-| `SemaImport.h` | `SemaImport` | Semantic record of `ASTImport`, including symbol table linkage. |
-| `SemaLocalVar.h` | `SemaLocalVar` | Local variable semantics with `CodeGenVar*`. |
-| `SemaMemberVar.h` | `SemaMemberVar` | Member-access semantic nodes bridging expressions to attributes. |
-| `SemaModule.h` | `SemaModule` | Ties an `ASTModule` to namespace, imports, and child nodes. |
-| `SemaNameSpace.h` | `SemaNameSpace` | Namespace-level semantic scope, child hierarchy, and global symbol maps. |
-| `SemaNode.h` | `SemaNode`, `SemaKind` | Base for all semantic constructs. |
-| `SemaParam.h` | `SemaParam` | Function/method parameter semantics with codegen handle. |
-| `SemaType.h` | `SemaType` hierarchy (`SemaIntType`, `SemaFloatType`, `SemaArrayType`, `SemaErrorType`) | Full type system semantics (see §5). |
+| `SemaBuilderModifiers.h` | Modifier helpers | Converts `ASTModifier`s into `SemaVisibilityKind`/const/static flags. |
+| `SemaBuiltin.h` | `SemaBuiltin` | Static singleton accessors for all primitive `SemaType`s. |
+| `SemaCall.h` | `SemaCall` | Semantic call expression: target `SemaFunctionBase*`, `SemaError* ErrorHandler`, resolved `Args`. |
+| `SemaCast.h` | `SemaCast` | Semantic explicit cast expression. |
+| `SemaClassAttribute.h` | `SemaClassAttribute` | Semantic class/struct field with visibility, static flag, inherited ref, comment, and `CodeGenVar*`. |
+| `SemaClassInstance.h` | `SemaClassInstance` | Synthetic `this` variable for methods. |
+| `SemaClassMethod.h` | `SemaClassMethod`, `SemaClassMethodKind` | Class methods/constructors/abstract functions extending `SemaFunctionBase`. |
+| `SemaClassType.h` | `SemaClassType`, `SemaClassKind` | Full semantic class: symbols, bases, attribute/method/constructor maps, codegen hooks. |
+| `SemaComment.h` | `SemaComment` | Wraps `ASTComment` for documentation purposes. |
+| `SemaContext.h` | `SemaContext` | Compilation context passed through the Sema pipeline. |
+| `SemaContinueStmt.h` | `SemaContinueStmt` | Semantic `continue` statement. |
+| `SemaDeclStmt.h` | `SemaDeclStmt` | Semantic local variable declaration statement. |
+| `SemaDeleteStmt.h` | `SemaDeleteStmt` | Semantic `delete` statement. |
+| `SemaEnumEntry.h` | `SemaEnumEntry` | Semantic enum constant: `ASTEnumEntry&`, `size_t Index`, comment, `CodeGenEnumEntry*`. |
+| `SemaEnumList.h` | `SemaEnumList` | Represents a `EnumType.list()` built-in call returning an array of all enum entries. |
+| `SemaEnumType.h` | `SemaEnumType` | Enum type: symbol table, `Entries: StringMap<SemaEnumEntry*>`, `SuperEnums`. |
+| `SemaError.h` | `SemaError` | Semantic variable for `error` declarations in `handle` blocks. Extends `SemaVar`. Has `CodeGenError*`. |
+| `SemaExpr.h` | `SemaExpr` | Semantic base for all expressions: parent/child chain, `SemaType*`, `CodeGenExpr*`. |
+| `SemaExprStmt.h` | `SemaExprStmt` | Semantic expression statement. |
+| `SemaFailStmt.h` | `SemaFailStmt` | Semantic `fail` statement. |
+| `SemaFunction.h` | `SemaFunction` | Free-function semantic node. |
+| `SemaFunctionBase.h` | `SemaFunctionBase` | Shared base: scope, params, locals, return type, namespace name, fallibility, body. |
+| `SemaHandleStmt.h` | `SemaHandleStmt` | Semantic `handle` block. |
+| `SemaIfStmt.h` | `SemaIfStmt` | Semantic if/elsif/else statement. |
+| `SemaImport.h` | `SemaImport` | Semantic import record with namespace symbol table linkage. |
+| `SemaLocalVar.h` | `SemaLocalVar` | Semantic local variable. Kind: `LOCAL_VAR`. |
+| `SemaLoopInStmt.h` | `SemaLoopInStmt` | Semantic for-in loop statement. |
+| `SemaLoopStmt.h` | `SemaLoopStmt` | Semantic while/for loop statement. |
+| `SemaMember.h` | `SemaMember` | Semantic member-access node: `ASTMember&`, `SemaExpr* Ref`. Extends `SemaExpr`. |
+| `SemaModule.h` | `SemaModule` | Ties an `ASTModule` to its namespace, imports, and child nodes. |
+| `SemaNameSpace.h` | `SemaNameSpace` | Namespace-level semantic scope with child hierarchy and symbol maps. |
+| `SemaNode.h` | `SemaNode`, `SemaKind` | Base for all semantic constructs (see §5 for full `SemaKind` list). |
+| `SemaParam.h` | `SemaParam` | Function/method parameter. Kind: `PARAM_VAR`. |
+| `SemaReturnStmt.h` | `SemaReturnStmt` | Semantic `return` statement. |
+| `SemaSmartAlloc.h` | `SemaSmartAlloc` | Tracks smart-pointer heap allocations for a variable. |
+| `SemaStmt.h` | `SemaStmt` | Semantic statement base class. |
+| `SemaStringAlloc.h` | `SemaStringAlloc` | Tracks heap string allocations for a variable. |
+| `SemaSwitchStmt.h` | `SemaSwitchStmt` | Semantic switch statement. |
+| `SemaTernary.h` | `SemaTernary` | Semantic ternary expression. |
+| `SemaType.h` | `SemaType`, `SemaBoolType`, `SemaNumberType`, `SemaIntType`, `SemaFloatType`, `SemaStringType`, `SemaVoidType`, `SemaArrayType`, `SemaErrorType` | Full type system (see §6). |
+| `SemaUnary.h` | `SemaUnary` | Semantic unary operator node. |
 | `SemaValidator.h` | `SemaValidator` | Post-resolution validation pass. |
 | `SemaValue.h` | `SemaValue` hierarchy (`SemaBoolValue`, `SemaIntValue`, etc.) | Semantic literal values. |
-| `SemaVar.h` | `SemaVar`, `SemaVarKind` | Base for semantic variables (see §7). |
-| `SemaVisibilityKind.h` | `SemaVisibilityKind` | Enum for `private/protected/default/public`. |
+| `SemaVar.h` | `SemaVar` | Base for semantic variables (see §8). |
+| `SemaVisibilityKind.h` | `SemaVisibilityKind` | Enum: `PRIVATE`, `PROTECTED`, `DEFAULT`, `PUBLIC`. |
+| `SemaVisitor.h` | `SemaVisitor` | Visitor interface for the Sema tree (mirror of `ASTVisitor` for the Sema layer). |
 | `Symbol.h` | `Symbol` | Name → `SemaNode` binding stored in symbol tables. |
-| `SymbolTable.h` | `SymbolTable` | Scope stack implementation used throughout resolution. |
+| `SymbolTable.h` | `SymbolTable` | Scoped lookup chain backed by `llvm::StringMap<Symbol*>`. |
 
-This reference should be treated as the authoritative description of Fly’s semantic graph up to, but not including, CodeGen.
+This reference reflects the Fly compiler as of the LLVM 20 migration. It covers the AST and Sema layers; CodeGen is not described here.

@@ -3,7 +3,7 @@
 {% block title %}Install{% endblock %}
 
 {% block extra_head %}
-<script>window.FLY_RELEASES_API = "{{ config.extra.releases_api }}";</script>
+<script>window.FLY_RELEASES_API = "{{ config.extra.releases_api | safe }}";</script>
 {% endblock %}
 
 {% block content %}

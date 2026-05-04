@@ -380,6 +380,18 @@ a {
   }
 }
 
+.highlight-alt {
+  background: var(--bg);
+
+  .highlight-grid {
+    // code on left, text on right — reverse of the first highlight section
+    @media (min-width: 801px) {
+      .highlight-code { order: 1; }
+      .highlight-text { order: 2; }
+    }
+  }
+}
+
 // ── CTA ───────────────────────────────────────────────────────────────────────
 .cta {
   padding: 5rem 1.5rem;
@@ -479,11 +491,11 @@ a {
 // ── Community cards ───────────────────────────────────────────────────────────
 .community-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
   margin: 1.5rem 0 2.5rem;
 
-  @media (max-width: 580px) { grid-template-columns: 1fr; }
+  @media (max-width: 720px) { grid-template-columns: 1fr; }
 }
 
 .community-card {
@@ -492,15 +504,36 @@ a {
   border-radius: 10px;
   background: var(--bg-alt);
 
+  p { font-size: 0.9rem; color: var(--muted); margin: 0; }
+}
+
+.community-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.5rem;
+
   h3 {
     font-size: 1.05rem;
     font-weight: 700;
     color: var(--blue);
-    margin: 0 0 0.4rem;
+    margin: 0;
     a { color: inherit; &:hover { color: var(--accent); } }
   }
+}
 
-  p { font-size: 0.9rem; color: var(--muted); margin: 0; }
+.community-icon {
+  flex-shrink: 0;
+  color: var(--blue);
+}
+
+.community-link {
+  display: inline-block;
+  margin-top: 0.65rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent);
+  &:hover { color: var(--blue); }
 }
 
 // ── Install page ──────────────────────────────────────────────────────────────

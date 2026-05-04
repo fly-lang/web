@@ -1,11 +1,11 @@
 +++
-title = "Fly Compiler Internals"
+title = "Compiler Internals"
 description = "Compiler internals reference — AST nodes, Sema objects, symbol resolution, Parser and CodeGen pipeline."
 template = "docs-page.html"
 weight = 2
 +++
 
-# Fly Compiler Internals
+# Compiler Internals
 
 This document describes every Abstract Syntax Tree (AST) construct produced by the Fly parser and how those nodes are translated into Semantic Analysis (Sema) objects before the CodeGen pass. It includes detailed examples from the test suite and concentrates on symbol table formation and on the `SemaType`, `SemaVar`, `SemaCall`, and `SemaMember*` families that participate in symbol resolution.
 

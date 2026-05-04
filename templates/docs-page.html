@@ -11,13 +11,21 @@
     <nav class="docs-nav">
       <p class="docs-nav-heading">Documentation</p>
       <ul>
+        <li><a href="{{ get_url(path='docs/tutorial') }}"
+          {% if page.slug == 'fly-tutorial' %}class="active"{% endif %}>
+          Tutorial
+        </a></li>
+        <li><a href="{{ get_url(path='docs/fly-api') }}"
+          {% if page.slug == 'fly-api' %}class="active"{% endif %}>
+          Fly API
+        </a></li>
         <li><a href="{{ get_url(path='docs/language-reference') }}"
           {% if page.slug == 'language-reference' %}class="active"{% endif %}>
           Language Reference
         </a></li>
         <li><a href="{{ get_url(path='docs/developer-reference') }}"
           {% if page.slug == 'developer-reference' %}class="active"{% endif %}>
-          Developer Reference (for contributors)
+          Compiler Internals
         </a></li>
       </ul>
     </nav>

@@ -6,12 +6,12 @@
 
 <section class="hero">
   <div class="hero-inner">
-    <div class="hero-text">
+    <div class="hero-text">c
       <h1>Fly</h1>
       <p class="hero-sub">A programming language for writing easily and quickly all types of software.</p>
       <div class="hero-actions">
         <a href="/install/" class="btn btn-primary">Get Started</a>
-        <a href="/documentation/" class="btn btn-outline">Learn More</a>
+        <a href="/docs/" class="btn btn-outline">Learn More</a>
       </div>
       <p class="hero-links">
         <a href="{{ config.extra.github_repo }}/releases" target="_blank" rel="noopener">Latest release</a>
@@ -60,15 +60,62 @@
 </section>
 
 <section class="highlight">
+    <div class="wrap">
+        <div class="highlight-grid">
+            <div class="highlight-text">
+                <h2>Zero-copy functions, by design</h2>
+                <p>
+                    In Fly every parameter is always passed by reference — no copies, ever.
+                </p>
+                <p>
+                    Mark a parameter <code>const</code> to declare it as a <strong>read-only input</strong>.
+                    Leave it mutable and it becomes an <strong>output</strong>: the function writes results
+                    directly into the caller's variables.
+                </p>
+                <p>
+                    This keeps call overhead minimal and lets LLVM optimise aggressively,
+                    regardless of what you are passing.
+                </p>
+                <a href="/docs/" class="btn btn-blue">Read the Docs</a>
+            </div>
+            <div class="highlight-code">
+                <div class="code-window">
+                    <div class="code-bar">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <pre class="code-pre"><code><span class="cc">// const = input (read-only reference)</span>
+<span class="cc">// no const = output (written directly by the function)</span>
+<span class="cf">calc</span>(<span class="ck">const</span> <span class="ct">int</span> n, <span class="ct">int</span> result) {
+    result = n * <span class="cn">2</span>
+}
+
+<span class="cf">main</span>() {
+    <span class="ct">int</span> x
+    <span class="cf">calc</span>(<span class="cn">21</span>, x)   <span class="cc">// x = 42</span>
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="highlight highlight-alt">
   <div class="wrap">
     <div class="highlight-grid">
       <div class="highlight-text">
         <h2>Error handling, rethought</h2>
         <p>
-          Fly replaces try-catch with <code>fail</code> and <code>handle</code> —
-          more concise and easier to read.
+          Use <code>fail</code> to signal an error with an optional code and message.
+          Errors propagate automatically to the caller — no explicit rethrow needed.
         </p>
-        <a href="/documentation/" class="btn btn-blue">Read the Docs</a>
+        <p>
+          Wrap calls in <code>handle</code> to capture any error into the
+          <code>error</code> variable, populated automatically.
+          Then branch on it to decide what to do.
+        </p>
+        <a href="/docs/" class="btn btn-blue">Read the Docs</a>
       </div>
       <div class="highlight-code">
         <div class="code-window">
@@ -77,21 +124,122 @@
             <span class="dot yellow"></span>
             <span class="dot green"></span>
           </div>
-          <pre class="code-pre"><code><span class="cf">readFile</span>(<span class="ck">const</span> <span class="ct">string</span> path) {
-    <span class="ck">if</span> (path == <span class="cs">""</span>) {
-        <span class="ck">fail</span> <span class="cs">"Invalid path"</span>
+          <pre class="code-pre"><code><span class="cf">get</span>(<span class="ck">const</span> <span class="ct">string</span> url) {
+    <span class="ck">if</span> (url == <span class="cs">""</span>) {
+        <span class="ck">fail</span> <span class="cn">1</span>, <span class="cs">"url is empty"</span>
     }
 }
 
 <span class="cf">main</span>() {
-    <span class="ct">error</span> err <span class="ck">handle</span> {
-        readFile(<span class="cs">""</span>)
+    <span class="ck">handle</span> {
+        get(<span class="cs">""</span>)
     }
-    <span class="ck">if</span> (err) {
-        <span class="cc">// handle gracefully</span>
+    <span class="ck">if</span> (<span class="cs">error</span>) {
+        <span class="cc">// manage error ...</span>
     }
 }</code></pre>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section class="highlight">
+    <div class="wrap">
+        <div class="highlight-grid">
+            <div class="highlight-text">
+                <h2>A clean object model</h2>
+                <p>
+                    Fly has three distinct building blocks: <code>struct</code> for pure data,
+                    <code>class</code> for objects with behaviour, and <code>interface</code>
+                    for contracts.
+                </p>
+                <p>
+                    A <strong>struct</strong> holds fields and can extend one other struct —
+                    no virtual dispatch, no hidden cost.<br>
+                    A <strong>class</strong> adds virtual methods via vtable and can extend
+                    a struct and implement multiple interfaces.<br>
+                    An <strong>interface</strong> defines method signatures only and can
+                    extend multiple other interfaces.
+                </p>
+                <p>
+                    Heap objects are created with <code>new</code> and released with
+                    <code>delete</code> — or left to a smart pointer to handle automatically.
+                </p>
+                <a href="/docs/" class="btn btn-blue">Read the Docs</a>
+            </div>
+            <div class="highlight-code">
+                <div class="code-window">
+                    <div class="code-bar">
+                        <span class="dot red"></span>
+                        <span class="dot yellow"></span>
+                        <span class="dot green"></span>
+                    </div>
+                    <pre class="code-pre"><code><span class="ck">struct</span> <span class="ct">Point</span> {
+    <span class="ct">int</span> x
+    <span class="ct">int</span> y
+}
+
+<span class="ck">interface</span> <span class="ct">Drawable</span> {
+    <span class="cf">draw</span>()
+}
+
+<span class="ck">class</span> <span class="ct">Circle</span> : <span class="ct">Point</span>, <span class="ct">Drawable</span> {
+    <span class="ct">int</span> radius
+    <span class="cf">draw</span>() { <span class="cc">/* render ... */</span> }
+}
+
+<span class="cf">main</span>() {
+    <span class="ct">Circle</span> c = <span class="ck">new</span> <span class="ct">Circle</span>()
+    c.radius = <span class="cn">5</span>
+    c.<span class="cf">draw</span>()
+    <span class="ck">delete</span> c
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="highlight highlight-alt">
+  <div class="wrap">
+    <div class="highlight-grid">
+      <div class="highlight-code">
+        <div class="code-window">
+          <div class="code-bar">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <pre class="code-pre"><code><span class="cf">process</span>() {
+    <span class="ct">Point</span> p = <span class="ck">new unique</span> <span class="ct">Point</span>()
+    p.x = <span class="cn">10</span>
+    p.y = <span class="cn">42</span>
+}   <span class="cc">// ← p freed automatically here</span>
+
+<span class="cf">main</span>() {
+    <span class="cf">process</span>()   <span class="cc">// no leaks, no delete</span>
+}</code></pre>
+        </div>
+      </div>
+      <div class="highlight-text">
+        <h2>Memory management, your way</h2>
+        <p>
+          Fly gives you three ownership models — no garbage collector, no runtime overhead.
+        </p>
+        <p>
+          <code>new unique</code> grants exclusive ownership: the object is freed automatically
+          when the variable goes out of scope.<br>
+          <code>new shared</code> uses reference counting: the object lives as long as at least
+          one owner exists.<br>
+          <code>new weak</code> leaves lifetime control to you, with no counting overhead.
+        </p>
+        <p>
+          All three are deterministic: memory is released exactly when the scope ends,
+          with no pauses and no surprises.
+        </p>
+        <a href="/docs/" class="btn btn-blue">Read the Docs</a>
       </div>
     </div>
   </div>

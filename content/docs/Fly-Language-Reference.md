@@ -1330,7 +1330,7 @@ main() {
 }
 ```
 
-**Note:** In `main()`, if you don't handle the error, the application will automatically return exit code 1 (failure). When the error is handled (as shown above), the application returns 0 (success). See [Section 5.5: The Main Function](#55-the-main-function) for details.
+**Note:** In `main()`, if you don't handle the error, the application will automatically return exit code 1 (failure). When the error is handled (as shown above), the application returns 0 (success). See [Section 5.5: The Main Function](#5-5-the-main-function) for details.
 
 **Example 2: Integer Error Codes**
 ```fly

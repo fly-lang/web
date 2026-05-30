@@ -12,7 +12,7 @@ Every Fly program starts from a `main()` function. Import a module with `import`
 ```fly
 import fly.os
 
-main() {
+void main() {
     os.print("Hello, World!")
 }
 ```
@@ -43,7 +43,7 @@ int double(const int n) {
     out = n * 2
 }
 
-main() {
+void main() {
     int x = double(21)   // x = 42
 }
 ```
@@ -65,7 +65,7 @@ minMax(const int a, const int b, int min, int max) {
     }
 }
 
-main() {
+void main() {
     int lo
     int hi
     minMax(3, 7, lo, hi)   // lo=3, hi=7
@@ -80,7 +80,7 @@ int,int minMax(const int a, const int b) {
     else       { out[0] = b  out[1] = a }
 }
 
-main() {
+void main() {
     int lo = minMax(3, 7)   // lo = 3 (first return value)
 }
 ```
@@ -99,36 +99,73 @@ import fly.str as s     // use as s.len(...)
 
 ## Error handling
 
-Use `fail` inside a function to signal an error, with an optional numeric code and message.
-The error propagates automatically to the caller — no explicit rethrow is needed.
+Use `fail` inside a function to signal an error. `fail` accepts zero to three comma-separated arguments — an integer code, a string message, and/or an object instance, in any combination:
 
 ```fly
 fetch(const string url) {
     if (url == "") {
-        fail 404, "Not Found"
+        fail 404, "Not Found"   // integer code + string message
     }
 }
 ```
 
-Wrap calls in a `handle` block to capture any error into an `error` variable, which is populated automatically.
+**How propagation works:** every function has a hidden error-pointer parameter. When `fail` fires with no enclosing `handle` in the current function, it writes to the error struct and returns immediately. The calling code resumes at the next instruction — it does **not** unwind the stack.
 
 ```fly
-main() {
+void main() {
+    fetch("")        // writes error 404; returns, execution continues
+    fetch("/ok")     // STILL CALLED — caller is not unwound
+    // main exits with code 404
+}
+```
+
+Use `handle` to intercept errors. All calls inside the block share a dedicated error struct. After the block, check `if (err)`:
+
+```fly
+void main() {
     error err handle {
-        fetch("")
+        fetch("")        // fails and writes error; handle body continues
+        fetch("/ok")     // still called (callee fail ≠ jump in caller)
     }
     if (err) {
-        // err is populated automatically — inspect code or message
+        // handle the error
     }
+}
+```
+
+When `fail` fires **directly inside the handle body** (same function), execution jumps immediately past the remaining handle code to the check point:
+
+```fly
+void main() {
+    error err handle {
+        if (someCondition) {
+            fail 500        // jumps to safe block; neverReached() is skipped
+        }
+        neverReached()
+    }
+    if (err) { /* code = 500 */ }
 }
 ```
 
 If you don't need to name the error, omit the variable:
 
 ```fly
-main() {
+void main() {
     handle {
+        fetch("")   // error is swallowed silently
+    }
+}
+```
+
+To re-raise an error to the caller, use a bare `fail`:
+
+```fly
+wrapper() {
+    error err handle {
         fetch("")
+    }
+    if (err) {
+        fail    // propagate to wrapper's caller
     }
 }
 ```
@@ -137,8 +174,9 @@ main() {
 
 ## Structs
 
-A `struct` holds data fields. It can extend one other struct.
-Structs have no virtual dispatch — access is direct and allocation-free.
+A `struct` holds data fields and can extend one other struct. Structs have no virtual dispatch — access is direct.
+
+Plain `new` on a struct allocates on the **stack**. The variable is freed automatically when the scope exits — do not call `delete`.
 
 ```fly
 struct Point {
@@ -150,13 +188,12 @@ struct Point3D : Point {
     int z
 }
 
-main() {
-    Point3D p = new Point3D()
+void main() {
+    Point3D p = new Point3D()   // stack allocation
     p.x = 1
     p.y = 2
     p.z = 3
-    delete p
-}
+}   // p freed automatically — no delete needed
 ```
 
 ---
@@ -164,6 +201,8 @@ main() {
 ## Classes
 
 A `class` adds virtual method dispatch via vtable. It can extend a struct (inheriting its fields) and implement one or more interfaces.
+
+Plain `new` on a class allocates on the **heap**. You must call `delete` to free it.
 
 ```fly
 interface Drawable {
@@ -178,38 +217,63 @@ class Circle : Point, Drawable {
     }
 }
 
-main() {
-    Circle c = new Circle()
+void main() {
+    Circle c = new Circle()   // heap allocation
     c.x = 0
     c.y = 0
     c.radius = 5
     c.draw()
-    delete c
+    delete c   // free the heap memory
 }
 ```
 
 Visibility modifiers for members: `public`, `private`, `protected`.  
-Use `static` for class-level fields and methods.  
-Use `const` on a method to mark the receiver as read-only.
+Use `static` for class-level fields and methods.
 
 ---
 
-## Smart pointers
+## Memory management
 
-Instead of managing `new`/`delete` manually, use a smart allocation strategy.
+Instead of managing `new`/`delete` manually, use a **smart allocation qualifier**. All three qualifiers work on both structs and classes.
 
-| Keyword | Ownership | Freed when |
-|---|---|---|
-| `new unique` | Single owner | Variable goes out of scope |
-| `new shared` | Reference-counted | Last owner exits scope |
-| `new weak` | No ownership tracking | First owner exits scope |
+| Qualifier | Storage | Freed when | Copying |
+|---|---|---|---|
+| `new unique` | heap | variable goes out of scope | compile-time error |
+| `new shared` | heap + refcount | last reference exits scope | allowed; increments refcount |
+| `new weak` | heap | each holder exits scope | allowed; no refcount — first to exit frees, rest dangle |
+
+### `new unique` — single owner
 
 ```fly
 process() {
-    Point p = new unique Point()
+    Point p = new unique Point()   // heap-allocated
     p.x = 10
     p.y = 42
-}   // p freed automatically here — no delete needed
+}   // free(p) emitted automatically — no delete
 ```
 
-A `unique` object cannot be copied; `shared` copies increment the reference count.
+`unique` ownership cannot be copied. Attempting to assign a `unique` variable to another variable is a compile-time error.
+
+### `new shared` — reference-counted
+
+The runtime stores an 8-byte reference count immediately before the object data. Copies increment the count; each scope exit decrements it. When the count reaches zero the entire block is freed.
+
+```fly
+process() {
+    Point a = new shared Point()   // refcount = 1
+    Point b = a                    // refcount = 2
+    // …
+}   // refcount → 0 → freed automatically
+
+```
+
+### `new weak` — untracked alias
+
+No reference count. Every holder calls `free()` at its own scope exit. Use only when you know the lifetime is not ambiguous.
+
+```fly
+process() {
+    Point a = new weak Point()
+    Point b = a   // b and a share the same pointer
+}   // first scope exit frees the data; other becomes dangling
+```

@@ -98,7 +98,7 @@ Returns the number of non-overlapping occurrences of `sub` in `src`.
 ```fly
 import fly.str
 
-main() {
+void main() {
     string msg = "Hello, Fly!"
     int length = str.len(msg)              // length = 11
     bool empty = str.isEmpty(msg)          // empty  = false
@@ -169,7 +169,7 @@ Returns the concatenation of `a` and `b`.
 ```fly
 import fly.str
 
-main() {
+void main() {
     string result = str.concat("Hello, ", "Fly!")   // result = "Hello, Fly!"
     result = str.toUpper(result)                    // result = "HELLO, FLY!"
 }
@@ -408,7 +408,7 @@ public double atanh(const double x)
 ```fly
 import fly.math
 
-main() {
+void main() {
     fly_rng rng = new fly_rng()
     math.randSeed(rng, 42)
     double v = math.randFloat(rng)       // v in [0, 1)
@@ -1052,7 +1052,7 @@ Write `s` to stderr. `printErrLn` appends a newline.
 import fly.os.fs
 import fly.os.io
 
-main() {
+void main() {
     fly.os.fs.File f = fs.open("notes.txt")
     Reader r = io.fileReader(f.fd)
     string line = io.readLine(r)
@@ -1379,7 +1379,7 @@ Suspends execution for at least the duration `d`. Returns immediately if `d ≤ 
 ```fly
 import fly.os.time
 
-main() {
+void main() {
     Time t0 = time.now()
     Duration ms100 = new Duration()
     ms100.nsec = 100000000
@@ -1667,7 +1667,7 @@ public class Wrapper<T> {
 import fly.data.list
 import fly.data.map
 
-main() {
+void main() {
     List l = new List()
     l.add(10)
     l.add(20)
@@ -1752,7 +1752,7 @@ Asserts `|got − exp| ≤ eps`.
 import fly.assert
 import fly.str
 
-main() {
+void main() {
     int n = str.len("hello")
     assert.assertEqI(n, 5, 1)        // passes
     assert.assertTrue(n > 0, 2)      // passes

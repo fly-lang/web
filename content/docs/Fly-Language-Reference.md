@@ -21,6 +21,7 @@ weight = 1
 4. [Variables](#4-variables)
 5. [Functions](#5-functions)
 6. [Classes and Structures](#6-classes-and-structures)
+   - [6.6 Allocation and Lifetime](#6-6-allocation-and-lifetime)
 7. [Enumerations](#7-enumerations)
 8. [Expressions](#8-expressions)
 9. [Statements](#9-statements)
@@ -442,7 +443,7 @@ int square(const int n) {
     out = n * n
 }
 
-main() {
+void main() {
     int x = square(5)   // x = 25
 }
 ```
@@ -457,7 +458,7 @@ int,int divmod(const int a, const int b) {
     out[1] = a % b   // remainder
 }
 
-main() {
+void main() {
     int q = divmod(17, 5)   // q = 3
 }
 ```
@@ -479,14 +480,14 @@ The `main()` function is the entry point of a Fly application.
 
 **Syntax:**
 ```fly
-main() {
+void main() {
     // Application code
 }
 ```
 
 **Key Characteristics:**
 
-1. **Function signature:** Must be declared as `main()` with no parameters and no return type
+1. **Function signature:** Must be declared as `void main() {}` with no parameters and void return type
 2. **Entry point:** The application starts execution from `main()`
 3. **Automatic error handling:** The main function has special error handling behavior
 
@@ -501,7 +502,7 @@ This behavior is automatic—you don't explicitly return an integer from `main()
 
 **Example 1: Successful Execution**
 ```fly
-main() {
+void main() {
     // Code executes successfully
     int x = 10
     int y = 20
@@ -515,7 +516,7 @@ err0() {
     fail "Something went wrong"
 }
 
-main() {
+void main() {
     err0()  // Error is not handled
     // Automatically returns 1 (failure)
 }
@@ -527,7 +528,7 @@ err0() {
     fail "Something went wrong"
 }
 
-main() {
+void main() {
     handle err0()  // Error is caught and handled
     // Continues execution
     // Automatically returns 0 (success)
@@ -540,7 +541,7 @@ riskyOperation() {
     fail "Operation failed"
 }
 
-main() {
+void main() {
     error err handle {
         riskyOperation()
     }
@@ -561,7 +562,7 @@ main() {
 4. **Provide fallback logic:** When errors occur, provide alternative execution paths
 
 **Summary:**
-- `main()` is required (no return type, no parameters)
+- `main()` is required (void return type, no parameters)
 - Exit code 0 = success (no unhandled errors)
 - Exit code 1 = failure (unhandled error occurred)
 - Use `handle` to catch errors and ensure successful exit
@@ -701,15 +702,127 @@ public class Person {
 
 **Examples:**
 ```fly
-// Create instance
+// Create a class instance on the heap
 MyClass obj = new MyClass()
+delete obj   // must be freed manually
 
 // Use with initialization and return-type method call
 Person person = new Person()
 person.initialize("John", 30)
 string name = person.getName()   // name = "John"
 int count = Person.getCount()    // count = 1
+delete person
 ```
+
+---
+
+### 6.6 Allocation and Lifetime
+
+The `new` keyword allocates a new instance. Where the memory comes from — and who is responsible for freeing it — depends on whether the type is a `struct` or a `class`, and on the optional allocation qualifier (`unique`, `shared`, `weak`).
+
+#### Struct: stack by default
+
+A plain `new` on a `struct` allocates the data on the **stack** (via LLVM `alloca`). The variable is freed automatically when the enclosing scope exits. **Do not call `delete` on a stack-allocated struct** — the pointer is not heap-owned and calling `free()` on it is undefined behaviour.
+
+```fly
+struct Point { int x; int y }
+
+process() {
+    Point p = new Point()   // ← stack alloca
+    p.x = 10
+    p.y = 20
+}   // ← p freed automatically; no delete
+```
+
+#### Class: heap by default
+
+A plain `new` on a `class` allocates on the **heap** (`malloc(sizeof(T))`). The programmer is responsible for calling `delete` to release the memory. Forgetting `delete` leaks the object.
+
+```fly
+class Node { int val }
+
+process() {
+    Node n = new Node()   // ← malloc
+    n.val = 42
+    delete n              // ← free(n)
+}
+```
+
+`delete` calls `free()` on the pointer and is valid only for objects created with plain `new` on a class. Never call `delete` on a smart-pointer object or a stack-allocated struct.
+
+---
+
+#### Smart-pointer allocation qualifiers
+
+All three qualifiers work on both `struct` and `class`. When used on a `struct`, the data is moved to the **heap** (qualifiers always imply `malloc` so the runtime can call `free()` at scope exit).
+
+| Qualifier | Storage | Who frees | Copies |
+|---|---|---|---|
+| *(none, struct)* | stack | automatic at scope exit | value semantics |
+| *(none, class)* | heap | programmer via `delete` | reference semantics |
+| `new unique` | heap | `free()` at scope exit | **not allowed** — compiler error |
+| `new shared` | heap + 8-byte refcount header | `free()` when last reference exits | allowed — increments refcount |
+| `new weak` | heap | `free()` at each holder's scope exit | allowed — no refcount; first exit frees, others dangle |
+
+---
+
+##### `new unique` — exclusive ownership
+
+The object is heap-allocated. When the variable goes out of scope the runtime automatically calls `free()`. Copying a `unique` variable is a compile-time error.
+
+```fly
+process() {
+    Point p = new unique Point()   // heap-allocated
+    p.x = 10
+    p.y = 42
+}   // ← free(p) emitted automatically
+```
+
+##### `new shared` — reference-counted ownership
+
+The runtime allocates `sizeof(i64) + sizeof(T)` bytes. The first 8 bytes hold a **reference count** initialised to 1. Every time the variable is copied the counter is incremented; when any holder exits scope the counter is decremented. When the count reaches 0 the entire block (header + data) is freed.
+
+```fly
+process() {
+    Point a = new shared Point()   // refcount = 1
+    Point b = a                    // refcount = 2 (copy increments)
+    // … use a and b …
+}   // ← refcount decremented twice; reaches 0 → freed
+```
+
+Memory layout:
+
+```
++──────────────────+──────────────────────────────+
+│  i64  refcount   │        struct/class data      │
++──────────────────+──────────────────────────────+
+ ↑ 8 bytes          ↑ data pointer seen by code
+```
+
+##### `new weak` — untracked shared access
+
+Like `unique`, the object is heap-allocated and `free()` is emitted for each variable at its scope exit. There is **no reference count** and no ownership coordination: if two variables hold the same allocation, the first one to go out of scope calls `free()`; the other becomes a dangling pointer. Use only when the lifetime is known to be longer than all aliases.
+
+```fly
+process() {
+    Point a = new weak Point()
+    Point b = a   // no refcount — b and a share the same pointer
+    // b goes out of scope first → free(b) called
+    // a is now dangling
+}
+```
+
+---
+
+#### Summary table
+
+| Expression | Memory | Freed by |
+|---|---|---|
+| `struct S = new S()` | stack (alloca) | automatic at scope exit |
+| `class C = new C()` | heap (malloc) | `delete c` |
+| `T x = new unique T()` | heap | automatic `free()` at scope exit |
+| `T x = new shared T()` | heap + refcount | automatic release when refcount → 0 |
+| `T x = new weak T()` | heap | automatic `free()` at each holder's scope exit |
 
 ---
 
@@ -1227,277 +1340,260 @@ for int i = 0; i < 10; i++ {
 
 ### 9.7 Error Handling Statements
 
-Fly uses a unique error handling mechanism based on `fail` and `handle` keywords, which differs from traditional try-catch exception handling found in other languages.
-
-**Key Differences from Try-Catch:**
-- **`fail`** throws an exception (similar to `throw`)
-- **`handle`** catches the exception (similar to `try-catch`)
-- The `error` type is used to capture exception information
-- More concise syntax with implicit error propagation
+Fly error handling is built on two keywords — `fail` and `handle` — and a built-in `error` type. The mechanism is **not** exception-based stack unwinding. Instead, every function receives a hidden first parameter: a pointer to an `error` struct. When `fail` fires, it writes into that struct and either jumps past the surrounding `handle` block (if one exists in the same function) or returns immediately. The error value propagates upward through the call stack only when no caller intercepts it with `handle`.
 
 #### 9.7.1 The Error Type
 
-The `error` type is a built-in type used to represent exceptions and error states.
+The `error` type is a built-in type that holds the result of a `fail`. Internally it is:
 
-**Declaration:**
+```
+%error = type { i32 code, ptr str_ptr, ptr obj_ptr }
+```
+
+- **`code`** — integer code. Non-zero means an error occurred.
+- **`str_ptr`** — pointer to an error string (null if none).
+- **`obj_ptr`** — pointer to an error object (null if none).
+
+From Fly code you declare an error variable and test it with `if`:
+
 ```fly
-error err           // Declares an error variable
-error myError       // Error variable to capture exceptions
+error err           // declare
+// …
+if (err) { /* error occurred */ }
 ```
 
 #### 9.7.2 Fail Statement
 
-The `fail` keyword throws an exception. You can fail with nothing, an integer, a string, or an object.
+`fail` signals an error. It accepts zero, one, two, or three comma-separated arguments (integer, string, and/or object instance, in any order and combination, up to one of each).
 
 **Syntax:**
 ```
-FailStmt ::= 'fail' [ Expression ]
+FailStmt ::= 'fail' [ Expr [ ',' Expr [ ',' Expr ] ] ]
 ```
 
-**Examples:**
+**Forms:**
+```fly
+fail                        // code = 1, no message, no object
+
+fail 404                    // code = 404
+fail "file not found"       // str  = "file not found", code = 1
+fail new MyError()          // obj  = MyError instance, code = 1
+
+fail 404, "not found"       // code = 404, str = "not found"
+fail 1, "oops", new Ctx()   // code = 1,   str = "oops", obj = Ctx instance
+```
+
+**Behavior of `fail`:**
+
+| Context | What happens |
+|---|---|
+| Inside a `handle` block (same function) | Writes to error struct; jumps directly to the `safe` block (skips remaining handle body) |
+| Outside any `handle` (no enclosing handle in the current function) | Writes to error struct; returns `void` immediately |
+
+Any code after `fail` within the same basic block is unreachable.
 
 ```fly
-// 1. Fail without a value (void failure)
-err0() {
-    fail                    // Simple failure
-}
-
-// 2. Fail with an integer error code
-err1() {
-    fail 404                // Fail with error code
-}
-
-// 3. Fail with a string error message
-err2() {
-    fail "Error occurred"   // Fail with message
-}
-
-// 4. Fail with an expression
-validateAge(const int age) {
+validate(const int age) {
     if (age < 0) {
-        fail "Age cannot be negative"
+        fail 400, "age must be non-negative"
+        // unreachable
     }
     if (age > 150) {
-        fail 1001           // Custom error code
+        fail 1001
     }
+    // continues here if no fail
 }
 ```
 
-**Fail Statement Behavior:**
-- Immediately terminates the current function
-- Propagates the exception to the caller
-- Can carry data: nothing (void), integers, strings, or objects
-- Any code after `fail` is unreachable
+#### 9.7.3 Automatic Error Propagation
 
-#### 9.7.3 Handle Statement
+Every function (except `main`) has a hidden first parameter: a pointer to the caller's error struct. When a function fails **without** a `handle` in its own body, it writes to that pointer and returns void. The caller's code continues from where the call returned — the error data is already in the shared struct.
 
-The `handle` keyword catches exceptions thrown by `fail`. It executes a block of code and captures any failures.
+```fly
+fetchData() {
+    fail 503, "service unavailable"   // writes error, returns void
+}
+
+void main() {
+    fetchData()   // error is written to main's error struct
+    // execution continues here, but error struct is now populated
+    // main() will return exit code 503
+}
+```
+
+Because propagation is not stack unwinding, a failing callee does NOT unwind the caller — the next line after the call still executes. Use a `handle` block to intercept failures before they reach the caller.
+
+#### 9.7.4 Handle Statement
+
+`handle` creates a guarded region. Functions called inside the region share a dedicated error handler. You can optionally declare a named `error` variable to inspect the outcome after the block.
 
 **Syntax:**
 ```
 HandleStmt ::= [ 'error' Identifier ] 'handle' ( Statement | Block )
 ```
 
-**Forms of Handle:**
+**How it works:**
 
-**1. Simple Handle (No Error Capture):**
+The compiler emits two LLVM basic blocks for each `handle`:
+- **`handle`** — the guarded code
+- **`safe`** — the continuation (code after the handle)
+
+When `fail` fires **directly inside the handle body** (same function), execution jumps to `safe`, skipping the rest of the handle body. When `fail` fires **in a callee**, the callee returns void and the handle body continues at the next statement.
+
+After the handle, check `if (err)` to detect whether any error was written.
+
+**Forms:**
+
+**1. Unnamed — discard error details:**
 ```fly
 main() {
-    // Just handle the exception, ignore details
-    handle err0()
-    
-    // Handle a block of code
     handle {
         riskyOperation()
-        anotherRiskyCall()
+        anotherOp()
     }
+    // execution always reaches here; error is silently swallowed
 }
 ```
 
-**2. Handle with Error Variable Declaration:**
+**2. Named — inspect whether an error occurred:**
 ```fly
 main() {
-    // Declare error variable and handle in one statement
-    error err0 handle { 
-        riskyOperation() 
-    }
-    
-    // The error variable 'err0' is accessible after the handle block
-    // and contains exception information if an error occurred
-    if (err0) {
-        // Handle the error
-    }
-}
-```
-
-**3. Handle with Statement Block:**
-```fly
-processData() {
-    error err1 handle { 
-        dangerousOperation()
-        anotherRiskyCall()
-    }
-    
-    if (err1) {
-        // Error occurred, err1 contains the error information
-        return
-    }
-}
-```
-
-**4. Handle with Single Statement:**
-```fly
-quickCheck() {
-    error err2 handle checkData()  // Handle single statement
-    
-    if (err2) {
-        // err2 contains error information if checkData() failed
-    }
-}
-```
-
-#### 9.7.4 Complete Error Handling Examples
-
-**Example 1: Simple Void Error Handling**
-```fly
-err0() {
-    fail                    // Throw exception
-}
-
-main() {
-    handle err0()           // Catch exception
-    // Application continues and returns 0 (success)
-}
-```
-
-**Note:** In `main()`, if you don't handle the error, the application will automatically return exit code 1 (failure). When the error is handled (as shown above), the application returns 0 (success). See [Section 5.5: The Main Function](#5-5-the-main-function) for details.
-
-**Example 2: Integer Error Codes**
-```fly
-divide(const int a, const int b) {
-    if (b == 0) {
-        fail 1001           // Error code for division by zero
-    }
-}
-
-calculate() {
-    error divErr = handle {
-        divide(10, 0)
-    }
-    
-    if (divErr) {
-        // Handle division error
-        // divErr contains error code 1001
-    }
-}
-```
-
-**Example 3: String Error Messages**
-```fly
-loadFile(const string path) {
-    if (path == "") {
-        fail "Invalid file path"
-    }
-    // ... load file logic
-}
-
-processFile() {
-    error fileErr handle {
-        loadFile("")
-    }
-    
-    if (fileErr) {
-        // fileErr contains "Invalid file path"
-    }
-}
-```
-
-**Example 4: Multiple Operations in Handle Block**
-```fly
-complexOperation() {
-    bool success = false
-    
     error err handle {
-        operation1()        // May fail
-        operation2()        // May fail
-        operation3()        // May fail
-    }
-    
-    if (err) {
-        // Any of the operations failed
-        // err contains the error information
-    } else {
-        // All operations succeeded
-        success = true
-    }
-}
-```
-
-#### 9.7.5 Error Handling Patterns
-
-**Pattern 1: Graceful Degradation**
-```fly
-getValue() {
-    error err = handle {
         riskyOperation()
     }
-    
     if (err) {
-        // Use fallback logic on error
+        // error occurred — take fallback path
         return
     }
+    // success path
 }
 ```
 
-**Pattern 2: Error Propagation**
+**3. Single-statement shorthand:**
 ```fly
-caller() {
-    // If handle captures an error, you can re-fail
-    error err = handle {
-        mayFail()
-    }
-    
-    if (err) {
-        fail        // Propagate error to caller
-    }
+quickCheck() {
+    error err handle riskyOp()
+    if (err) { return }
 }
 ```
 
-**Pattern 3: Logging and Recovery**
+**4. Nested handles:**
 ```fly
 process() {
-    error err = handle {
-        criticalOperation()
+    error outer handle {
+        error inner handle {
+            deepOp()   // inner intercepts first
+        }
+        if (inner) {
+            fail    // re-raise to outer
+        }
+        followupOp()
     }
-    
-    if (err) {
-        // Log the error
-        log("Error occurred")
-        
-        // Attempt recovery
-        fallbackOperation()
+    if (outer) {
+        // handle top-level failure
     }
 }
 ```
 
-#### 9.7.6 Comparison with Try-Catch
+#### 9.7.5 Complete Examples
 
-| Feature | Fly (fail/handle) | Traditional (try-catch) |
-|---------|-------------------|-------------------------|
-| Throw exception | `fail` | `throw` |
-| Catch exception | `handle` | `try-catch` |
-| Error variable | `error err = handle { }` | `catch (Exception e) { }` |
-| No error value | `fail` | `throw` |
-| Error with value | `fail 404` or `fail "msg"` | `throw new Exception(msg)` |
-| Syntax | Concise, inline | Verbose, block-based |
-| Error type | Built-in `error` type | Exception classes |
+**Example 1: Propagation without handle**
+```fly
+openFile(const string path) {
+    if (path == "") {
+        fail 400, "empty path"
+    }
+}
 
-**Summary:**
-- **fail** = throw an exception (void, int, string, or object)
-- **handle** = catch exceptions in a block
-- **error** = type to store exception information
-- More concise than traditional try-catch
-- Supports multiple error payload types
+main() {
+    openFile("")       // writes error 400 to main's struct, returns
+    openFile("/tmp")   // STILL CALLED — propagation is not unwinding
+    // main returns exit code 400
+}
+```
+
+**Example 2: Intercepting with handle**
+```fly
+openFile(const string path) {
+    if (path == "") { fail 400, "empty path" }
+}
+
+main() {
+    error err handle {
+        openFile("")       // fails and writes error; handle body continues
+        openFile("/tmp")   // STILL CALLED (callee fail ≠ jump in caller)
+    }
+    if (err) {
+        // err is set; handle the 400 error
+    }
+}
+```
+
+**Example 3: Direct fail in handle — jumps immediately**
+```fly
+main() {
+    error err handle {
+        if (someCondition) {
+            fail 500    // jumps directly to safe block
+        }
+        neverReached()  // skipped when fail fires above
+    }
+    if (err) { /* code = 500 */ }
+}
+```
+
+**Example 4: Re-raise to caller**
+```fly
+inner() {
+    fail 503
+}
+
+outer() {
+    error err handle {
+        inner()
+    }
+    if (err) {
+        fail    // re-raise; outer's caller sees the error
+    }
+}
+```
+
+**Example 5: Object payload**
+```fly
+class NetError {
+    int code
+    string host
+}
+
+connect(const string host) {
+    NetError e = new unique NetError()
+    e.code = 503
+    e.host = host
+    fail e
+}
+```
+
+#### 9.7.6 The Main Function and Exit Codes
+
+`main()` allocates its own error struct. On exit, the compiler emits:
+
+```
+ret i32 load(error.code)
+```
+
+So the process exit code equals the error code of the last unhandled failure — `0` means clean exit. See [Section 5.5](#5-5-the-main-function) for the full behaviour table.
+
+#### 9.7.7 Key Differences from try-catch
+
+| Feature | Fly `fail`/`handle` | Traditional `try`/`catch` |
+|---|---|---|
+| Signal error | `fail` | `throw` |
+| Intercept | `handle { }` | `try { } catch { }` |
+| Payload | int, string, or object (comma-separated, up to one each) | typed exception object |
+| Stack unwinding | **No** — failing callee just returns; caller continues | **Yes** — stack frames are unwound |
+| Callee fail bypasses rest of caller? | **No** (unless fail is direct in handle block) | **Yes** |
+| Error propagation | via hidden pointer parameter; must re-`fail` manually | automatic until caught |
+| Overhead | zero-cost on success; single function return on failure | unwinder overhead |
 
 ---
 
@@ -2001,7 +2097,7 @@ public class Shape : Drawable {
 // Main entry point
 // Note: main() automatically returns 0 if all errors are handled,
 // or returns 1 if an unhandled error occurs
-main() {
+void main() {
     // Create application instance
     Application app = new Application()
     app.initialize("MyApp")
@@ -2227,7 +2323,7 @@ if (err) {
 The `main()` function has special error handling behavior:
 
 ```fly
-main() {
+void main() {
     // If no error occurs or all errors are handled: returns 0
     // If an unhandled error occurs: returns 1
 }
@@ -2237,18 +2333,18 @@ main() {
 
 ```fly
 // Returns 0 (success)
-main() {
+void main() {
     handle mayFail()
 }
 
 // Returns 1 (failure)
-main() {
+void main() {
     mayFail()  // Error not handled
 }
 
 // Returns 0 (success) - error is caught and handled
-main() {
-    error err = handle {
+void main() {
+    handle {
         riskyOperation()
     }
     if (err) {

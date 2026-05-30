@@ -163,8 +163,11 @@
                     extend multiple other interfaces.
                 </p>
                 <p>
-                    Heap objects are created with <code>new</code> and released with
-                    <code>delete</code> — or left to a smart pointer to handle automatically.
+                    Plain <code>new</code> on a <strong>struct</strong> allocates on the stack —
+                    freed automatically, no <code>delete</code> needed.<br>
+                    Plain <code>new</code> on a <strong>class</strong> allocates on the heap —
+                    freed with <code>delete</code>, or use <code>new unique</code> /
+                    <code>new shared</code> to let the compiler handle it.
                 </p>
                 <a href="/docs/" class="btn btn-blue">Read the Docs</a>
             </div>

@@ -27,10 +27,10 @@
           <span class="dot green"></span>
           <span class="code-file">main.fly</span>
         </div>
-        <pre class="code-pre"><code><span class="ck">import</span> fly.os
+        <pre class="code-pre"><code><span class="ck">import</span> fly.os.io.*
 
-<span class="cf">main</span>() {
-    os.<span class="cf">print</span>(<span class="cs">"Hello, World!"</span>)
+<span class="ct">void</span> <span class="cf">main</span>() {
+    <span class="cf">print</span>(<span class="cs">"Hello, World!"</span>)
 }</code></pre>
       </div>
     </div>
@@ -91,7 +91,7 @@
     <span class="ck">out</span> = n * <span class="cn">2</span>   <span class="cc">// 'out' is the implicit return variable</span>
 }
 
-<span class="cf">main</span>() {
+<span class="ct">void</span> <span class="cf">main</span>() {
     <span class="ct">int</span> x = <span class="cf">calc</span>(<span class="cn">21</span>)   <span class="cc">// x = 42 — ABI is hidden pass-by-reference</span>
 }</code></pre>
                 </div>
@@ -129,7 +129,7 @@
     }
 }
 
-<span class="cf">main</span>() {
+<span class="ct">void</span> <span class="cf">main</span>() {
     <span class="ck">handle</span> {
         get(<span class="cs">""</span>)
     }
@@ -192,7 +192,7 @@
     <span class="cf">draw</span>() { <span class="cc">/* render ... */</span> }
 }
 
-<span class="cf">main</span>() {
+<span class="ct">void</span> <span class="cf">main</span>() {
     <span class="ct">Circle</span> c = <span class="ck">new</span> <span class="ct">Circle</span>()
     c.radius = <span class="cn">5</span>
     c.<span class="cf">draw</span>()
@@ -220,7 +220,7 @@
     p.y = <span class="cn">42</span>
 }   <span class="cc">// ← p freed automatically here</span>
 
-<span class="cf">main</span>() {
+<span class="ct">void</span> <span class="cf">main</span>() {
     <span class="cf">process</span>()   <span class="cc">// no leaks, no delete</span>
 }</code></pre>
         </div>

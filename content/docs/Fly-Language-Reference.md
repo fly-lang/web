@@ -1446,7 +1446,7 @@ After the handle, check `if (err)` to detect whether any error was written.
 
 **1. Unnamed — discard error details:**
 ```fly
-main() {
+void main() {
     handle {
         riskyOperation()
         anotherOp()
@@ -1457,7 +1457,7 @@ main() {
 
 **2. Named — inspect whether an error occurred:**
 ```fly
-main() {
+void main() {
     error err handle {
         riskyOperation()
     }
@@ -1505,7 +1505,7 @@ openFile(const string path) {
     }
 }
 
-main() {
+void main() {
     openFile("")       // writes error 400 to main's struct, returns
     openFile("/tmp")   // STILL CALLED — propagation is not unwinding
     // main returns exit code 400
@@ -1518,7 +1518,7 @@ openFile(const string path) {
     if (path == "") { fail 400, "empty path" }
 }
 
-main() {
+void main() {
     error err handle {
         openFile("")       // fails and writes error; handle body continues
         openFile("/tmp")   // STILL CALLED (callee fail ≠ jump in caller)
@@ -1531,7 +1531,7 @@ main() {
 
 **Example 3: Direct fail in handle — jumps immediately**
 ```fly
-main() {
+void main() {
     error err handle {
         if (someCondition) {
             fail 500    // jumps directly to safe block
@@ -1667,7 +1667,7 @@ public int getB() {
 // File: main.fly
 import utils
 
-main() {
+void main() {
     int b = utils.getB()   // b = 10
 }
 ```

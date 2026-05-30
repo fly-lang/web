@@ -63,18 +63,19 @@
     <div class="wrap">
         <div class="highlight-grid">
             <div class="highlight-text">
-                <h2>Zero-copy functions, by design</h2>
+                <h2>Return values without the copy</h2>
                 <p>
-                    In Fly every parameter is always passed by reference — no copies, ever.
+                    Declare a return type before the function name.
+                    Inside the body, assign to <code>out</code> — the implicit return variable.
                 </p>
                 <p>
-                    Mark a parameter <code>const</code> to declare it as a <strong>read-only input</strong>.
-                    Leave it mutable and it becomes an <strong>output</strong>: the function writes results
-                    directly into the caller's variables.
+                    In C++ you must choose: <code>File f = open(path)</code> (readable, but implies a copy)
+                    or <code>open(path, &amp;f)</code> (efficient, but noisy).
+                    Fly does both with the same line — the source reads as return-by-value,
+                    the compiler generates a hidden pass-by-reference.
                 </p>
                 <p>
-                    This keeps call overhead minimal and lets LLVM optimise aggressively,
-                    regardless of what you are passing.
+                    Same LLVM output. Zero extra cost. No compromise on readability.
                 </p>
                 <a href="/docs/" class="btn btn-blue">Read the Docs</a>
             </div>
@@ -85,15 +86,13 @@
                         <span class="dot yellow"></span>
                         <span class="dot green"></span>
                     </div>
-                    <pre class="code-pre"><code><span class="cc">// const = input (read-only reference)</span>
-<span class="cc">// no const = output (written directly by the function)</span>
-<span class="cf">calc</span>(<span class="ck">const</span> <span class="ct">int</span> n, <span class="ct">int</span> result) {
-    result = n * <span class="cn">2</span>
+                    <pre class="code-pre"><code><span class="cc">// return type declared in the signature</span>
+<span class="ct">int</span> <span class="cf">calc</span>(<span class="ck">const</span> <span class="ct">int</span> n) {
+    <span class="ck">out</span> = n * <span class="cn">2</span>   <span class="cc">// 'out' is the implicit return variable</span>
 }
 
 <span class="cf">main</span>() {
-    <span class="ct">int</span> x
-    <span class="cf">calc</span>(<span class="cn">21</span>, x)   <span class="cc">// x = 42</span>
+    <span class="ct">int</span> x = <span class="cf">calc</span>(<span class="cn">21</span>)   <span class="cc">// x = 42 — ABI is hidden pass-by-reference</span>
 }</code></pre>
                 </div>
             </div>

@@ -7,7 +7,7 @@ weight = 1
 
 # Fly Language Reference
 
-**Version:** 1.0  
+**Version:** 0.12.3  
 **Project:** [Fly Programming Language](https://flylang.org)  
 **License:** Apache License v2.0
 
@@ -54,11 +54,13 @@ char        class       const       continue    default
 double      elsif       else        enum        error
 fail        false       float       for         handle
 if          import      interface   int         long
-namespace   new         null        private     protected
-public      return      short       static      string
-struct      switch      true        uint        ulong
-ushort      while
+namespace   new         null        out         private
+protected   public      return      short       static
+string      struct      switch      true        uint
+ulong       ushort      while
 ```
+
+> **`out`** is a special identifier automatically declared inside any function that has a return type. It holds the value to be returned. For functions with multiple return types, use `out[0]`, `out[1]`, … See [Section 5.4](#5-4-return-values).
 
 ### 2.2 Identifiers
 
@@ -355,46 +357,60 @@ byte[3] buffer = {1, 2, 3}
 
 ### 5.1 Function Declaration
 
-Functions and methods in Fly are **always void**—they never return a value. Because all functions are implicitly void, there is no need to specify a return type in the declaration.
+Functions and methods may optionally declare a **return type** before the function name. When a return type is present, the special identifier `out` is implicitly declared inside the body and holds the value to be returned. Functions without a return type are void.
 
 **Syntax:**
 ```
-Function ::= [ Modifiers ] Identifier '(' [ Parameters ] ')' ( Block | ';' )
+Function    ::= [ Modifiers ] [ ReturnType ] Identifier '(' [ Parameters ] ')' ( Block | ';' )
+ReturnType  ::= Type ( ',' Type )*
 ```
 
 **Examples:**
 ```fly
-// Simple function
+// Void function — no return type
 doSomething() {
     // function body
 }
 
-// Function with parameters (all parameters require const modifier)
-add(const int a, const int b) {
-    // function body
+// Function with a return type — assign to 'out' to return a value
+int add(const int a, const int b) {
+    out = a + b
+}
+
+// Multiple return types — use out[0], out[1], …
+int,int minMax(const int a, const int b) {
+    if (a < b) {
+        out[0] = a
+        out[1] = b
+    } else {
+        out[0] = b
+        out[1] = a
+    }
 }
 ```
 
 ### 5.2 Function Parameters
 
-All function parameters **must** use the `const` modifier. Parameters are always immutable within the function body.
+Input parameters use the `const` modifier and are read-only inside the function body. Output parameters (the traditional multi-output style) omit `const` and are written directly by the function.
 
 **Syntax:**
 ```
 Parameters ::= Parameter ( ',' Parameter )*
-Parameter  ::= 'const' Type Identifier
+Parameter  ::= [ 'const' ] Type Identifier
 ```
 
 **Examples:**
 ```fly
-// Multiple parameters (all const)
+// Input-only parameters (const)
 process(const int x, const float y, const bool flag) {
     // implementation
 }
 
-// Array parameters
-processArray(const byte[] data, const int[] indices) {
-    // implementation
+// Mixed: const inputs + traditional output parameter
+clamp(const int value, const int lo, const int hi, int result) {
+    if (value < lo) { result = lo }
+    elsif (value > hi) { result = hi }
+    else { result = value }
 }
 ```
 
@@ -416,20 +432,42 @@ public publicAPI() {}
 protected protectedMethod() {}
 ```
 
-### 5.4 Return Statement
+### 5.4 Return Values
 
-Since all functions are void, the `return` statement is used only to exit the function early. It never carries a value.
+When a function declares a return type, the special identifier `out` is implicitly available inside the body. Assigning to `out` sets the return value. The caller receives it as if the function returned by value — but the compiler generates a hidden by-reference output parameter, so **no copy is ever made**.
 
 ```fly
-// Return exits the function
-noReturn() {
-    return
+// Looks like return-by-value to the caller…
+int square(const int n) {
+    out = n * n
 }
 
-// Return used for early exit
+main() {
+    int x = square(5)   // x = 25
+}
+```
+
+This resolves the classic C++ ergonomics/performance tension: in C++ you must choose between `File f = open(path)` (readable, but implies a copy) or `open(path, &f)` (efficient, but noisy). Fly does both with the same syntax — the source reads as a normal assignment, and the compiler silently passes `x` by reference to `square`.
+
+**Multiple return types** use `out[0]`, `out[1]`, …:
+
+```fly
+int,int divmod(const int a, const int b) {
+    out[0] = a / b   // quotient
+    out[1] = a % b   // remainder
+}
+
+main() {
+    int q = divmod(17, 5)   // q = 3
+}
+```
+
+**Early exit** in void functions still uses `return` (without a value):
+
+```fly
 process(const int x) {
     if (x < 0) {
-        return  // exit early
+        return   // exit early — no value
     }
     // continue processing
 }
@@ -632,16 +670,16 @@ public class Person {
     // Public field
     public bool isActive
     
-    // Constructor-like method (no return type)
+    // Constructor-like method (void — no return type)
     public initialize(const string personName, const int personAge) {
         name = personName
         age = personAge
         isActive = true
     }
     
-    // Public method
-    public getName(const string[] out) {
-        out[0] = name
+    // Public method with return type
+    public string getName() {
+        out = name
     }
     
     // Private method
@@ -652,9 +690,9 @@ public class Person {
     // Static field
     static int instanceCount = 0
     
-    // Static method
-    public static getCount(const int[] out) {
-        out[0] = instanceCount
+    // Static method with return type
+    public static int getCount() {
+        out = instanceCount
     }
 }
 ```
@@ -666,9 +704,11 @@ public class Person {
 // Create instance
 MyClass obj = new MyClass()
 
-// Use with initialization
+// Use with initialization and return-type method call
 Person person = new Person()
 person.initialize("John", 30)
+string name = person.getName()   // name = "John"
+int count = Person.getCount()    // count = 1
 ```
 
 ---
@@ -1128,7 +1168,7 @@ for int i = 0; i < length; i++ {
 
 #### 9.6.1 Return Statement
 
-Since all functions are void, `return` is used only to exit the function early.
+`return` exits a void function early. Functions with a return type use `out` to carry the result; `return` may still be used to exit early from such functions.
 
 **Syntax:**
 ```
@@ -1522,8 +1562,8 @@ import data.models
 // File: utils.fly
 namespace utils
 
-public getB(const int[] out) {
-    out[0] = 10
+public int getB() {
+    out = 10
 }
 ```
 
@@ -1532,8 +1572,7 @@ public getB(const int[] out) {
 import utils
 
 main() {
-    int[] result = {0}
-    utils.getB(result)
+    int b = utils.getB()   // b = 10
 }
 ```
 
@@ -1609,8 +1648,8 @@ The `static` modifier creates class-level members.
 class Counter {
     static int totalCount = 0
     
-    public static getTotal(const int[] out) {
-        out[0] = totalCount
+    public static int getTotal() {
+        out = totalCount
     }
     
     public increment() {
@@ -1621,6 +1660,7 @@ class Counter {
 // Usage
 Counter c = new Counter()
 c.increment()
+int total = Counter.getTotal()   // total = 1
 ```
 
 ### 11.4 Combining Modifiers
@@ -1739,11 +1779,13 @@ EnumEntryList   ::= EnumEntry ( ',' EnumEntry )*
 
 EnumEntry       ::= Identifier
 
-FunctionDecl    ::= Modifiers Identifier '(' [ ParamList ] ')' ( Block | ';' )
+FunctionDecl    ::= Modifiers [ ReturnType ] Identifier '(' [ ParamList ] ')' ( Block | ';' )
+
+ReturnType      ::= Type ( ',' Type )*
 
 ParamList       ::= Param ( ',' Param )*
 
-Param           ::= 'const' Type Identifier
+Param           ::= [ 'const' ] Type Identifier
 ```
 
 **Inheritance Rules:**
@@ -1871,12 +1913,17 @@ public class Application {
     // Static field
     static int instanceCount = 0
     
-    // Public method (no return type — all functions are void)
+    // Void method — no return type
     public initialize(const string appName) {
         name = appName
         value = 0
         currentStatus = Status.IDLE
         instanceCount++
+    }
+    
+    // Method with return type — 'out' carries the result
+    public int getValue() {
+        out = value
     }
     
     // Public method with error handling
@@ -2018,7 +2065,7 @@ main() {
     }
 }
 
-// Private helper function (all parameters require const)
+// Private helper function (void)
 private handleResult() {
     // handle result logic
 }

@@ -36,22 +36,23 @@ string name = "Fly"
 
 ## Functions
 
-Functions in Fly have no return type — all results are communicated through parameters.  
-Mark a parameter `const` to make it a **read-only input**. Leave it mutable to make it a **writable output**.
-Every parameter is passed by reference, so no data is ever copied.
+Declare a **return type** before the function name. Inside the body, assign to the special identifier `out` to produce the return value.
 
 ```fly
-double(const int n, int result) {
-    result = n * 2
+int double(const int n) {
+    out = n * 2
 }
 
 main() {
-    int x
-    double(21, x)   // x = 42
+    int x = double(21)   // x = 42
 }
 ```
 
-A function can write to multiple output parameters naturally:
+The source reads as return-by-value, but the compiler generates a hidden by-reference output parameter — so **no copy is ever made**. You get `int x = double(21)` ergonomics with `double(21, &x)` performance.
+
+`const` marks an input parameter (read-only). A function without a return type is void.
+
+For multiple outputs, you can use traditional output parameters (non-`const`):
 
 ```fly
 minMax(const int a, const int b, int min, int max) {
@@ -68,6 +69,19 @@ main() {
     int lo
     int hi
     minMax(3, 7, lo, hi)   // lo=3, hi=7
+}
+```
+
+Or declare multiple return types and use `out[0]`, `out[1]`, …:
+
+```fly
+int,int minMax(const int a, const int b) {
+    if (a < b) { out[0] = a  out[1] = b }
+    else       { out[0] = b  out[1] = a }
+}
+
+main() {
+    int lo = minMax(3, 7)   // lo = 3 (first return value)
 }
 ```
 

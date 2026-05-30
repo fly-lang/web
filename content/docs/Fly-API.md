@@ -1515,8 +1515,10 @@ import fly.data.deque   // fly.data.Deque
 import fly.data.set     // fly.data.Set
 import fly.data.map     // fly.data.Map
 import fly.data.tree    // fly.data.Tree
-import fly.data.wrapper // fly.data.Wrapper<T>
+import fly.data.wrapper // fly.data.Wrapper<T>  (generic)
 ```
+
+All untyped collections (`List`, `Stack`, `Queue`, …) store `long` values. To build a **typed** collection, wrap values in `Wrapper<T>` and store the wrapper reference — see [Wrapper\<T\>](#wrappert) and the [List\<string\> pattern](#liststring-pattern) below.
 
 ---
 
@@ -1651,7 +1653,7 @@ public class Tree {
 
 ### Wrapper\<T\>
 
-Generic single-value holder; requires generics (v0.12+).
+Generic single-value holder (requires generics, v0.12+). The type parameter `T` is resolved at compile time via monomorphization — each instantiation (`Wrapper<string>`, `Wrapper<int>`, …) is a distinct, zero-overhead type.
 
 ```fly
 public class Wrapper<T> {
@@ -1661,7 +1663,62 @@ public class Wrapper<T> {
 }
 ```
 
-**Example:**
+**Basic example:**
+
+```fly
+import fly.data.wrapper
+
+void main() {
+    // String wrapper
+    Wrapper<string> ws = new Wrapper<string>("hello")
+    string s = ws.get()   // s = "hello"
+    ws.set("world")
+    s = ws.get()           // s = "world"
+
+    // Integer wrapper
+    Wrapper<int> wi = new Wrapper<int>(42)
+    int n = wi.get()       // n = 42
+    wi.set(n + 1)
+    n = wi.get()            // n = 43
+}
+```
+
+---
+
+### List\<string\> Pattern
+
+`fly.data.List` stores raw `long` values (object addresses or integers). To maintain a **typed list of strings**, combine `List` with `Wrapper<string>`: each string is boxed into a `Wrapper<string>` instance, and the instance reference is added to the list.
+
+```fly
+import fly.data.list
+import fly.data.wrapper
+
+void main() {
+    List lst = new List()
+
+    // Add strings — box each into a Wrapper<string>
+    lst.add(new Wrapper<string>("apple"))
+    lst.add(new Wrapper<string>("banana"))
+    lst.add(new Wrapper<string>("cherry"))
+
+    int n = lst.size()   // n = 3
+
+    // Read strings — retrieve wrapper, then unwrap
+    for int i = 0; i < n; i++ {
+        Wrapper<string> item = lst.get(i)
+        string text = item.get()
+        // use text …
+    }
+
+    lst.free()
+}
+```
+
+The same pattern works for any heap-allocated type — replace `Wrapper<string>` with `Wrapper<int>`, `Wrapper<MyClass>`, etc.
+
+---
+
+**Untyped example (raw long):**
 
 ```fly
 import fly.data.list

@@ -22,6 +22,7 @@ weight = 1
 5. [Functions](#5-functions)
 6. [Classes and Structures](#6-classes-and-structures)
    - [6.6 Allocation and Lifetime](#6-6-allocation-and-lifetime)
+   - [6.7 Generics](#6-7-generics)
 7. [Enumerations](#7-enumerations)
 8. [Expressions](#8-expressions)
 9. [Statements](#9-statements)
@@ -826,6 +827,138 @@ process() {
 
 ---
 
+### 6.7 Generics
+
+Fly supports **generic classes** and **generic functions** via monomorphization. Each unique instantiation is compiled into a distinct, fully specialized implementation — no type erasure, no boxing overhead, no runtime cost.
+
+#### 6.7.1 Generic Class Declaration
+
+Add one or more **type parameters** in angle brackets after the class name.
+
+**Syntax:**
+```
+GenericClass ::= [ Modifiers ] 'class' Identifier '<' TypeParam ( ',' TypeParam )* '>' [ ':' Identifier ] '{' ClassMember* '}'
+TypeParam    ::= Identifier
+```
+
+**Example:**
+```fly
+public class Wrapper<T> {
+    private T value
+
+    public Wrapper(T v) {
+        value = v
+    }
+
+    public T get() {
+        out = value
+    }
+
+    public void set(T v) {
+        value = v
+    }
+}
+```
+
+#### 6.7.2 Instantiation
+
+Provide concrete type arguments in angle brackets when declaring a variable. Each unique combination of type arguments produces a **separate monomorphized type** at compile time.
+
+```fly
+import fly.data
+
+void main() {
+    // Wrapper<string> — holds a string
+    Wrapper<string> ws = new Wrapper<string>("hello")
+    string s = ws.get()   // s = "hello"
+    ws.set("world")
+
+    // Wrapper<int> — holds an int
+    Wrapper<int> wi = new Wrapper<int>(42)
+    int n = wi.get()       // n = 42
+
+    // Wrapper<bool>
+    Wrapper<bool> wb = new Wrapper<bool>(true)
+    bool b = wb.get()      // b = true
+}
+```
+
+`Wrapper<string>` and `Wrapper<int>` are entirely separate types: the compiler emits a distinct LLVM struct and a distinct set of methods for each instantiation.
+
+#### 6.7.3 Generic Functions
+
+Functions can also declare type parameters, placed between the function name and the parameter list.
+
+**Syntax:**
+```
+GenericFunc ::= [ Modifiers ] [ ReturnType ] Identifier '<' TypeParam ( ',' TypeParam )* '>' '(' [ Parameters ] ')' Block
+```
+
+**Example:**
+```fly
+// Generic identity function — returns its argument unchanged
+T identity<T>(const T v) {
+    out = v
+}
+
+void main() {
+    int    i = identity<int>(10)        // explicit type argument
+    string s = identity<string>("fly")  // explicit type argument
+}
+```
+
+**Type inference** — when the argument type is unambiguous, the type argument can be omitted and the compiler infers it automatically:
+
+```fly
+void main() {
+    int    i = identity(10)     // T inferred as int
+    string s = identity("fly")  // T inferred as string
+    bool   b = identity(true)   // T inferred as bool
+}
+```
+
+#### 6.7.4 Managing a List of Strings — fly.data.List\<string\> Pattern
+
+`fly.data.List` is an untyped dynamic array that stores `long` values (raw integers or object addresses). To maintain a **typed list of strings**, wrap each string in a `Wrapper<string>` and store the wrapper reference in the list. Retrieve the wrapper and call `.get()` to recover the string.
+
+```fly
+import fly.data.list
+import fly.data.wrapper
+
+void main() {
+    List lst = new List()
+
+    // Box each string into a Wrapper<string>
+    Wrapper<string> a = new Wrapper<string>("apple")
+    Wrapper<string> b = new Wrapper<string>("banana")
+    Wrapper<string> c = new Wrapper<string>("cherry")
+
+    lst.add(a)
+    lst.add(b)
+    lst.add(c)
+
+    // Iterate — retrieve wrapper, then unwrap the string
+    int total = lst.size()   // total = 3
+    for int i = 0; i < total; i++ {
+        Wrapper<string> item = lst.get(i)
+        string text = item.get()
+        // use text …
+    }
+
+    lst.free()
+}
+```
+
+The same pattern applies to any heap-allocated type: `Wrapper<int>`, `Wrapper<MyClass>`, etc.
+
+| Goal | Approach |
+|---|---|
+| Store strings in a list | `Wrapper<string>` + `List` |
+| Store ints in a list | `Wrapper<int>` + `List` (or raw `long` directly) |
+| Single typed value | `Wrapper<T>` alone |
+
+---
+
 ## 7. Enumerations
 
 ### 7.1 Enum Declaration
@@ -1626,58 +1759,128 @@ namespace company.project.module
 
 ### 10.2 Import Declaration
 
-Imports make symbols from other namespaces available.
+Imports make symbols from other namespaces available. Fly supports four import forms, all modelled on Java-style imports.
 
 **Syntax:**
 ```
-Import ::= 'import' Identifier ( '.' Identifier )* [ 'as' Identifier ( '.' Identifier )* ]
+Import ::= 'import' Name ( '.' Name )*                           // namespace import
+         | 'import' Name ( '.' Name )* '.' '*'                   // wildcard import
+         | 'import' Name ( '.' Name )* 'as' Name ( '.' Name )*  // alias import
 ```
 
-**Examples:**
+#### 10.2.1 Namespace import
+
+Brings the last namespace segment into scope. Access symbols with the segment prefix.
+
 ```fly
-// Simple import
-import utils
+import fly.str          // 'str' is in scope
+import fly.os.time      // 'time' is in scope
 
-// Nested namespace import
-import my.library
+void main() {
+    int n   = str.len("hello")    // qualified access
+    Time t  = time.now()
+}
+```
 
-// Import with alias
-import standard as std
-import external.package as pkg
+#### 10.2.2 Class import (Java style)
 
-// Multiple imports
-import utils
-import helpers
-import data.models
+When the last component of the path names a **class** (or enum/struct), that type is placed directly in the current scope — no prefix needed. This is the Fly equivalent of Java's `import java.util.List`.
+
+```fly
+import fly.data.List    // 'List' class is in scope
+import fly.data.Stack   // 'Stack' class is in scope
+
+void main() {
+    List  l = new List()    // no 'data.' prefix needed
+    Stack s = new Stack()
+    l.free()
+    s.free()
+}
+```
+
+There is no coupling between the filename and the class name. The import path navigates the **namespace hierarchy**; the filename is irrelevant. By convention, stdlib files use the capitalized class name (`list.fly` → `List`), but this is optional for user code.
+
+#### 10.2.3 Wildcard import
+
+`.*` brings **all public symbols** (classes, enums, structs, functions) declared directly in the target namespace into the current scope. The target must be a namespace — using `.*` on a class or function is a compile-time error.
+
+```fly
+import fly.data.*       // List, Stack, Queue, Deque, Map, Set, Tree all in scope
+
+void main() {
+    List l = new List()
+    Map  m = new Map()
+    l.free()
+    m.free()
+}
+```
+
+```fly
+// Error: fly.data.List is a class, not a namespace
+import fly.data.List.*  // → compile error: wildcard requires a namespace target
+```
+
+#### 10.2.4 Alias import
+
+Binds the imported namespace or symbol under a different local name. Cannot be combined with wildcard (`.*`).
+
+```fly
+import fly.str as s     // 's' is in scope
+import fly.data.List as L
+
+void main() {
+    int n = s.len("hello")
+    L myList = new L()
+    myList.free()
+}
 ```
 
 ### 10.3 Using Imported Symbols
 
-**Examples:**
+**Full example:**
 ```fly
-// File: utils.fly
-namespace utils
+// File: shapes.fly
+namespace geom
 
-public int getB() {
-    out = 10
+public class Circle {
+    public int radius
+}
+
+public int area(const int r) {
+    out = r * r
 }
 ```
 
 ```fly
-// File: main.fly
-import utils
+// File: main.fly — class import (Java style)
+import geom.Circle
 
 void main() {
-    int b = utils.getB()   // b = 10
+    Circle c = new Circle()
+    c.radius = 5
+    delete c
 }
 ```
 
 ```fly
-// With alias
-import standard as std
+// File: main.fly — namespace import
+import geom
 
-process() {
-    std.doSomething()
+void main() {
+    geom.Circle c = new geom.Circle()
+    int a = geom.area(5)
+    delete c
+}
+```
+
+```fly
+// File: main.fly — wildcard import
+import geom.*
+
+void main() {
+    Circle c = new Circle()
+    int a = area(5)      // function in scope too
+    delete c
 }
 ```
 
@@ -1833,7 +2036,9 @@ Program         ::= [ Namespace ] Import* TopDecl*
 
 Namespace       ::= 'namespace' Name ( '.' Name )*
 
-Import          ::= 'import' Name ( '.' Name )* [ 'as' Name ( '.' Name )* ]
+Import          ::= 'import' Name ( '.' Name )*
+                  | 'import' Name ( '.' Name )* '.' '*'
+                  | 'import' Name ( '.' Name )* 'as' Name ( '.' Name )*
 
 TopDecl         ::= Comment 
                   | ClassDecl 
@@ -1864,7 +2069,14 @@ ArrayType       ::= Type '[' [ Expression ] ']'
 
 ```
 ClassDecl       ::= Modifiers ( 'class' | 'struct' ) 
-                    Identifier [ ':' Identifier ] '{' ClassMember* '}'
+                    Identifier [ '<' TypeParam ( ',' TypeParam )* '>' ]
+                    [ ':' Identifier ] '{' ClassMember* '}'
+
+TypeParam       ::= Identifier
+
+GenericFunc     ::= Modifiers [ ReturnType ] Identifier
+                    '<' TypeParam ( ',' TypeParam )* '>'
+                    '(' [ ParamList ] ')' Block
 
 InterfaceDecl   ::= Modifiers 'interface' 
                     Identifier [ ':' Identifier ] '{' InterfaceMember* '}'

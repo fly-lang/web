@@ -89,10 +89,42 @@ void main() {
 
 ## Importing modules
 
+Fly supports four import styles, modelled on Java-style imports.
+
+**Namespace import** — brings the last segment into scope; access symbols with a prefix:
+
 ```fly
-import fly.str          // use as str.len(...)
-import fly.str.*        // use unqualified: len(...)
-import fly.str as s     // use as s.len(...)
+import fly.str              // 'str' is in scope
+int n = str.len("hello")    // qualified access
+```
+
+**Class import** — brings a single class (or enum/struct) directly into scope, no prefix needed. This is the Java-style per-class import:
+
+```fly
+import fly.data.List        // 'List' is in scope
+import fly.data.Map         // 'Map' is in scope
+
+List  l = new List()        // no 'data.' prefix
+Map   m = new Map()
+```
+
+The import path follows the **namespace hierarchy**, not the filesystem. There is no required link between the filename and the class name.
+
+**Wildcard import** — brings every public symbol (classes, enums, structs, functions) from a namespace directly into scope. The target must be a namespace:
+
+```fly
+import fly.data.*           // List, Stack, Map, … all in scope
+List l = new List()
+```
+
+**Alias import** — binds the imported namespace or class under a local name:
+
+```fly
+import fly.str as s
+import fly.data.List as L
+
+int n    = s.len("hello")
+L myList = new L()
 ```
 
 ---
@@ -277,3 +309,96 @@ process() {
     Point b = a   // b and a share the same pointer
 }   // first scope exit frees the data; other becomes dangling
 ```
+
+---
+
+## Generics
+
+Fly supports **generic classes** and **generic functions** via monomorphization. Each instantiation with a different concrete type produces a separate, fully optimized implementation at compile time — no type erasure, no boxing overhead.
+
+### Generic classes
+
+Declare type parameters in angle brackets after the class name:
+
+```fly
+public class Wrapper<T> {
+    private T value
+
+    public Wrapper(T v) {
+        value = v
+    }
+
+    public T get() {
+        out = value
+    }
+
+    public void set(T v) {
+        value = v
+    }
+}
+```
+
+Instantiate by supplying concrete type arguments:
+
+```fly
+import fly.data.wrapper
+
+void main() {
+    Wrapper<string> ws = new Wrapper<string>("hello")
+    string s = ws.get()   // s = "hello"
+
+    Wrapper<int> wi = new Wrapper<int>(42)
+    int n = wi.get()       // n = 42
+}
+```
+
+`Wrapper<string>` and `Wrapper<int>` are completely separate types in the generated code.
+
+### Generic functions
+
+Type parameters appear between the function name and its parameter list:
+
+```fly
+T identity<T>(const T v) {
+    out = v
+}
+
+void main() {
+    int    i = identity(10)     // T inferred as int
+    string s = identity("fly")  // T inferred as string
+}
+```
+
+The compiler **infers** the type argument from the argument expression, so explicit `identity<int>(10)` is optional.
+
+### Managing a list of strings — fly.data.List\<string\> pattern
+
+`fly.data.List` stores raw `long` values. To keep a typed list of strings, wrap each string in a `Wrapper<string>` and store the wrapper reference in the list:
+
+```fly
+import fly.data.list
+import fly.data.wrapper
+
+void main() {
+    List lst = new List()
+
+    Wrapper<string> a = new Wrapper<string>("apple")
+    Wrapper<string> b = new Wrapper<string>("banana")
+    Wrapper<string> c = new Wrapper<string>("cherry")
+
+    lst.add(a)
+    lst.add(b)
+    lst.add(c)
+
+    int total = lst.size()   // total = 3
+    for int i = 0; i < total; i++ {
+        Wrapper<string> item = lst.get(i)
+        string text = item.get()
+        // use text …
+    }
+
+    lst.free()
+}
+```
+
+This pattern generalises to any heap-allocated type: `Wrapper<int>`, `Wrapper<MyClass>`, and so on.

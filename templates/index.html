@@ -55,6 +55,12 @@
         <h3>Powerful</h3>
         <p>Multi-paradigm with procedural, object-oriented, and functional programming support.</p>
       </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧪</div>
+        <h3>Zero-cost testing</h3>
+        <p>Inline <code>test {}</code> blocks live inside production functions and are completely
+           stripped in release builds — no overhead, no separate test binary needed.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -242,6 +248,57 @@
           with no pauses and no surprises.
         </p>
         <a href="/docs/" class="btn btn-blue">Read the Docs</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="highlight">
+  <div class="wrap">
+    <div class="highlight-grid">
+      <div class="highlight-text">
+        <h2>Testing that lives with the code</h2>
+        <p>
+          Write <code>test {}</code> blocks directly inside production functions.
+          They observe local state read-only — no mocking, no duplicated setup logic.
+        </p>
+        <p>
+          In release builds the blocks vanish completely — zero IR, zero overhead.
+          In test mode, a <code>suite</code> activates them by supplying inputs
+          through named <code>case</code> blocks that all execute sequentially.
+        </p>
+        <p>
+          Each case runs with its own isolated error scope.
+          The suite compiles to a standalone binary with an implicit <code>main()</code>
+          — just run <code>flyp test</code>, no boilerplate needed.
+        </p>
+        <a href="/docs/fly-testing/" class="btn btn-blue">Read the docs</a>
+      </div>
+      <div class="highlight-code">
+        <div class="code-window">
+          <div class="code-bar">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+            <span class="code-file">MathSuite.fly</span>
+          </div>
+          <pre class="code-pre"><code><span class="ck">suite</span> <span class="ct">MathSuite</span> {
+
+    <span class="ct">void</span> <span class="cf">classifyTest</span>() {
+        <span class="ck">case</span> <span class="cs">"positive"</span>: <span class="cf">classify</span>(<span class="cn">5</span>)
+        <span class="ck">case</span> <span class="cs">"negative"</span>: <span class="cf">classify</span>(<span class="cn">-3</span>)
+    }
+}
+
+<span class="ct">string</span> <span class="cf">classify</span>(<span class="ck">const</span> <span class="ct">int</span> n) {
+    <span class="ck">if</span> n &gt; <span class="cn">0</span> {
+        <span class="ck">out</span> = <span class="cs">"positive"</span>
+        <span class="ck">test</span> {
+            <span class="cf">assertTrue</span>(<span class="ck">out</span> == <span class="cs">"positive"</span>)
+        }
+    }
+}</code></pre>
+        </div>
       </div>
     </div>
   </div>

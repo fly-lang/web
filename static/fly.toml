@@ -1,0 +1,102 @@
+# fly.toml — Fly project manifest template
+#
+# Download this file, rename it, and place it at the root of your project.
+# Run `flyp init` to generate a minimal manifest automatically.
+#
+# TOML reference: https://toml.io
+# flyp docs:      https://flylang.org/docs/fly-package-manager/
+
+# ── [package] ────────────────────────────────────────────────────────────────
+
+[package]
+name        = "my-project"          # [a-z0-9_-]+  required
+version     = "0.1.0"               # MAJOR.MINOR.PATCH  required
+description = "A Fly language project"
+license     = "Apache-2.0"          # SPDX identifier
+fly-version = "0.14.0"              # minimum compiler version required
+authors     = ["Your Name <you@example.com>"]
+homepage    = "https://example.com"
+repository  = "https://github.com/you/my-project"
+
+# ── [targets] ────────────────────────────────────────────────────────────────
+# Key = CLI identifier and default output filename.
+# A target without "lib" is a binary.
+# A target with lib = "static" | "dynamic" | "both" is a library.
+#
+# Optional "name" field overrides the output filename:
+#   app = { name = "MyApp", path = "src/main.fly" }
+#   → flyp build --target app  produces  target/debug/MyApp
+#
+# If absent, flyp auto-detects src/main.fly (→ bin) and src/lib.fly (→ lib).
+
+[targets]
+my-project = { path = "src/main.fly" }
+# cli        = { name = "MyCLI", path = "src/cli.fly" }
+# my-lib     = { path = "src/lib.fly",  lib = "static"  }
+# dyn-lib    = { name = "MyLib", path = "src/dyn.fly",  lib = "dynamic" }
+
+# ── [hooks] ──────────────────────────────────────────────────────────────────
+# pre-build  runs before any target compiles (useful for codegen, FFI bindings, etc.)
+# post-build runs after all targets compile successfully (useful for stripping, packaging)
+#
+# Both commands run from the package root with these env vars available:
+#   FLYP_PROFILE, FLYP_OUT_DIR, FLYP_ROOT_DIR, FLYP_TARGET_TRIPLE, FLYP_PACKAGE_NAME
+
+# [hooks]
+# pre-build  = "python scripts/codegen.py"
+# post-build = "strip target/release/my-project"
+
+# ── [link] ───────────────────────────────────────────────────────────────────
+# Link native C/C++ libraries. Each name is passed as --link-lib=NAME to the
+# Fly compiler, which forwards it as -lNAME to the system linker.
+
+# [link]
+# libs = ["LLVM-20", "curl", "pthread"]
+
+# ── [test] ───────────────────────────────────────────────────────────────────
+
+[test]
+suites    = ["src/**/*Suite.fly"]
+parallel  = false
+fail_fast = false
+
+# ── [dependencies] ───────────────────────────────────────────────────────────
+
+# [dependencies]
+# fly-std = { git = "https://github.com/flylang/fly-std.git", tag = "v0.14.0" }
+# my-lib  = { git = "https://github.com/user/my-lib.git",     branch = "main"  }
+# patched = { git = "https://github.com/user/utils.git",      rev    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2" }
+
+# ── [dev-dependencies] ───────────────────────────────────────────────────────
+
+# [dev-dependencies]
+# fly-test = { git = "https://github.com/flylang/fly-test.git", tag = "v0.3.0" }
+
+# ── [repo] ───────────────────────────────────────────────────────────────────
+# Named registry aliases. All references to registries use these names, not URLs.
+# Start a local registry: flyp-registry --storage ~/.flyp/registry --port 5000
+
+# [repo]
+# local  = "http://localhost:5000"
+# remote = "https://registry.flylang.org"
+
+# ── [workspace] ──────────────────────────────────────────────────────────────
+# Use only at the workspace root. [package] can be omitted in a workspace root.
+# Members reference each other via path dependencies:
+#   core = { path = "../libs/core" }
+# Build all members in dependency order: flyp build (from workspace root)
+# Create a workspace: flyp workspace init --name my-ws --members app,core
+
+# [workspace]
+# members = ["app", "libs/core"]
+
+# ── [profiles] ───────────────────────────────────────────────────────────────
+#   flyp build                    → debug (default)
+#   flyp build --release          → alias for --profile release
+#   flyp build --profile ci       → custom profile
+
+[profiles]
+debug   = { opt-level = 0, debug-info = true,  assertions = true,  lto = false, strip = false }
+release = { opt-level = 3, debug-info = false, assertions = false, lto = false, strip = false }
+ci      = { opt-level = 2, debug-info = true,  assertions = false, lto = false, strip = false }
+bench   = { opt-level = 3, debug-info = false, assertions = false, lto = true,  strip = true  }

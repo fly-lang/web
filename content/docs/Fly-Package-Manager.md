@@ -65,57 +65,166 @@ authors     = ["Your Name <you@example.com>"]  # optional
 | `repository` | no | Source repository URL |
 | `authors` | no | List of author strings |
 
-### `[[bin]]`
+### `[targets]`
 
-Declares an executable target. If omitted, flyp auto-detects `src/main.fly`.
+Declares all build targets — binaries and libraries — in a single key→value table. The key is the unique identifier used by the CLI (`flyp build --target key`, `flyp run --bin key`) and the default output filename.
+
+**A target is a binary by default.** Adding the `lib` field makes it a library:
 
 ```toml
-[[bin]]
-name = "my-app"
-path = "src/main.fly"
-
-[[bin]]
-name = "cli-tool"
-path = "src/cli.fly"
+[targets]
+app      = { path = "src/main.fly" }                       # binary
+cli-tool = { path = "src/cli.fly" }                        # binary
+my-lib   = { path = "src/lib.fly",  lib = "static"  }      # static library → libmy-lib.a
+dyn-lib  = { path = "src/dyn.fly",  lib = "dynamic" }      # shared library → libdyn-lib.so
+both-lib = { path = "src/both.fly", lib = "both"    }      # both → libboth-lib.a + libboth-lib.so
 ```
 
-### `[[lib]]`
-
-Declares a library target. If omitted, flyp auto-detects `src/lib.fly`.
+The optional `name` field overrides the output filename (the key is still used for CLI lookup):
 
 ```toml
-[[lib]]
-name = "my-lib"
-path = "src/lib.fly"
-type = "static"    # "static" (default) or "shared"
+[targets]
+app    = { name = "MyApp", path = "src/main.fly" }
+my-lib = { name = "MyLib", path = "src/lib.fly", lib = "static" }
 ```
 
-### `[[test]]`
+`flyp build --target app` → produces `target/debug/MyApp`.
 
-Declares a test suite target.
+| Field | Required | Description |
+|---|---|---|
+| `path` | yes | Entry-point source file, relative to the project root |
+| `lib` | no | Absent = binary. `"static"` → `lib<name>.a`. `"dynamic"` → `lib<name>.so` / `.dylib` / `.dll`. `"both"` → static archive **and** shared library. |
+| `name` | no | Output filename override (defaults to the key) |
+
+If `[targets]` is absent, flyp auto-detects `src/main.fly` (→ binary) and `src/lib.fly` (→ static library) when they exist.
+
+### `[hooks]`
+
+Build hooks run shell commands before and after compilation. Useful for code generation, asset processing, or post-build stripping.
 
 ```toml
-[[test]]
-name = "unit"
-path = "test/unit.fly"
+[hooks]
+pre-build  = "python scripts/codegen.py"    # runs before any target compiles
+post-build = "strip target/release/my-app"  # runs after all targets compile successfully
+```
 
-[[test]]
-name = "integration"
-path = "test/integration.fly"
+Both fields are optional. `post-build` only runs if the build succeeds.
+
+Each hook runs from the package root directory with these environment variables set:
+
+| Variable | Value |
+|---|---|
+| `FLYP_PROFILE` | Active profile name (`debug`, `release`, …) |
+| `FLYP_OUT_DIR` | Absolute path to `target/<profile>/` |
+| `FLYP_ROOT_DIR` | Absolute path to the package root |
+| `FLYP_TARGET_TRIPLE` | Cross-compilation triple, or empty for native |
+| `FLYP_PACKAGE_NAME` | Package name from `[package]` |
+
+If a hook exits with a non-zero code the build is aborted and an error is reported.
+
+### `[link]`
+
+Links native C/C++ libraries into the compiled output. Each entry in `libs` is passed to the Fly compiler as `--link-lib=NAME`, which forwards it as `-lNAME` to the system linker.
+
+```toml
+[link]
+libs = ["LLVM-20", "curl", "pthread"]
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `libs` | `string[]` | Library names without the `-l` prefix |
+
+Use this for projects that call into C libraries via the [FFI bridge](/docs/ffi-bridge/). The `[link]` section applies to all targets in the package.
+
+### `[test]`
+
+Configures test suite discovery and execution. `suites` accepts glob patterns relative to the project root.
+
+```toml
+[test]
+suites    = ["src/**/*Suite.fly", "tests/**/*.fly"]
+parallel  = false   # run suites concurrently
+fail_fast = false   # stop after the first failing suite
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `suites` | `string[]` | — | Glob patterns for suite source files |
+| `parallel` | `bool` | `false` | Run suites concurrently |
+| `fail_fast` | `bool` | `false` | Stop after the first failing suite |
+
+Each suite is compiled with the `--test` flag and run as a standalone binary. Compiled test binaries are written to `target/test/<suite_name>` (always profile-independent).
+
+See [Fly Testing](/docs/fly-testing/) for the full test system reference.
+
+### `[repo]`
+
+Declares named registry aliases. Each alias maps a short name to a registry URL. All references to registries elsewhere in the file use these names — never raw URLs.
+
+```toml
+[repo]
+local  = "http://localhost:5000"
+remote = "https://registry.flylang.org"
+```
+
+### `[package].registry`
+
+The default registry alias used by `flyp deploy` and `flyp publish`:
+
+```toml
+[package]
+name     = "my-lib"
+version  = "1.0.0"
+registry = "local"   # alias from [repo]
 ```
 
 ### `[dependencies]`
 
-Runtime dependencies fetched from Git repositories.
+Runtime dependencies. Three source types are supported:
 
+**Git dependency** — fetched directly from a git repository:
 ```toml
 [dependencies]
-mylib    = { git = "https://github.com/example/mylib.git", tag = "v1.2.0" }
-core     = { git = "https://github.com/example/core.git",  branch = "main" }
-patched  = { git = "https://github.com/example/utils.git", rev = "a3f1c29d" }
+mylib   = { git = "https://github.com/example/mylib.git", tag = "v1.2.0" }
+core    = { git = "https://github.com/example/core.git",  branch = "main" }
+patched = { git = "https://github.com/example/utils.git", rev = "a3f1c29d" }
 ```
 
-Each dependency must specify exactly one of:
+**Registry dependency** — fetched from a named registry (alias from `[repo]`). The map key is the local alias; `name` is the package name on the registry (defaults to the key); `version` is a semver range:
+```toml
+[dependencies]
+fly-std    = { registry = "local",  version = "^0.14.0" }
+io-helpers = { registry = "remote", name = "fly-io", version = "~1.2" }
+utils      = { registry = "local",  version = ">=1.0.0,<2.0.0" }
+```
+
+**Semver range syntax:**
+
+| Syntax | Meaning | Example |
+|---|---|---|
+| `*` | Any version (latest) | `"*"` |
+| `1.2.3` | Exact version | `"1.2.3"` |
+| `^1.2.3` | Compatible: `>=1.2.3, <2.0.0` (same major) | `"^1.2.3"` |
+| `^0.2.3` | `>=0.2.3, <0.3.0` (major=0: same minor) | `"^0.2.3"` |
+| `^0.0.3` | `>=0.0.3, <0.0.4` (minor=0: same patch) | `"^0.0.3"` |
+| `~1.2.3` | Patch-level: `>=1.2.3, <1.3.0` | `"~1.2.3"` |
+| `~1.2` | `>=1.2.0, <1.3.0` | `"~1.2"` |
+| `~1` | `>=1.0.0, <2.0.0` | `"~1"` |
+| `>=1.0.0` | At least | `">=1.0.0"` |
+| `<2.0.0` | Strictly less | `"<2.0.0"` |
+| `>=1.0.0,<2.0.0` | Range (comma = AND) | `">=1.0.0,<2.0.0"` |
+| `1.x` / `1.*` | Wildcard: `>=1.0.0, <2.0.0` | `"1.x"` |
+
+flyp selects the **highest available version** that satisfies the range.
+
+**Path dependency** — references a local workspace member:
+```toml
+[dependencies]
+core = { path = "../libs/core" }
+```
+
+For git dependencies, specify exactly one of:
 
 | Key | Description |
 |---|---|
@@ -132,23 +241,37 @@ Dependencies used only for tests and development tools. Not fetched in release b
 test-utils = { git = "https://github.com/example/test-utils.git", tag = "v0.3.0" }
 ```
 
-### `[profile.debug]` and `[profile.release]`
+### `[profiles]`
 
-Build profiles control how the Fly compiler optimises and instruments the output.
+Build profiles control how the Fly compiler optimises and instruments the output. All profiles are declared in a single `[profiles]` table as inline key→value entries.
 
 ```toml
-[profile.debug]
-opt-level  = 0      # 0–3
-debug-info = true   # emit DWARF debug information
-assertions = true   # enable runtime assertions
-
-[profile.release]
-opt-level  = 3
-debug-info = false
-lto        = false  # link-time optimisation
-strip      = false  # strip symbols from output binary
-assertions = false
+[profiles]
+debug   = { opt-level = 0, debug-info = true,  assertions = true,  lto = false, strip = false }
+release = { opt-level = 3, debug-info = false, assertions = false, lto = false, strip = false }
+ci      = { opt-level = 2, debug-info = true,  assertions = false, lto = false, strip = false }
 ```
+
+`debug` and `release` are built-in profiles with the defaults shown above. They do not need to be declared explicitly — flyp injects them automatically if the `[profiles]` section is absent or does not define them.
+
+Any number of custom profiles can be added. Select a profile with `--profile`:
+
+```
+$ flyp build --profile ci
+$ flyp test  --profile ci
+```
+
+`--release` is an alias for `--profile release`. The default profile (no flag) is `debug`.
+
+| Field | Type | Description |
+|---|---|---|
+| `opt-level` | int 0–3 | Compiler optimisation level |
+| `debug-info` | bool | Emit DWARF debug information |
+| `assertions` | bool | Enable runtime assertion checks |
+| `lto` | bool | Link-time optimisation |
+| `strip` | bool | Strip symbols from output binary |
+
+> **Download:** a fully annotated `fly.toml` template — including `ci` and `bench` custom profiles — is available at [flylang.org/fly.toml](/fly.toml).
 
 ---
 
@@ -228,6 +351,31 @@ $ flyp update
 
 `flyp update` clears the affected cache entries and re-runs resolution, so it will pick up new commits on tracked branches or newer tags if you change `fly.toml` manually.
 
+### Upgrading dependencies
+
+`flyp upgrade` updates **tag-pinned** git dependencies to the highest available semver tag, rewriting `fly.toml` and regenerating `fly.lock`:
+
+```
+$ flyp upgrade                # upgrade all tag-pinned deps
+$ flyp upgrade fly-std        # upgrade one specific dep
+$ flyp upgrade --dry-run      # preview changes without writing them
+```
+
+Example output:
+
+```
+  upgrading: fly-std  v0.12.0 → v0.14.0
+  up to date: my-lib  v2.1.0
+updated 1 dependency — re-locking...
+```
+
+| Dep type | Behaviour |
+|---|---|
+| `tag = "..."` | Upgraded to latest semver tag |
+| `branch = "..."` | Skipped — use `flyp update` |
+| `rev = "..."` | Skipped — pinned, change manually |
+| Registry dep | Skipped — change version manually |
+
 ---
 
 ## The lockfile
@@ -285,27 +433,184 @@ Because it is the minimum version that satisfies the most demanding constraint. 
 
 ## Building
 
-Compile all targets in debug mode:
+Compile all targets using the default (`debug`) profile:
 
 ```
 $ flyp build
 ```
 
-Compile with the release profile (optimised, no debug info):
+Compile with the `release` profile (`--release` is an alias for `--profile release`):
 
 ```
 $ flyp build --release
 ```
 
-Build a specific target by name:
+Use a custom profile declared in `[profiles]`:
 
 ```
-$ flyp build --target my-app
+$ flyp build --profile ci
+$ flyp build --profile bench
 ```
 
-Output goes to `target/debug/` or `target/release/` in the project root.
+Build one or more specific targets by key:
+
+```
+$ flyp build --targets my-app
+$ flyp build --targets my-app,my-lib
+```
+
+Omit `--targets` to build all declared targets.
+
+Output goes to `target/<profile>/` in the project root — for example `target/debug/`, `target/release/`, or `target/ci/`.
 
 If `fly.lock` is stale when you run `flyp build`, flyp automatically re-locks before building.
+
+### Incremental builds
+
+flyp skips recompiling a target if nothing has changed since the last successful build:
+
+```
+$ flyp build          # compiles all targets
+$ flyp build          # "up to date: my-app" — nothing recompiled
+```
+
+A target is recompiled when any of the following change:
+
+| Input | What triggers a rebuild |
+|---|---|
+| Source file | Content (SHA-256) of the entry-point `.fly` file |
+| Build profile | Any of `opt-level`, `debug-info`, `assertions`, `lto`, `strip` |
+| Dependencies | `fly.lock` content (resolved revisions of all packages) |
+| Cross-target | `--cross` triple |
+| Library type | `lib = "static"` vs `"dynamic"` |
+
+Fingerprints are stored in `target/<profile>/.flyp/<key>.fp`. Running `flyp clean` removes them along with the build artifacts, forcing a full rebuild on the next invocation.
+
+### Cross-compilation
+
+Build for a different CPU architecture or OS using `--cross <triple>`:
+
+```
+$ flyp build --cross aarch64-linux-musl
+$ flyp build --cross x86_64-w64-mingw32
+$ flyp build --cross wasm32-wasi
+```
+
+The triple is passed directly to the `fly` compiler as `--target <triple>`. Output goes to `target/<profile>/<triple>/` to avoid collisions with native builds:
+
+```
+target/
+├── debug/                        # native debug build
+├── release/                      # native release build
+└── release/aarch64-linux-musl/   # cross-compiled release
+```
+
+`--cross` can be combined with any profile:
+
+```
+$ flyp build --release --cross aarch64-linux-musl
+$ flyp build --profile ci --cross wasm32-wasi
+```
+
+`flyp run` and `flyp test` refuse to execute a cross-compiled binary — use an emulator (e.g. `qemu-aarch64`) to run it manually.
+
+### Parallel compilation
+
+Use `-j N` (or `--jobs N`) to control parallelism:
+
+```
+$ flyp build -j 4
+```
+
+**With a single target** all N threads are forwarded to the `fly` compiler as `--jobs N`, enabling LLVM's internal parallel optimisation and code generation pipeline.
+
+**With multiple targets** flyp compiles them as N concurrent compiler processes (one per target), each running single-threaded, to avoid over-subscription.
+
+`0` (the default) auto-detects the number of CPU cores. `1` forces sequential compilation.
+
+### Offline mode
+
+Build without network access using only the local dependency cache:
+
+```
+$ flyp build --offline
+```
+
+In offline mode flyp skips all network calls and verifies that every locked dependency is present in `~/.flyp/cache/`. If any package is missing it prints a clear error and exits — run `flyp lock` (without `--offline`) first to populate the cache.
+
+If `fly.lock` is stale in offline mode, flyp warns but continues using the existing lockfile.
+
+The `FLYP_OFFLINE=1` environment variable activates offline mode globally — useful in CI pipelines or air-gapped environments:
+
+```
+$ FLYP_OFFLINE=1 flyp build
+```
+
+`--offline` is also available on `flyp run` and `flyp test`.
+
+---
+
+## Workspaces
+
+A workspace groups multiple related packages under a single root, sharing one `fly.lock` and a unified build/test command.
+
+### Structure
+
+```
+my-workspace/
+├── fly.toml          # workspace root — declares members
+├── fly.lock          # single lockfile for all external deps
+├── app/
+│   ├── fly.toml      # member package
+│   └── src/main.fly
+└── libs/core/
+    ├── fly.toml      # member package
+    └── src/lib.fly
+```
+
+### Workspace root `fly.toml`
+
+```toml
+[workspace]
+members = ["app", "libs/core"]
+```
+
+The root manifest may omit `[package]` entirely if it contains only the workspace definition.
+
+### Member dependencies on other members
+
+Use a `path` dependency to reference another workspace member:
+
+```toml
+# app/fly.toml
+[package]
+name    = "app"
+version = "0.1.0"
+
+[dependencies]
+core = { path = "../libs/core" }
+```
+
+flyp resolves path deps at build time — `core`'s output directory is automatically added as an include path when compiling `app`.
+
+### Creating a workspace
+
+```
+$ flyp workspace init --name my-workspace --members app,core
+```
+
+Scaffolds the directory structure, one `fly.toml` per member, and the workspace root manifest.
+
+### Building and testing
+
+From the workspace root:
+
+```
+$ flyp build          # builds all members in dependency order
+$ flyp test           # tests all members that have [test] suites
+```
+
+Members are compiled in topological order based on path dependencies. A cycle between members is reported as an error.
 
 ---
 
@@ -323,11 +628,12 @@ Pass arguments to the binary after `--`:
 $ flyp run -- --port 8080 --verbose
 ```
 
-Choose which binary to run in a multi-binary project:
+Choose which binary to run, or which profile to use:
 
 ```
 $ flyp run --bin cli-tool
-$ flyp run --release --bin server
+$ flyp run --profile release --bin server
+$ flyp run --release --bin server   # same as above
 ```
 
 ---
@@ -340,19 +646,67 @@ Build and run all test suites:
 $ flyp test
 ```
 
-Run only one suite by name:
+Filter by suite name (or `Suite::method` or `Suite::method::"label"`):
 
 ```
-$ flyp test unit
+$ flyp test --suite MathSuite
+$ flyp test --suite MathSuite::classifyTest
+$ flyp test --suite MathSuite::classifyTest::"positive"
 ```
 
-Run tests with release optimisations:
+Run tests with a specific profile:
 
 ```
-$ flyp test --release
+$ flyp test --profile release
+$ flyp test --profile ci
 ```
 
-Each test target is compiled and executed as a standalone binary. flyp reports pass/fail per suite.
+Test suites are discovered via the `[test]` section in `fly.toml`. Each suite is compiled with the `--test` flag and executed as a standalone binary. flyp reports pass/fail per suite.
+
+---
+
+## Diagnosing your environment
+
+`flyp doctor` checks that everything needed to build is in place:
+
+```
+$ flyp doctor
+
+Compiler:
+  ✓ fly compiler: 0.14.0
+
+flyp:
+  ✓ flyp 0.14.0
+
+Manifest:
+  ✓ fly.toml: /home/user/my-project/fly.toml
+  ✓ fly-version satisfied (0.14.0 >= 0.14.0)
+
+Lockfile:
+  ✓ fly.lock up to date (3 packages)
+
+Cache:
+  ✓ cache root: /home/user/.flyp/cache
+  ✓ all 3 packages in cache
+
+Registries:
+  ✓ local reachable: http://localhost:5000
+
+✓ all checks passed
+```
+
+Checks performed:
+
+| Check | What it verifies |
+|---|---|
+| Compiler | `fly` binary found — checks `FLY_COMPILER` env var, then sibling of the `flyp` binary, then `PATH` |
+| fly-version | Installed compiler satisfies `fly-version` in `[package]` |
+| fly.toml | Manifest exists and is valid |
+| fly.lock | Lockfile exists and is not stale |
+| Cache | All locked packages are present in `~/.flyp/cache/` |
+| Registries | Each alias in `[repo]` responds to an HTTP probe |
+
+`flyp doctor` exits with code `0` if all checks pass, `1` if any fail.
 
 ---
 
@@ -422,6 +776,100 @@ Cache cleared: /home/user/.flyp/cache
 
 ---
 
+## Registry
+
+flyp supports a built-in REST package registry. You can run a local instance for offline builds, CI pipelines, or private packages.
+
+### Starting a local registry
+
+```
+$ flyp-registry --storage ~/.flyp/registry --port 5000
+flyp-registry
+  storage : /home/user/.flyp/registry
+  listen  : 0.0.0.0:5000
+  auth    : disabled
+```
+
+Options: `--storage DIR`, `--port PORT`, `--host HOST`.
+
+### Authentication
+
+Authentication is **optional**. Without `--token` the registry is open — anyone who can reach it can publish. For shared or networked registries, protect publish operations with an API key:
+
+```
+$ flyp-registry --token mykey
+flyp-registry
+  storage : /home/user/.flyp/registry
+  listen  : 0.0.0.0:5000
+  auth    : Bearer token
+```
+
+The token can also be set via the `FLYP_REGISTRY_TOKEN` environment variable:
+
+```
+$ FLYP_REGISTRY_TOKEN=mykey flyp-registry
+```
+
+**What requires auth:** only `POST` (publish) operations. `GET` requests — downloads, version lists, search — are always public.
+
+**Providing the token when publishing:**
+
+```
+$ flyp deploy --registry local --token mykey
+$ flyp vendor --registry local --token mykey
+```
+
+Use the `FLYP_TOKEN` environment variable to avoid passing the token on the command line (e.g. in CI):
+
+```
+$ export FLYP_TOKEN=mykey
+$ flyp deploy --registry local
+```
+
+`--token` on `flyp deploy` / `flyp vendor` takes precedence over `FLYP_TOKEN`.
+
+### Declaring registries in fly.toml
+
+```toml
+[repo]
+local  = "http://localhost:5000"
+remote = "https://registry.flylang.org"
+
+[package]
+name     = "my-lib"
+version  = "1.0.0"
+registry = "local"    # default registry for flyp deploy
+```
+
+### Publishing a package
+
+```
+$ flyp deploy                      # uses [package].registry alias
+$ flyp deploy --registry local     # explicit alias
+```
+
+### Vendoring git dependencies to a local registry
+
+Populate a local registry from all packages in `fly.lock`:
+
+```
+$ flyp vendor --registry local
+  vendored: fly-std 0.14.0
+  vendored: my-lib 1.2.0
+  vendor complete: 2 packages pushed to 'local'
+```
+
+After vendoring, update `fly.toml` to use registry deps instead of git deps and run `flyp lock` — subsequent builds fetch from the local registry without internet access.
+
+### Searching packages
+
+```
+$ flyp search fly-
+["fly-std","fly-io","fly-test"]
+```
+
+---
+
 ## Error reference
 
 flyp reports structured errors with a code, context, and a hint.
@@ -466,16 +914,22 @@ hint: did you mean tag = "v2.0.0"?
 | Command | Description |
 |---|---|
 | `flyp init [--name NAME] [--version VER]` | Create a new Fly project |
-| `flyp build [--release] [--target NAME]` | Build all or one target |
-| `flyp run [--release] [--bin NAME] [-- ARGS]` | Build and run a binary |
-| `flyp test [--release] [SUITE]` | Build and run test suites |
+| `flyp workspace init [--name NAME] [--members A,B,...]` | Create a new workspace |
+| `flyp build [--profile NAME\|--release] [--targets KEY,...] [-j N] [--offline] [--cross TRIPLE]` | Build all or a subset of targets |
+| `flyp run [--profile NAME\|--release] [--bin NAME] [--offline] [-- ARGS]` | Build and run a binary |
+| `flyp test [--profile NAME\|--release] [--suite SUITE] [--offline]` | Build and run test suites |
 | `flyp add NAME --git URL (--tag\|--branch\|--rev) [--dev]` | Add a dependency |
 | `flyp remove NAME` | Remove a dependency |
-| `flyp update [NAME]` | Update one or all dependencies |
+| `flyp update [NAME]` | Re-fetch one or all dependencies (same ref) |
+| `flyp upgrade [NAME] [--dry-run]` | Upgrade tag deps to latest semver tag |
+| `flyp doctor` | Check compiler, manifest, lockfile, cache, registries |
+| `flyp clean [--profile NAME\|--release]` | Remove build artifacts (`target/` or one profile) |
 | `flyp lock` | Resolve and write fly.lock |
 | `flyp why NAME` | Explain why a package is included |
 | `flyp cache stats` | Show cache size |
 | `flyp cache clean` | Remove all cached packages |
 | `flyp version` | Print flyp version |
-| `flyp search QUERY` | Search the package registry *(coming soon)* |
-| `flyp publish` | Publish to the package registry *(coming soon)* |
+| `flyp deploy [--registry ALIAS] [--version VER] [--token KEY]` | Package and upload to a registry |
+| `flyp vendor [--registry ALIAS] [--token KEY]` | Push all locked deps to a registry (offline use) |
+| `flyp search QUERY` | Search packages in the default registry |
+| `flyp publish` | Alias for `flyp deploy` |

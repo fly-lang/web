@@ -1828,3 +1828,105 @@ All headers in `include/Sema/` are catalogued below with their primary exports.
 | `SymbolTable.h` | `SymbolTable` | Scoped lookup chain backed by `llvm::StringMap<Symbol*>`. |
 
 This reference reflects the Fly compiler as of the LLVM 20 migration. It covers the AST and Sema layers; CodeGen is not described here.
+
+## 19. Library & Linking System
+
+This section describes how the two Fly runtime libraries are built, how they are
+discovered, and how the compiler links them into a final executable.
+
+### 19.1 The Two Static Archives
+
+| Archive | Built by | Contents |
+|---------|----------|----------|
+| `fly_std_lib.a` | `fly --lib` (invoked by CMake) | All stdlib namespaces: `fly.str`, `fly.os.*`, `fly.math`, `fly.mem`, `fly.data.*`, etc. |
+| `fly_runtime_lib.a` | CMake C target (`FlyRuntime`) | Freestanding runtime: `fly_mem_alloc`, `fly_io_write`, `fly_proc_exit`, mutex/atomics, platform syscall wrappers |
+
+Both archives are **static** (`.a` / `.lib`). No shared library (`.so` / `.dylib`) is
+involved in a normal Fly build. Both land in `build/lib/` during development and
+in `<prefix>/lib/` when installed.
+
+### 19.2 Two-Phase Build
+
+**Phase 1 — stdlib compilation** (driven by CMake, runs once):
+
+```
+fly --lib -o build/lib/fly_std_lib  std/lib/str.fly  std/lib/os/io.fly  ...
+```
+
+`ToolChain::BuildOutput()` detects `FrontendOpts.CreateLibrary == true`, compiles
+each `.fly` source to a `.o` object, then calls `Archiver::CreateLib()`
+(`fly/compiler/Basic/Archiver.h`) to pack them into `fly_std_lib.a`.
+
+**Phase 2 — user program link** (runs on every `fly myprog.fly -o myprog`):
+
+`BuildOutput()` detects `CreateLibrary == false` and delegates to the
+platform-specific link function, which calls LLD in-process (see §19.3).
+
+### 19.3 In-Process Linker: LLD
+
+Fly does not shell out to an external `ld`. It calls **LLD** through its C++ API:
+
+| Platform | LLD entry point | `ToolChain` function |
+|----------|----------------|----------------------|
+| Linux / ELF | `lld::elf::link()` | `LinkLinux()` |
+| macOS / Mach-O | `lld::macho::link()` | `LinkDarwin()` |
+| Windows / COFF | `lld::coff::link()` | `LinkWindows()` |
+
+All three functions are in `fly/compiler/Driver/ToolChain.cpp`.
+
+### 19.4 Link Order
+
+Static archive symbols are only extracted when something earlier in the command
+line references them, so order matters:
+
+```
+user_objects.o          ← compiled user program
+fly_std_lib.a           ← stdlib (fly.os.io, fly.str, fly.math, …)
+fly_runtime_lib.a       ← runtime (fly_mem_alloc, fly_io_write, …)
+-lc  -lm                ← libc / libm
+compiler-rt builtins    ← arithmetic and float helpers (replaces -lgcc)
+```
+
+Source: `ToolChain::LinkLinux()`, lines ~900–938 in `ToolChain.cpp`.
+
+**Why this order**: `fly_std_lib.a` calls symbols defined in `fly_runtime_lib.a`
+(e.g. `fly_mem_alloc`). The runtime in turn calls into libc (`malloc`, `write`,
+etc.). Reversing the order would cause unresolved-symbol errors at link time.
+
+For static executables (`--static` / `--static-pie`), LLD wraps the system
+libraries in `--start-group` / `--end-group` to handle circular references.
+
+### 19.5 Library Path Discovery
+
+`GetStdLibPath()` and `GetRuntimeLibPath()` use a two-level fallback:
+
+1. **Runtime auto-discovery** — at startup the Driver resolves
+   `<fly_binary>/../lib/` and stores the result in
+   `FrontendOpts.StdLibDir` / `CodeGenOpts.RuntimeLibDir`. This works for
+   installed binaries regardless of the install prefix.
+   Source: `fly/compiler/Driver/Driver.cpp`.
+
+2. **Compile-time baked path** — CMake defines `FLY_STD_LIB_DIR` and
+   `FLY_RUNTIME_LIB_DIR` pointing at `${CMAKE_BINARY_DIR}/lib`, used as the
+   fallback when the binary is run directly from the build tree.
+
+The lookup functions try each candidate directory and return the first path where
+the archive file exists.
+Source: `ToolChain.cpp:1386–1430`.
+
+### 19.6 Bridge Header Stubs: fly.llvm and fly.runtime
+
+Alongside the two archives, `build/lib/` also contains two hand-maintained
+declaration-only headers:
+
+| Header | Namespace | Purpose |
+|--------|-----------|---------|
+| `llvm.fly.h` | `fly.llvm` | LLVM intrinsic wrappers (direct IR calls) |
+| `runtime.fly.h` | `fly.runtime` | C runtime bridge: `malloc`, `free`, `memcpy`, syscall wrappers |
+
+Sources live in `fly/runtime/lib/`. They are **not** compiled into any `.a`:
+the stdlib imports them for type-checking only. The linker resolves the actual
+symbols against `fly_runtime_lib.a` and `-lc` at link time.
+
+These headers are copied to `build/lib/` by the `fly_runtime_lib_headers` CMake
+target defined in `fly/runtime/CMakeLists.txt`.

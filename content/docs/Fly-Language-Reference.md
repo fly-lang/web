@@ -1,3 +1,10 @@
++++
+title = "Language Reference"
+description = "Complete reference for the Fly programming language — syntax, types, expressions, statements, and grammar."
+template = "docs-page.html"
+weight = 1
++++
+
 # Fly Language Reference
 
 **Version:** 0.13.3  

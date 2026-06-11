@@ -26,6 +26,8 @@ weight = 1
 7. [Enumerations](#7-enumerations)
 8. [Expressions](#8-expressions)
 9. [Statements](#9-statements)
+   - [9.5.3 For-In Loop](#9-5-3-for-in-loop)
+   - [9.8 Testing Constructs](#9-8-testing-constructs)
 10. [Namespaces and Imports](#10-namespaces-and-imports)
 11. [Modifiers](#11-modifiers)
 12. [Comments](#12-comments)
@@ -51,18 +53,23 @@ Fly is a compiled, high-level, general-purpose programming language with particu
 Fly reserves the following keywords:
 
 ```
-as          bool        break       byte        case
-char        class       const       continue    default
-double      elsif       else        enum        error
-fail        false       float       for         handle
-if          import      interface   int         long
-namespace   new         null        out         private
-protected   public      return      short       static
-string      struct      switch      true        uint
-ulong       ushort      while
+abstract    as          bool        break       byte
+case        char        class       const       continue
+default     double      else        elsif       enum
+error       fail        false       final       float
+for         handle      if          import      in
+int         interface   long        namespace   new
+null        private     protected   public      return
+short       static      string      struct      suite
+switch      test        true        uint        ulong
+unset       ushort      void        while
 ```
 
-> **`out`** is a special identifier automatically declared inside any function that has a return type. It holds the value to be returned. For functions with multiple return types, use `out[0]`, `out[1]`, … See [Section 5.4](#5-4-return-values).
+> **`out`** is *not* a reserved keyword — it is a special identifier automatically declared inside any function that has a return type. It holds the value to be returned. For functions with multiple return types, use `out[0]`, `out[1]`, … See [Section 5.4](#5-4-return-values).
+
+> **`this`** is *not* a reserved keyword either — it is a special identifier available inside instance methods that refers to the current object (e.g. `this.value`). See [Section 6.4](#6-4-class-members).
+
+> **`delete`** is **not** a keyword in Fly. It is an ordinary identifier (the standard library uses it as a regular method name, e.g. `fs.delete(path)`). Heap memory is managed automatically — see [Section 6.6](#6-6-allocation-and-lifetime).
 
 ### 2.2 Identifiers
 
@@ -120,6 +127,14 @@ false       // boolean false
 
 ```fly
 null        // null value for reference types
+```
+
+#### 2.3.6 Unset Literal
+
+`unset` is a special literal denoting the absence of a value (an uninitialized / "no value yet" state), distinct from `null`.
+
+```fly
+unset       // unset value
 ```
 
 ### 2.4 Operators and Punctuators
@@ -184,10 +199,8 @@ null        // null value for reference types
 ()          // function call / grouping
 {}          // block delimiters
 ,           // separator
-;           // statement terminator (optional)
-:           // label/case separator
-...         // ellipsis
-@           // annotation
+;           // statement separator (used between the clauses of a for loop)
+:           // label / case / base-type / type-bound separator
 ```
 
 ---
@@ -234,12 +247,13 @@ double precise = 3.14159265359
 
 #### 3.1.3 Other Built-in Types
 
-| Type     | Description                           |
-|----------|---------------------------------------|
-| `bool`   | Boolean type (true or false)          |
-| `char`   | Character type                        |
-| `string` | String type                           |
-| `error`  | Error type for error handling         |
+| Type     | Description                                          |
+|----------|------------------------------------------------------|
+| `bool`   | Boolean type (true or false)                         |
+| `char`   | Character type                                       |
+| `string` | String type (heap-managed, see [§6.6](#6-6-allocation-and-lifetime)) |
+| `error`  | Error type for error handling                        |
+| `void`   | Absence of a value — used only as a function return type |
 
 **Examples:**
 ```fly
@@ -247,6 +261,8 @@ bool isActive = true
 char letter = 'A'
 string name = "Fly"
 ```
+
+> `void` is written as the return type of functions that do not produce a value: `void main() { … }`. A return type is **mandatory** on every function and method (see [Section 5.1](#5-1-function-declaration)).
 
 ### 3.2 Array Types
 
@@ -309,7 +325,7 @@ LocalVar ::= [ Modifiers ] Type Identifier [ '=' Expression ]
 
 **Examples:**
 ```fly
-func() {
+void func() {
     // Simple declaration
     int x = 10
     
@@ -353,24 +369,40 @@ int[] numbers = {10, 20, 30}
 byte[3] buffer = {1, 2, 3}
 ```
 
+#### 4.2.4 Struct Literal Initialization
+
+A brace literal that contains `field = value` pairs builds a **struct value**. Plain comma-separated values (without `=`) build an array value (see above); the two forms are distinguished by the presence of `field =`.
+
+```fly
+// Struct value — field = value pairs
+Point p = {x = 10, y = 20}
+
+// Array value — bare values
+int[] xs = {10, 20, 30}
+```
+
 ---
 
 ## 5. Functions
 
 ### 5.1 Function Declaration
 
-Functions and methods may optionally declare a **return type** before the function name. When a return type is present, the special identifier `out` is implicitly declared inside the body and holds the value to be returned. Functions without a return type are void.
+Every function and method **must** declare a **return type** before the function name — this is mandatory. A function that produces no value declares `void`. When a non-`void` return type is present, the special identifier `out` is implicitly declared inside the body and holds the value to be returned.
+
+> **Important:** A missing return type is a compile error (`err_parser_missing_return_type`). Write `void doSomething() { … }`, not `doSomething() { … }`. The only exceptions are **constructors** (a method named exactly like its class — see [§6.4](#6-4-class-members)) and **interface method declarations**, which omit the return type.
 
 **Syntax:**
 ```
-Function    ::= [ Modifiers ] [ ReturnType ] Identifier '(' [ Parameters ] ')' ( Block | ';' )
+Function    ::= [ Modifiers ] ReturnType Identifier
+                [ '<' TypeParam ( ',' TypeParam )* '>' ]
+                '(' [ Parameters ] ')' ( Block | ';' )
 ReturnType  ::= Type ( ',' Type )*
 ```
 
 **Examples:**
 ```fly
-// Void function — no return type
-doSomething() {
+// Void function — declares 'void' explicitly
+void doSomething() {
     // function body
 }
 
@@ -393,26 +425,36 @@ int,int minMax(const int a, const int b) {
 
 ### 5.2 Function Parameters
 
-Input parameters use the `const` modifier and are read-only inside the function body. Output parameters (the traditional multi-output style) omit `const` and are written directly by the function.
+The `const` modifier on a parameter is **optional**. A `const` parameter is read-only inside the body (an input); a non-`const` parameter may be written and is the mechanism used for output parameters (including the hidden `out` parameter generated for return values). A parameter may also declare a **default value** with `= <literal>`.
 
 **Syntax:**
 ```
 Parameters ::= Parameter ( ',' Parameter )*
-Parameter  ::= [ 'const' ] Type Identifier
+Parameter  ::= [ Modifiers ] Type Identifier [ '=' Value ]
 ```
 
 **Examples:**
 ```fly
-// Input-only parameters (const)
-process(const int x, const float y, const bool flag) {
+// const inputs (read-only)
+void process(const int x, const float y, const bool flag) {
     // implementation
 }
 
-// Mixed: const inputs + traditional output parameter
-clamp(const int value, const int lo, const int hi, int result) {
+// Parameters without const are writable (e.g. output parameters)
+void clamp(const int value, const int lo, const int hi, int result) {
     if (value < lo) { result = lo }
     elsif (value > hi) { result = hi }
     else { result = value }
+}
+
+// Default parameter value
+void retry(const string url, const int attempts = 3) {
+    // attempts defaults to 3 when the caller omits it
+}
+
+// Generic parameter without const (see §6.7)
+T identity<T>(T v) {
+    out = v
 }
 ```
 
@@ -422,16 +464,16 @@ Functions can have different visibility levels:
 
 ```fly
 // Default visibility (package-private)
-defaultFunction() {}
+void defaultFunction() {}
 
 // Private function (internal use only)
-private privateHelper() {}
+private void privateHelper() {}
 
 // Public function (exported)
-public publicAPI() {}
+public void publicAPI() {}
 
 // Protected function (for inheritance)
-protected protectedMethod() {}
+protected void protectedMethod() {}
 ```
 
 ### 5.4 Return Values
@@ -451,6 +493,15 @@ void main() {
 
 This resolves the classic C++ ergonomics/performance tension: in C++ you must choose between `File f = open(path)` (readable, but implies a copy) or `open(path, &f)` (efficient, but noisy). Fly does both with the same syntax — the source reads as a normal assignment, and the compiler silently passes `x` by reference to `square`.
 
+Because `out` is a real writable variable, it can also be **passed directly as the output argument** of another call — the standard library uses this idiom heavily:
+
+```fly
+public int size() {
+    // 'out' is forwarded as the destination of the read; no extra local needed
+    fly.llvm.ptrReadInt(this.ptr, 8, out)
+}
+```
+
 **Multiple return types** use `out[0]`, `out[1]`, …:
 
 ```fly
@@ -464,10 +515,10 @@ void main() {
 }
 ```
 
-**Early exit** in void functions still uses `return` (without a value):
+**Early exit** in void functions still uses `return` (without a value). `return` **never** carries a value in Fly — `return expr` is a compile error; use `out` to set a result instead:
 
 ```fly
-process(const int x) {
+void process(const int x) {
     if (x < 0) {
         return   // exit early — no value
     }
@@ -513,7 +564,7 @@ void main() {
 
 **Example 2: Unhandled Error**
 ```fly
-err0() {
+void err0() {
     fail "Something went wrong"
 }
 
@@ -525,7 +576,7 @@ void main() {
 
 **Example 3: Handled Error**
 ```fly
-err0() {
+void err0() {
     fail "Something went wrong"
 }
 
@@ -538,7 +589,7 @@ void main() {
 
 **Example 4: Captured Error with Graceful Handling**
 ```fly
-riskyOperation() {
+void riskyOperation() {
     fail "Operation failed"
 }
 
@@ -574,11 +625,14 @@ void main() {
 
 ### 6.1 Class Declaration
 
-Classes support **single inheritance**. A class can extend one struct or one interface.
+A class declares its base types after a colon. The grammar accepts a **comma-separated list** of base types: a class may extend a base struct and/or implement one or more interfaces.
 
 **Syntax:**
 ```
-Class ::= [ Modifiers ] 'class' Identifier [ ':' Identifier ] '{' ClassMember* '}'
+Class    ::= [ Modifiers ] 'class' Identifier
+             [ '<' TypeParam ( ',' TypeParam )* '>' ]
+             [ ':' BaseType ( ',' BaseType )* ] '{' ClassMember* '}'
+BaseType ::= NamedType
 ```
 
 **Examples:**
@@ -595,10 +649,16 @@ public class Application {
 class Derived : BaseStruct {
 }
 
-// Class extending an interface
+// Class implementing an interface
 class MyImpl : Drawable {
 }
+
+// Class with a base struct and one or more interfaces
+class Widget : BaseStruct, Drawable, Resizable {
+}
 ```
+
+> `abstract` and `final` may be applied as class modifiers (see [Section 11](#11-modifiers)).
 
 ### 6.2 Structure Declaration
 
@@ -662,6 +722,12 @@ interface Resizable : Drawable {
 
 Classes can contain fields (attributes) and methods.
 
+**Constructors** are methods whose name is **exactly the class name** and which declare **no return type**. They are the one exception to the mandatory-return-type rule and run when the object is created with `new` (see [§6.5](#6-5-object-creation)).
+
+**`this`** is available inside any instance method and refers to the current object. Use `this.field` to access members.
+
+All other methods require a return type (`void` for methods that return nothing).
+
 **Examples:**
 ```fly
 public class Person {
@@ -672,25 +738,26 @@ public class Person {
     // Public field
     public bool isActive
     
-    // Constructor-like method (void — no return type)
-    public initialize(const string personName, const int personAge) {
-        name = personName
-        age = personAge
-        isActive = true
+    // Static field
+    static int instanceCount = 0
+    
+    // Constructor — same name as the class, no return type
+    public Person(const string personName, const int personAge) {
+        this.name = personName
+        this.age = personAge
+        this.isActive = true
+        instanceCount++
     }
     
     // Public method with return type
     public string getName() {
-        out = name
+        out = this.name
     }
     
-    // Private method
-    private validate() {
+    // Private void method
+    private void validate() {
         // validation logic
     }
-    
-    // Static field
-    static int instanceCount = 0
     
     // Static method with return type
     public static int getCount() {
@@ -701,131 +768,86 @@ public class Person {
 
 ### 6.5 Object Creation
 
+Objects are created with `new`, which invokes a constructor. There is **no** `delete` operator in the language; how the memory is reclaimed depends on whether the type is a `struct` or a `class` (see [§6.6](#6-6-allocation-and-lifetime)).
+
 **Examples:**
 ```fly
-// Create a class instance on the heap
+// Create a class instance (heap-allocated)
 MyClass obj = new MyClass()
-delete obj   // must be freed manually
 
-// Use with initialization and return-type method call
-Person person = new Person()
-person.initialize("John", 30)
+// Construct with arguments and call a return-type method
+Person person = new Person("John", 30)
 string name = person.getName()   // name = "John"
 int count = Person.getCount()    // count = 1
-delete person
 ```
 
 ---
 
 ### 6.6 Allocation and Lifetime
 
-The `new` keyword allocates a new instance. Where the memory comes from — and who is responsible for freeing it — depends on whether the type is a `struct` or a `class`, and on the optional allocation qualifier (`unique`, `shared`, `weak`).
+The `new` keyword allocates a new instance. Where the memory comes from — and how it is reclaimed — depends on whether the type is a `struct` or a `class`. Fly has **no** `delete` operator.
 
-#### Struct: stack by default
+#### Struct: stack-allocated, freed automatically
 
-A plain `new` on a `struct` allocates the data on the **stack** (via LLVM `alloca`). The variable is freed automatically when the enclosing scope exits. **Do not call `delete` on a stack-allocated struct** — the pointer is not heap-owned and calling `free()` on it is undefined behaviour.
+A `new` on a `struct` allocates the data on the **stack** (via LLVM `alloca`). It is freed automatically when the enclosing scope exits — nothing to release manually.
 
 ```fly
 struct Point { int x; int y }
 
-process() {
+void process() {
     Point p = new Point()   // ← stack alloca
     p.x = 10
     p.y = 20
-}   // ← p freed automatically; no delete
+}   // ← p released automatically when the scope exits
 ```
 
-#### Class: heap by default
+#### Class: heap-allocated, freed by convention
 
-A plain `new` on a `class` allocates on the **heap** (`malloc(sizeof(T))`). The programmer is responsible for calling `delete` to release the memory. Forgetting `delete` leaks the object.
+A `new` on a `class` allocates on the **heap** (`malloc(sizeof(T))`). The current compiler does **not** insert an automatic free for a plain class allocation and there is no `delete` operator, so a class that owns resources should expose its own `free()` method (an ordinary `void` method) that the caller invokes when done. This is exactly the convention used throughout the standard library.
 
 ```fly
-class Node { int val }
+import fly.data.List
 
-process() {
-    Node n = new Node()   // ← malloc
-    n.val = 42
-    delete n              // ← free(n)
+void main() {
+    List l = new List()     // ← heap allocation
+    l.add(1)
+    l.add(2)
+    // … use l …
+    l.free()                // ← release via the class's own free() method
 }
 ```
 
-`delete` calls `free()` on the pointer and is valid only for objects created with plain `new` on a class. Never call `delete` on a smart-pointer object or a stack-allocated struct.
+#### Strings: managed automatically
 
----
-
-#### Smart-pointer allocation qualifiers
-
-All three qualifiers work on both `struct` and `class`. When used on a `struct`, the data is moved to the **heap** (qualifiers always imply `malloc` so the runtime can call `free()` at scope exit).
-
-| Qualifier | Storage | Who frees | Copies |
-|---|---|---|---|
-| *(none, struct)* | stack | automatic at scope exit | value semantics |
-| *(none, class)* | heap | programmer via `delete` | reference semantics |
-| `new unique` | heap | `free()` at scope exit | **not allowed** — compiler error |
-| `new shared` | heap + 8-byte refcount header | `free()` when last reference exits | allowed — increments refcount |
-| `new weak` | heap | `free()` at each holder's scope exit | allowed — no refcount; first exit frees, others dangle |
-
----
-
-##### `new unique` — exclusive ownership
-
-The object is heap-allocated. When the variable goes out of scope the runtime automatically calls `free()`. Copying a `unique` variable is a compile-time error.
+`string` values are heap-backed but managed for you. A non-`const` `string` variable with an initializer owns its buffer: the compiler frees it at scope exit, and **reassigning** the variable frees the previous buffer before storing the new one. `const` strings and uninitialized strings point at static/null data and are never freed.
 
 ```fly
-process() {
-    Point p = new unique Point()   // heap-allocated
-    p.x = 10
-    p.y = 42
-}   // ← free(p) emitted automatically
-```
-
-##### `new shared` — reference-counted ownership
-
-The runtime allocates `sizeof(i64) + sizeof(T)` bytes. The first 8 bytes hold a **reference count** initialised to 1. Every time the variable is copied the counter is incremented; when any holder exits scope the counter is decremented. When the count reaches 0 the entire block (header + data) is freed.
-
-```fly
-process() {
-    Point a = new shared Point()   // refcount = 1
-    Point b = a                    // refcount = 2 (copy increments)
-    // … use a and b …
-}   // ← refcount decremented twice; reaches 0 → freed
-```
-
-Memory layout:
-
-```
-+──────────────────+──────────────────────────────+
-│  i64  refcount   │        struct/class data      │
-+──────────────────+──────────────────────────────+
- ↑ 8 bytes          ↑ data pointer seen by code
-```
-
-##### `new weak` — untracked shared access
-
-Like `unique`, the object is heap-allocated and `free()` is emitted for each variable at its scope exit. There is **no reference count** and no ownership coordination: if two variables hold the same allocation, the first one to go out of scope calls `free()`; the other becomes a dangling pointer. Use only when the lifetime is known to be longer than all aliases.
-
-```fly
-process() {
-    Point a = new weak Point()
-    Point b = a   // no refcount — b and a share the same pointer
-    // b goes out of scope first → free(b) called
-    // a is now dangling
-}
+void demo() {
+    string s = str.toUpper("hello")  // owns a heap buffer
+    s = str.toLower("WORLD")         // old buffer freed automatically before reassignment
+}   // ← final buffer freed automatically at scope exit
 ```
 
 ---
 
-#### Summary table
+#### Summary
 
-| Expression | Memory | Freed by |
+| Expression | Memory | Reclaimed by |
 |---|---|---|
 | `struct S = new S()` | stack (alloca) | automatic at scope exit |
-| `class C = new C()` | heap (malloc) | `delete c` |
-| `T x = new unique T()` | heap | automatic `free()` at scope exit |
-| `T x = new shared T()` | heap + refcount | automatic release when refcount → 0 |
-| `T x = new weak T()` | heap | automatic `free()` at each holder's scope exit |
+| `class C = new C()` | heap (malloc) | call the class's own `free()` method by convention |
+| `string s = …` (non-const, initialized) | heap | automatic at scope exit; reassignment frees the old buffer |
+| `const string s = …` | static/null | nothing to free |
 
----
+#### Planned: ownership qualifiers (not yet implemented)
+
+The language design reserves smart-pointer **ownership qualifiers** — `new unique`, `new shared`, and `new weak` — to make heap lifetimes automatic for classes:
+
+- **`unique`** — exclusive ownership; freed automatically at scope exit; copying is a compile error.
+- **`shared`** — reference-counted (`[i64 refcount | data]` block); freed when the count reaches 0.
+- **`weak`** — untracked alias; no reference count.
+
+> ⚠️ **These qualifiers are not accepted by the current parser.** The corresponding code paths exist in the compiler internals but cannot yet be reached from source — `new unique T()` / `new shared T()` / `new weak T()` will not parse today. Until they are wired up, use plain `new` plus the conventions in the summary table above. This subsection documents intended future behaviour only.
 
 ### 6.7 Generics
 
@@ -837,9 +859,11 @@ Add one or more **type parameters** in angle brackets after the class name.
 
 **Syntax:**
 ```
-GenericClass ::= [ Modifiers ] 'class' Identifier '<' TypeParam ( ',' TypeParam )* '>' [ ':' Identifier ] '{' ClassMember* '}'
-TypeParam    ::= Identifier
+GenericClass ::= [ Modifiers ] 'class' Identifier '<' TypeParam ( ',' TypeParam )* '>' [ ':' BaseType ( ',' BaseType )* ] '{' ClassMember* '}'
+TypeParam    ::= Identifier [ ':' Type ]
 ```
+
+A type parameter may carry an optional **bound** after a colon (`<T : SomeType>`), constraining the types it can be instantiated with.
 
 **Example:**
 ```fly
@@ -891,7 +915,8 @@ Functions can also declare type parameters, placed between the function name and
 
 **Syntax:**
 ```
-GenericFunc ::= [ Modifiers ] [ ReturnType ] Identifier '<' TypeParam ( ',' TypeParam )* '>' '(' [ Parameters ] ')' Block
+GenericFunc ::= [ Modifiers ] ReturnType Identifier '<' TypeParam ( ',' TypeParam )* '>' '(' [ Parameters ] ')' Block
+TypeParam   ::= Identifier [ ':' Type ]
 ```
 
 **Example:**
@@ -998,7 +1023,7 @@ enum Direction {
 
 **Examples:**
 ```fly
-processColor() {
+void processColor() {
     // Declare and initialize
     Color c = Color.RED
     
@@ -1014,7 +1039,7 @@ processColor() {
     }
 }
 
-setColor(const Color c) {
+void setColor(const Color c) {
     // use color
 }
 ```
@@ -1410,6 +1435,28 @@ for int i = 0; i < length; i++ {
 }
 ```
 
+#### 9.5.3 For-In Loop
+
+Fly also provides a **for-in** loop that iterates a loop variable over the elements of a collection expression.
+
+**Syntax:**
+```
+ForInStmt ::= 'for' [ '(' ] Identifier 'in' Expression [ ')' ] Statement
+```
+
+**Examples:**
+```fly
+// Iterate over the elements of a list
+for item in items {
+    process(item)
+}
+
+// Parentheses are optional
+for (line in lines) {
+    print(line)
+}
+```
+
 ### 9.6 Jump Statements
 
 #### 9.6.1 Return Statement
@@ -1526,7 +1573,7 @@ fail 1, "oops", new Ctx()   // code = 1,   str = "oops", obj = Ctx instance
 Any code after `fail` within the same basic block is unreachable.
 
 ```fly
-validate(const int age) {
+void validate(const int age) {
     if (age < 0) {
         fail 400, "age must be non-negative"
         // unreachable
@@ -1543,7 +1590,7 @@ validate(const int age) {
 Every function (except `main`) has a hidden first parameter: a pointer to the caller's error struct. When a function fails **without** a `handle` in its own body, it writes to that pointer and returns void. The caller's code continues from where the call returned — the error data is already in the shared struct.
 
 ```fly
-fetchData() {
+void fetchData() {
     fail 503, "service unavailable"   // writes error, returns void
 }
 
@@ -1604,7 +1651,7 @@ void main() {
 
 **3. Single-statement shorthand:**
 ```fly
-quickCheck() {
+void quickCheck() {
     error err handle riskyOp()
     if (err) { return }
 }
@@ -1612,7 +1659,7 @@ quickCheck() {
 
 **4. Nested handles:**
 ```fly
-process() {
+void process() {
     error outer handle {
         error inner handle {
             deepOp()   // inner intercepts first
@@ -1632,7 +1679,7 @@ process() {
 
 **Example 1: Propagation without handle**
 ```fly
-openFile(const string path) {
+void openFile(const string path) {
     if (path == "") {
         fail 400, "empty path"
     }
@@ -1647,7 +1694,7 @@ void main() {
 
 **Example 2: Intercepting with handle**
 ```fly
-openFile(const string path) {
+void openFile(const string path) {
     if (path == "") { fail 400, "empty path" }
 }
 
@@ -1677,11 +1724,11 @@ void main() {
 
 **Example 4: Re-raise to caller**
 ```fly
-inner() {
+void inner() {
     fail 503
 }
 
-outer() {
+void outer() {
     error err handle {
         inner()
     }
@@ -1698,8 +1745,8 @@ class NetError {
     string host
 }
 
-connect(const string host) {
-    NetError e = new unique NetError()
+void connect(const string host) {
+    NetError e = new NetError()
     e.code = 503
     e.host = host
     fail e
@@ -1727,6 +1774,63 @@ So the process exit code equals the error code of the last unhandled failure —
 | Callee fail bypasses rest of caller? | **No** (unless fail is direct in handle block) | **Yes** |
 | Error propagation | via hidden pointer parameter; must re-`fail` manually | automatic until caught |
 | Overhead | zero-cost on success; single function return on failure | unwinder overhead |
+
+---
+
+### 9.8 Testing Constructs
+
+Fly has built-in testing support based on three constructs: inline `test` blocks, `suite` declarations, and `case` labels. These are compiled **only when the compiler runs in test mode** (the `--test` driver flag). Outside test mode, `test` blocks are stripped during semantic analysis and have no effect on the produced binary.
+
+#### 9.8.1 Inline `test` Block
+
+A `test { … }` block embeds test-only code inside ordinary functions. The body is parsed normally but is included in code generation only under `--test`.
+
+**Syntax:**
+```
+TestStmt ::= 'test' Block
+```
+
+```fly
+void compute() {
+    int result = doWork()
+
+    test {
+        // Only runs when compiled with --test
+        assert.assertEqI(result, 42, 1)
+    }
+}
+```
+
+#### 9.8.2 `suite` Declaration
+
+A `suite` is a declaration that groups related tests. It is declared like a class (same modifiers and member syntax) but uses the `suite` keyword and has **no constructors**.
+
+**Syntax:**
+```
+Suite ::= [ Modifiers ] 'suite' Identifier '{' SuiteMember* '}'
+```
+
+```fly
+public suite MathTests {
+    void additions() {
+        case "adds positives":
+            assert.assertEqI(add(2, 3), 5, 1)
+        case "adds negatives":
+            assert.assertEqI(add(-2, -3), -5, 2)
+    }
+}
+```
+
+#### 9.8.3 `case` Label (inside a suite method)
+
+Inside a suite test-method body, a standalone `case "label": …` statement names an individual test scenario. Consecutive `case` statements in the same block each describe a labelled scenario. (The same `case` keyword is also used inside `switch` statements — see [§9.4](#9-4-switch-statements).)
+
+**Syntax:**
+```
+SuiteCase ::= 'case' StringLiteral ':' Statement
+```
+
+> The testing framework is available in the compiler but is not yet exercised by the standard library's own tests, which currently use a plain `void main()` plus the `fly.assert` helpers. Treat the exact runner behaviour as still evolving.
 
 ---
 
@@ -1858,7 +1962,7 @@ import geom.Circle
 void main() {
     Circle c = new Circle()
     c.radius = 5
-    delete c
+    // c is a heap-allocated class instance (see §6.6)
 }
 ```
 
@@ -1869,7 +1973,7 @@ import geom
 void main() {
     geom.Circle c = new geom.Circle()
     int a = geom.area(5)
-    delete c
+    // c is a heap-allocated class instance (see §6.6)
 }
 ```
 
@@ -1880,7 +1984,7 @@ import geom.*
 void main() {
     Circle c = new Circle()
     int a = area(5)      // function in scope too
-    delete c
+    // c is a heap-allocated class instance (see §6.6)
 }
 ```
 
@@ -1902,7 +2006,7 @@ Control the accessibility of declarations.
 **Examples:**
 ```fly
 // Private function
-private internalHelper() {}
+private void internalHelper() {}
 
 // Protected member
 class Base {
@@ -1911,11 +2015,11 @@ class Base {
 
 // Public class
 public class PublicAPI {
-    public exportedMethod() {}
+    public void exportedMethod() {}
 }
 
 // Default visibility
-packageFunction() {}
+void packageFunction() {}
 class DefaultClass {}
 ```
 
@@ -1926,13 +2030,14 @@ The `const` modifier marks values as immutable.
 **Examples:**
 ```fly
 
-// Constant function parameter (const is required for all parameters)
-process(const int size) {
+// Constant function parameter — const is optional on parameters,
+// and marks the parameter read-only inside the body
+void process(const int size) {
     // size cannot be modified
 }
 
 // Constant local variable
-func() {
+void func() {
     const int limit = 50
     // limit = 100  // Error: cannot modify const
 }
@@ -1951,7 +2056,7 @@ class Counter {
         out = totalCount
     }
     
-    public increment() {
+    public void increment() {
         totalCount++
     }
 }
@@ -1981,9 +2086,32 @@ class Configuration {
 }
 
 // In a function
-process() {
+void process() {
     // Constant local variable
     const int maxRetries = 3
+}
+```
+
+### 11.5 Abstract and Final Modifiers
+
+Two further modifiers apply mainly to type and method declarations:
+
+| Modifier   | Meaning                                                        |
+|------------|---------------------------------------------------------------|
+| `abstract` | The declaration is incomplete and must be implemented by a subtype (e.g. an abstract class or method). |
+| `final`    | The declaration cannot be further extended or overridden.     |
+
+**Examples:**
+```fly
+// Abstract class — cannot be instantiated directly
+public abstract class Shape {
+    public abstract int area()
+}
+
+// Final class — cannot be subclassed
+public final class Vector2 {
+    int x
+    int y
 }
 ```
 
@@ -2018,7 +2146,7 @@ Block comments are enclosed between `/*` and `*/`.
  * for detailed documentation
  */
 
-calculate() {
+void calculate() {
     /* inline comment */ return
 }
 ```
@@ -2045,7 +2173,8 @@ TopDecl         ::= Comment
                   | EnumDecl 
                   | FunctionDecl
 
-Modifiers       ::= ( 'public' | 'private' | 'protected' | 'const' | 'static' )*
+Modifiers       ::= ( 'public' | 'private' | 'protected'
+                    | 'const' | 'static' | 'abstract' | 'final' )*
 ```
 
 ### 13.2 Type System
@@ -2055,7 +2184,7 @@ Type            ::= BuiltinType
                   | NamedType 
                   | ArrayType
 
-BuiltinType     ::= 'bool' | 'byte' | 'char' 
+BuiltinType     ::= 'void' | 'bool' | 'byte' | 'char' 
                   | 'short' | 'ushort' | 'int' | 'uint' 
                   | 'long' | 'ulong' | 'float' | 'double' 
                   | 'string' | 'error'
@@ -2068,13 +2197,15 @@ ArrayType       ::= Type '[' [ Expression ] ']'
 ### 13.3 Declarations
 
 ```
-ClassDecl       ::= Modifiers ( 'class' | 'struct' ) 
+ClassDecl       ::= Modifiers ( 'class' | 'struct' | 'interface' | 'suite' )
                     Identifier [ '<' TypeParam ( ',' TypeParam )* '>' ]
-                    [ ':' Identifier ] '{' ClassMember* '}'
+                    [ ':' BaseType ( ',' BaseType )* ] '{' ClassMember* '}'
 
-TypeParam       ::= Identifier
+BaseType        ::= NamedType
 
-GenericFunc     ::= Modifiers [ ReturnType ] Identifier
+TypeParam       ::= Identifier [ ':' Type ]
+
+GenericFunc     ::= Modifiers ReturnType Identifier
                     '<' TypeParam ( ',' TypeParam )* '>'
                     '(' [ ParamList ] ')' Block
 
@@ -2085,22 +2216,26 @@ EnumDecl        ::= Modifiers 'enum' Identifier '{' EnumEntryList '}'
 
 EnumEntryList   ::= EnumEntry ( ',' EnumEntry )*
 
-EnumEntry       ::= Identifier
+EnumEntry       ::= [ Modifiers ] Identifier
 
-FunctionDecl    ::= Modifiers [ ReturnType ] Identifier '(' [ ParamList ] ')' ( Block | ';' )
+FunctionDecl    ::= Modifiers ReturnType Identifier
+                    [ '<' TypeParam ( ',' TypeParam )* '>' ]
+                    '(' [ ParamList ] ')' ( Block | ';' )
 
 ReturnType      ::= Type ( ',' Type )*
 
 ParamList       ::= Param ( ',' Param )*
 
-Param           ::= [ 'const' ] Type Identifier
+Param           ::= [ Modifiers ] Type Identifier [ '=' Value ]
 ```
 
-**Inheritance Rules:**
-- **Class**: Single inheritance; can extend one struct or one interface
-- **Struct**: Can extend only another struct
-- **Interface**: Can extend only another interface
-- **Enum**: Cannot extend anything
+Notes:
+- `ReturnType` is **mandatory** (use `void` for no value). Constructors — a
+  method named like its class — and interface methods are the only declarations
+  that omit it.
+- A class may list **one or more** base types after `:` (a base struct and/or
+  interfaces). Structs extend only structs, interfaces extend only interfaces,
+  and enums cannot extend anything.
 
 ### 13.4 Statements
 
@@ -2110,11 +2245,13 @@ Statement       ::= Block
                   | SwitchStmt 
                   | WhileStmt 
                   | ForStmt
+                  | ForInStmt
                   | ReturnStmt 
                   | BreakStmt 
                   | ContinueStmt 
                   | FailStmt 
                   | HandleStmt
+                  | TestStmt
                   | ExprStmt 
                   | VarDeclStmt 
                   | AssignStmt
@@ -2130,8 +2267,10 @@ SwitchStmt      ::= 'switch' [ '(' ] Expr [ ')' ] '{'
 
 WhileStmt       ::= 'while' [ '(' ] Expr [ ')' ] Statement
 
-ForStmt         ::= 'for' VarDecl ( ',' VarDecl )* ';' Expr ';' 
-                    Expr ( ',' Expr )* Statement
+ForStmt         ::= 'for' [ '(' ] VarDecl ( ',' VarDecl )* ';' Expr ';' 
+                    Expr ( ',' Expr )* [ ')' ] Statement
+
+ForInStmt       ::= 'for' [ '(' ] Identifier 'in' Expr [ ')' ] Statement
 
 ReturnStmt      ::= 'return'
 
@@ -2139,9 +2278,11 @@ BreakStmt       ::= 'break'
 
 ContinueStmt    ::= 'continue'
 
-FailStmt        ::= 'fail' [ Expr ]
+FailStmt        ::= 'fail' [ Expr [ ',' Expr [ ',' Expr ] ] ]
 
-HandleStmt      ::= [ 'error' Identifier '=' ] 'handle' ( Statement | Block )
+HandleStmt      ::= [ 'error' Identifier ] 'handle' ( Statement | Block )
+
+TestStmt        ::= 'test' Block
 
 VarDeclStmt     ::= Modifiers Type Identifier [ '=' Expr ]
 
@@ -2150,26 +2291,24 @@ AssignStmt      ::= Identifier AssignOp Expr
 
 ### 13.5 Expressions
 
+The grammar below reflects the compiler's **flat** precedence (six binary
+levels). See [Appendix B](#appendix-b-operator-precedence) for the ordering and
+the important note that bitwise/shift bind *looser* than comparisons.
+
 ```
-Expression      ::= TernaryExpr
+Expression      ::= AssignExpr
 
-TernaryExpr     ::= LogicalOrExpr [ '?' Expr ':' Expr ]
+AssignExpr      ::= TernaryExpr ( AssignOp AssignExpr )?
 
-LogicalOrExpr   ::= LogicalAndExpr ( '||' LogicalAndExpr )*
+TernaryExpr     ::= LogicalExpr [ '?' Expr ':' Expr ]
 
-LogicalAndExpr  ::= BitwiseOrExpr ( '&&' BitwiseOrExpr )*
+// One level: logical, bitwise and shift operators together
+LogicalExpr     ::= RelationalExpr
+                    ( ( '||' | '&&' | '|' | '&' | '^' | '<<' | '>>' ) RelationalExpr )*
 
-BitwiseOrExpr   ::= BitwiseXorExpr ( '|' BitwiseXorExpr )*
-
-BitwiseXorExpr  ::= BitwiseAndExpr ( '^' BitwiseAndExpr )*
-
-BitwiseAndExpr  ::= EqualityExpr ( '&' EqualityExpr )*
-
-EqualityExpr    ::= RelationalExpr ( ( '==' | '!=' ) RelationalExpr )*
-
-RelationalExpr  ::= ShiftExpr ( ( '<' | '>' | '<=' | '>=' ) ShiftExpr )*
-
-ShiftExpr       ::= AddExpr ( ( '<<' | '>>' ) AddExpr )*
+// One level: equality and relational operators together
+RelationalExpr  ::= AddExpr
+                    ( ( '==' | '!=' | '<' | '>' | '<=' | '>=' ) AddExpr )*
 
 AddExpr         ::= MultExpr ( ( '+' | '-' ) MultExpr )*
 
@@ -2184,10 +2323,16 @@ PostfixExpr     ::= PrimaryExpr ( '++' | '--' | '(' ArgList ')'
 PrimaryExpr     ::= Literal 
                   | Identifier 
                   | '(' Expr ')' 
-                  | 'new' Identifier '(' ArgList ')'
+                  | 'new' NamedType [ '<' TypeArg ( ',' TypeArg )* '>' ] '(' ArgList ')'
                   | ArrayValue
+                  | StructValue
 
 ArrayValue      ::= '{' [ Expr ( ',' Expr )* ] '}'
+
+StructValue     ::= '{' [ Identifier '=' Value ( ',' Identifier '=' Value )* ] '}'
+
+Literal         ::= NumericLiteral | CharLiteral | StringLiteral
+                  | 'true' | 'false' | 'null' | 'unset'
 
 AssignOp        ::= '=' | '+=' | '-=' | '*=' | '/=' | '%=' 
                   | '&=' | '|=' | '^=' | '<<=' | '>>='
@@ -2211,7 +2356,7 @@ public enum Status {
     IDLE, RUNNING, PAUSED, STOPPED
 }
 
-// Class declaration (single inheritance)
+// Class declaration
 public class Application {
     // Private fields
     private string name
@@ -2221,61 +2366,61 @@ public class Application {
     // Static field
     static int instanceCount = 0
     
-    // Void method — no return type
-    public initialize(const string appName) {
-        name = appName
-        value = 0
-        currentStatus = Status.IDLE
+    // Constructor — same name as the class, no return type
+    public Application(const string appName) {
+        this.name = appName
+        this.value = 0
+        this.currentStatus = Status.IDLE
         instanceCount++
     }
     
     // Method with return type — 'out' carries the result
     public int getValue() {
-        out = value
+        out = this.value
     }
     
-    // Public method with error handling
-    public process() {
-        error err = handle {
-            calculateResult()
+    // Public void method with error handling
+    public void process() {
+        error err handle {
+            this.calculateResult()
         }
         
         if (err) {
             // Error occurred
-            currentStatus = Status.STOPPED
+            this.currentStatus = Status.STOPPED
         }
     }
     
     // Private helper method that may fail
-    private calculateResult() {
-        if (value < 0) {
+    private void calculateResult() {
+        if (this.value < 0) {
             fail "Invalid value"     // Fail with string message
         }
-        if (value > 1000) {
+        if (this.value > 1000) {
             fail 999                 // Fail with error code
         }
     }
     
     // Method demonstrating void error handling
-    public validate() {
-        error validationErr = handle {
-            if (name == "") {
+    public void validate() {
+        error validationErr handle {
+            if (this.name == "") {
                 fail "Name cannot be empty"
             }
         }
         
         if (validationErr) {
-            currentStatus = Status.STOPPED
+            this.currentStatus = Status.STOPPED
         }
     }
     
     // Setter method
-    public setValue(const int newValue) {
-        value = newValue
+    public void setValue(const int newValue) {
+        this.value = newValue
     }
     
     // Static method
-    public static incrementCount() {
+    public static void incrementCount() {
         instanceCount++
     }
 }
@@ -2296,12 +2441,12 @@ public interface Drawable {
     draw()
 }
 
-// Class implementing an interface (single inheritance)
+// Class implementing an interface
 public class Shape : Drawable {
     private int width
     private int height
     
-    draw() {
+    public void draw() {
         // drawing logic
     }
 }
@@ -2310,9 +2455,8 @@ public class Shape : Drawable {
 // Note: main() automatically returns 0 if all errors are handled,
 // or returns 1 if an unhandled error occurs
 void main() {
-    // Create application instance
-    Application app = new Application()
-    app.initialize("MyApp")
+    // Create application instance (constructor invoked by new)
+    Application app = new Application("MyApp")
     
     // Error handling example: validate the application
     handle app.validate()
@@ -2322,7 +2466,7 @@ void main() {
     
     // Control flow with error handling
     if (status == Status.RUNNING) {
-        error processErr = handle {
+        error processErr handle {
             app.process()
         }
         
@@ -2359,13 +2503,13 @@ void main() {
             // other value
     }
     
-    // Create structure
+    // Create structure (stack-allocated)
     Point p = new Point()
     p.x = 10
     p.y = 20
     
     // Error handling with structure
-    error distErr = handle {
+    error distErr handle {
         int dist = p.x * p.x + p.y * p.y
         if (dist > 1000) {
             fail "Distance too large"
@@ -2373,13 +2517,13 @@ void main() {
     }
 }
 
-// Private helper function (void)
-private handleResult() {
+// Private void helper function
+private void handleResult() {
     // handle result logic
 }
 
 // Function with const parameter
-private processNumber(const int num) {
+private void processNumber(const int num) {
     if (num % 2 == 0) {
         // even number
     } else {
@@ -2426,37 +2570,35 @@ private processNumber(const int num) {
 All keywords are reserved and cannot be used as identifiers:
 
 ```
-as          bool        break       byte        case
-char        class       const       continue    default
-double      elsif       else        enum        error
-fail        false       float       for         handle
-if          import      interface   int         long
-namespace   new         null        private     protected
-public      return      short       static      string
-struct      switch      true        uint        ulong
-ushort      while
+abstract    as          bool        break       byte
+case        char        class       const       continue
+default     double      else        elsif       enum
+error       fail        false       final       float
+for         handle      if          import      in
+int         interface   long        namespace   new
+null        private     protected   public      return
+short       static      string      struct      suite
+switch      test        true        uint        ulong
+unset       ushort      void        while
 ```
+
+> `out`, `this`, and `delete` are **not** reserved keywords (see [Section 2.1](#2-1-keywords)).
 
 ---
 
 ## Appendix B: Operator Precedence
 
-From highest to lowest precedence:
+Fly uses a **flat** precedence scheme with only six binary levels. From highest to lowest precedence (tightest to loosest binding):
 
-1. Postfix: `++`, `--`, `()`, `[]`, `.`
-2. Unary: `++`, `--`, `!`, `-`, `+` (prefix)
-3. Multiplicative: `*`, `/`, `%`
-4. Additive: `+`, `-`
-5. Shift: `<<`, `>>`
-6. Relational: `<`, `>`, `<=`, `>=`
-7. Equality: `==`, `!=`
-8. Bitwise AND: `&`
-9. Bitwise XOR: `^`
-10. Bitwise OR: `|`
-11. Logical AND: `&&`
-12. Logical OR: `||`
-13. Ternary: `?:`
-14. Assignment: `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
+1. **Primary / postfix / unary**: literals, identifiers, calls `()`, subscript `[]`, member `.`, then prefix/postfix `++` `--`, `!`, unary `-` `+`
+2. **Multiplicative**: `*`, `/`, `%`
+3. **Additive**: `+`, `-`
+4. **Relational & Equality** (one level): `==`, `!=`, `<`, `>`, `<=`, `>=`
+5. **Logical, Bitwise & Shift** (one level): `||`, `&&`, `|`, `&`, `^`, `<<`, `>>`
+6. **Ternary**: `?:`
+7. **Assignment** (right-associative): `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
+
+> ⚠️ **Differs from C/C++/Java.** Bitwise (`&` `|` `^`) and shift (`<<` `>>`) operators sit at the *same, looser* level as the logical operators — below the comparison operators. As a result, `a & b == c` parses as `a & (b == c)`, and `a | b && c` groups left-to-right within the single logical/bitwise level. **Use explicit parentheses** when mixing bitwise/shift with comparisons or logical operators.
 
 ---
 
@@ -2472,24 +2614,24 @@ Fly uses `fail` and `handle` keywords for error handling, which differs from tra
 | Throw with message | `fail "Error message"` | `throw new Exception("Error message")` |
 | Throw with code | `fail 404` | `throw 404` or custom exception |
 | Catch exception | `handle { ... }` | `try { ... } catch { ... }` |
-| Catch with variable | `error err = handle { ... }` | `catch (Exception err) { ... }` |
+| Catch with variable | `error err handle { ... }` | `catch (Exception err) { ... }` |
 | Error type | `error` | `Exception` or custom class |
 
 ### Common Patterns
 
 ```fly
 // Pattern 1: Simple fail
-operation() {
+void operation() {
     fail                        // Throw exception
 }
 
 // Pattern 2: Fail with integer code
-check() {
+void check() {
     fail 404                    // Error code
 }
 
 // Pattern 3: Fail with string message
-load() {
+void load() {
     fail "File not found"       // Error message
 }
 
@@ -2497,7 +2639,7 @@ load() {
 handle operation()              // Catch and ignore
 
 // Pattern 5: Handle with error capture
-error err = handle {
+error err handle {
     riskyOperation()
 }
 if (err) {
@@ -2505,7 +2647,7 @@ if (err) {
 }
 
 // Pattern 6: Handle with recovery
-error err = handle {
+error err handle {
     computation()
 }
 if (err) {
@@ -2569,5 +2711,5 @@ void main() {
 
 **© Fly Project - https://flylang.org**  
 **Licensed under Apache License v2.0**  
-**Documentation Version 1.0 - December 2025**
+**Documentation Version 1.1 - June 2026** — revised to match the compiler (Parser / AST / Resolver): mandatory return types, constructors & `this`, for-in loops, generics with bounds, testing constructs, automatic memory management, and corrected operator precedence.
 

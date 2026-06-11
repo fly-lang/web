@@ -1,3 +1,10 @@
++++
+title = "Testing"
+description = "First-class, zero-overhead testing built into Fly: inline test blocks, suites, case steps, and flyp test integration."
+template = "docs-page.html"
+weight = 3
++++
+
 # Testing
 
 Fly ships a test system that is intrinsic to the language: tests live directly inside

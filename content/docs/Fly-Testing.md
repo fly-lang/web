@@ -33,16 +33,18 @@ public interface — so they have read-only access to everything, including priv
 A `test {}` block can appear anywhere inside a function or method body.
 
 ```fly
+import fly.assert.*
+
 string classify(const int n) {
     if n > 0 {
         out = "positive"
         test {
-            assertTrue(out == "positive")
+            assertTrue(out == "positive", 1)
         }
     } elsif n < 0 {
         out = "negative"
         test {
-            assertTrue(out == "negative")
+            assertTrue(out == "negative", 2)
         }
     } else {
         out = "zero"
@@ -60,13 +62,19 @@ Inside a `test {}` block, three scopes are available:
 | 2 | All module-level symbols (functions, globals) | read and call |
 | 3 | Fields and helper methods of the active suite | read and call |
 
-Writing to any scope 1 or scope 2 variable is a **compile error**:
+By design, a `test {}` block is meant to be an **observer**: it should only read locals and
+call helpers, never mutate the enclosing computation. Treat enclosing locals (including
+`out`) as read-only:
 
 ```fly
 test {
-    out = "overridden"   // error: out is read-only inside test {}
+    out = "overridden"   // don't do this — test blocks should only observe
 }
 ```
+
+> ⚠️ Read-only enforcement is **not yet active** in the current compiler. The resolver tracks
+> that it is inside a test block (an `InTestBlock` flag) but does not yet reject writes, so
+> the example above currently compiles. Follow the convention until the check is wired up.
 
 ### Release vs test builds
 
@@ -141,8 +149,9 @@ teardown()
 return 0
 ```
 
-No boilerplate is needed. The binary exits with code `0` on success, `1` on the first
-assertion failure.
+No boilerplate is needed. The generated `main()` returns `0` after `teardown()`. If an
+assertion fails first, it calls `proc_exit(code)` with the `code` you passed, so the binary
+exits with that code (a non-zero value) and `teardown()`/remaining tests are skipped.
 
 ---
 
@@ -177,7 +186,7 @@ case "empty string": process("")
 case "nil check": {
     // multi-statement case needs braces
     int r = divide(10, 2)
-    assertEqI(r, 5)
+    assertEqI(r, 5, 1)
 }
 ```
 
@@ -187,31 +196,49 @@ Using `case` outside a suite test-method is a compile error.
 
 ---
 
-## Assertions — `fly.test`
+## Assertions — `fly.assert`
 
-The `fly.test` namespace provides assertion helpers. They are auto-imported in test mode —
-no `import fly.test` statement is needed.
-
-| Function | Signature | Fails when |
-|---|---|---|
-| `assertTrue` | `(const bool b)` | `b` is false |
-| `assertFalse` | `(const bool b)` | `b` is true |
-| `assertEqI` | `(const int a, const int b)` | `a != b` |
-| `assertEqL` | `(const long a, const long b)` | `a != b` |
-| `assertEqStr` | `(const string a, const string b)` | strings differ |
-| `assertApprox` | `(const double a, const double b)` | `|a - b| > 1e-9` |
-
-All assertions exit the process with code `1` on failure.
+The assertion helpers live in the **`fly.assert`** namespace (standard library file
+`std/lib/assert.fly`). Import it explicitly — a wildcard import brings the helpers into
+scope so they can be called without a prefix:
 
 ```fly
+import fly.assert.*     // assertTrue, assertEqI, … directly in scope
+// or:
+import fly.assert       // call as assert.assertTrue(...), assert.assertEqI(...)
+```
+
+Every assertion takes a **trailing `const int code`** argument. When the check fails, the
+process exits immediately with that `code` (via `proc_exit`), so each assertion doubles as a
+unique failure marker. A passing assertion does nothing.
+
+| Function | Signature | Exits with `code` when |
+|---|---|---|
+| `assertTrue` | `(const bool b, const int code)` | `b` is false |
+| `assertFalse` | `(const bool b, const int code)` | `b` is true |
+| `assertEqI` | `(const int got, const int exp, const int code)` | `got != exp` |
+| `assertEqL` | `(const long got, const long exp, const int code)` | `got != exp` |
+| `assertStr` | `(const string got, const string exp, const int code)` | strings differ |
+| `assertNotEmpty` | `(const string s, const int code)` | `s` is empty |
+| `assertGtI` | `(const int got, const int threshold, const int code)` | `got <= threshold` |
+| `assertApprox` | `(const double got, const double exp, const int code)` | `\|got - exp\| > 1e-9` |
+| `assertApproxEps` | `(const double got, const double exp, const double eps, const int code)` | `\|got - exp\| > eps` |
+| `errExit` | `(const int code)` | always — unconditional exit with `code` |
+
+> The process exit code on failure is the `code` you pass — not a fixed `1`. Use distinct
+> codes per assertion to pinpoint which check failed.
+
+```fly
+import fly.assert.*
+
 void divideTest() {
     case "basic": {
         int r = divide(10, 2)
-        assertEqI(r, 5)
+        assertEqI(r, 5, 1)
     }
     case "negative dividend": {
         int r = divide(-6, 3)
-        assertEqI(r, -2)
+        assertEqI(r, -2, 2)
     }
 }
 ```
@@ -267,7 +294,7 @@ compiled suite binary. The compiler flag `--test` is passed automatically.
 ```fly
 namespace math
 
-import fly.test
+import fly.assert.*
 
 // Returns a string classification of n.
 // test {} blocks observe intermediate state during suite runs.
@@ -275,18 +302,18 @@ string classify(const int n) {
     if n > 0 {
         out = "positive"
         test {
-            assertTrue(out == "positive")
-            assertTrue(n > 0)
+            assertTrue(out == "positive", 1)
+            assertTrue(n > 0, 2)
         }
     } elsif n < 0 {
         out = "negative"
         test {
-            assertTrue(out == "negative")
+            assertTrue(out == "negative", 3)
         }
     } else {
         out = "zero"
         test {
-            assertEqI(n, 0)
+            assertEqI(n, 0, 4)
         }
     }
 }

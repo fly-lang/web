@@ -1,6 +1,6 @@
 # Fly Language Reference
 
-**Version:** 0.12.3  
+**Version:** 0.13.3  
 **Project:** [Fly Programming Language](https://flylang.org)  
 **License:** Apache License v2.0
 

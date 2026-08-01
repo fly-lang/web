@@ -25,6 +25,7 @@ weight = 1
    - [6.7 Generics](#6-7-generics)
 7. [Enumerations](#7-enumerations)
 8. [Expressions](#8-expressions)
+   - [8.1.3 Array Subscript](#8-1-3-array-subscript)
 9. [Statements](#9-statements)
    - [9.5.3 For-In Loop](#9-5-3-for-in-loop)
    - [9.8 Testing Constructs](#9-8-testing-constructs)
@@ -195,7 +196,7 @@ unset       // unset value
 =           // assignment
 ?:          // ternary conditional
 .           // member access
-[]          // array subscript
+[]          // array subscript (bounds-checked — see 8.1.3)
 ()          // function call / grouping
 {}          // block delimiters
 ,           // separator
@@ -287,6 +288,12 @@ int[5] coordinates
 int[][] matrix
 byte[][][] cube
 ```
+
+A declaration must give either a size or an initializer — `int[] xs` alone is an error, because there is nothing to say how large the array is.
+
+Elements are read and written with the subscript operator, which is bounds-checked (see [8.1.3 Array Subscript](#8-1-3-array-subscript)), and iterated with `for in` (see [9.5.3](#9-5-3-for-in-loop)).
+
+Arrays are heap-backed, **reference counted**, and have **reference semantics** — assigning one array to another shares the buffer instead of copying it. Their lifetime, and what an array does and does not own, is specified in [6.6 Allocation and Lifetime](#6-6-allocation-and-lifetime).
 
 ### 3.3 Named Types
 
@@ -478,7 +485,9 @@ protected void protectedMethod() {}
 
 ### 5.4 Return Values
 
-When a function declares a return type, the special identifier `out` is implicitly available inside the body. Assigning to `out` sets the return value. The caller receives it as if the function returned by value — but the compiler generates a hidden by-reference output parameter, so **no copy is ever made**.
+When a function declares a return type, the special identifier `out` is implicitly available inside the body. Assigning to `out` sets the return value. The caller receives it as if the function returned by value — but the compiler generates a hidden by-reference output parameter, so **the result is never copied out of the callee's frame**.
+
+That is a statement about the calling convention, not a promise that assigning to `out` is free. `out = expr` is an ordinary assignment and obeys the ownership rules of [6.6](#6-6-allocation-and-lifetime): returning a *borrowed* string — a parameter or a field — clones its buffer, which is exactly what makes every call result independently owned; returning an array transfers ownership without copying a single element.
 
 ```fly
 // Looks like return-by-value to the caller…
@@ -511,7 +520,21 @@ int,int divmod(const int a, const int b) {
 }
 
 void main() {
-    int q = divmod(17, 5)   // q = 3
+    int q = divmod(17, 5)   // q = 3 — a plain assignment binds out[0]
+}
+```
+
+At the call site, a **multi-assignment** consumes every slot: list the
+receiving variables (comma-separated) before `=` — they bind to the return
+slots **in order**. Every receiver must be an **already-declared** variable
+(a multi-assignment never declares), the right side must be a call, and the
+receiver count must match the callee's return count exactly:
+
+```fly
+void main() {
+    int q = 0
+    int r = 0
+    q, r = divmod(17, 5)   // q ← out[0] = 3, r ← out[1] = 2
 }
 ```
 
@@ -543,14 +566,41 @@ void main() {
 2. **Entry point:** The application starts execution from `main()`
 3. **Automatic error handling:** The main function has special error handling behavior
 
+The signature is **enforced**, not merely conventional. Declaring a return type
+on `main` — single (`int main()`) or multiple (`int, int main()`) — is a compile
+error in both compilers:
+
+```
+error: 'main()' must be declared 'void': the exit code comes from an unhandled 'fail', not from 'out'
+```
+
+It follows that the implicit `out` variable **does not exist inside `main`**:
+a `void` function has no out-parameter, so writing to it there is an ordinary
+"cannot find 'out' in this scope" error. The process exit code is not something
+`main` returns — it is derived from the error state described next, so the only
+things a program can act on are `fail` (to set an error) and `handle` (to stop
+one from propagating).
+
 **Error Handling and Return Codes:**
 
 When the application runs, `main()` automatically returns an exit code to the operating system:
 
 - **Return 0:** If no unhandled errors occur (success)
-- **Return 1:** If an unhandled error occurs (failure)
+- **Return `code`:** If an unhandled error occurs, the exit code is the error's
+  integer code (`fail 404, "…"` → exit 404; a bare `fail` or a `fail` with only a
+  string/object → exit 1)
 
-This behavior is automatic—you don't explicitly return an integer from `main()`.
+Before exiting with a non-zero code, `main()` also **prints the unhandled error to
+stderr** in the form:
+
+```
+error <code>: <message>
+```
+
+(or just `error <code>` when the error carries no message). This behavior is
+automatic—you don't explicitly return an integer from `main()`, and only the
+*unhandled* error that is still recorded when `main()` ends is printed; handled
+errors are never printed.
 
 **Example 1: Successful Execution**
 ```fly
@@ -594,11 +644,11 @@ void riskyOperation() {
 }
 
 void main() {
-    error err handle {
+    handle {
         riskyOperation()
     }
     
-    if (err) {
+    if (error) {
         // Error was caught and handled
         // Continue with fallback logic
     }
@@ -610,7 +660,7 @@ void main() {
 
 1. **Always handle errors in main:** Unhandled errors will cause the application to exit with code 1
 2. **Use handle blocks:** Wrap risky operations in `handle` blocks to ensure graceful error handling
-3. **Check error variables:** Use `if (err)` to detect and respond to errors appropriately
+3. **Check error variables:** Use `if (error)` to detect and respond to errors appropriately
 4. **Provide fallback logic:** When errors occur, provide alternative execution paths
 
 **Summary:**
@@ -828,6 +878,96 @@ void demo() {
 }   // ← final buffer freed automatically at scope exit
 ```
 
+**The rule that makes this work.** Everything above follows from one invariant: *every owned string slot holds a buffer that nothing else owns*. That is what lets the compiler free at scope exit unconditionally, with no escape analysis and no reference counting. Storing into an owned slot therefore takes one of three forms, chosen by what the right-hand side is:
+
+| Right-hand side | What is stored | Why |
+|---|---|---|
+| a string **literal** | a fresh heap **copy** of the constant | the constant lives in static memory and must never be freed |
+| a string **lvalue** — variable, parameter, field, member, **array element** | a **deep clone** of its buffer | the original still owns its buffer; sharing it would free it twice |
+| a **fresh producer** — a call result, a concatenation | the buffer as-is, **moved** | it is already unique and unowned, so copying it would be waste |
+
+```fly
+void demo(const string param) {
+    string a = "hello"        // copy of the constant
+    string b = a              // deep clone — a and b own different buffers
+    string c = param          // deep clone — the caller still owns param's buffer
+    string d = a + b          // moved — the concatenation's buffer was already fresh
+}   // ← a, b, c and d each free their own buffer
+```
+
+The empty string is the one case that goes the other way: it owns no heap at all, so cloning it allocates nothing and freeing it is a no-op.
+
+Because `out = <lvalue>` goes through the same rule, a function that returns a *borrowed* string — a parameter or a field — returns a **clone**. That is what makes every call result a fresh buffer, and why the third row above is safe.
+
+#### Arrays: reference-counted, freed automatically
+
+An array is a **fat pointer**, `{data, size}`, held in the variable's own storage. The elements live in a heap buffer preceded by an 8-byte reference count:
+
+```
+    variable            heap buffer
+  ┌────────┬──────┐   ┌──────────┬─────────────────────┐
+  │  data  │ size │   │ refcount │ element 0, 1, 2, …  │
+  └───┬────┴──────┘   └──────────┴─────────────────────┘
+      │                ◄─8 bytes─►▲
+      └─────────────────────────── points HERE
+```
+
+Arrays therefore have **reference semantics**, and this is the one place where Fly deliberately diverges from the rest of the language — structs and strings copy, arrays do not:
+
+```fly
+void demo() {
+    int[] k = {1, 2, 3}
+    int[] j = k        // NO copy: one buffer, two names, count = 2
+    j[0] = 9
+    int x = k[0]       // ← 9. The write through j is visible through k.
+}   // ← k releases (count 1), then j releases (count 0) → the buffer is freed, once
+```
+
+The rules, all of them:
+
+- **Declaring** an array variable makes it an **owner**: it holds a reference and releases it at scope exit. The buffer goes back when the last owner releases it.
+- **Binding another array** (`int[] j = k`) copies the fat pointer and **retains**. No element is ever copied, whatever the array's size.
+- **Reassigning** (`k = {7, 8}`) retains the new buffer, releases the old one, then stores — in that order, so `k = k` is harmless.
+- **Passing as an argument** is a **borrow**: no retain, no release. The callee sees the array for the duration of the call.
+- **Returning through `out`** transfers ownership to the caller: the callee retains on the caller's behalf, then its own variable releases, leaving the caller holding the only reference.
+- The **item of a `for in`** is a view of the element, not an owner.
+- **Nested arrays** (`int[][]`) have one buffer and one count *per level*. Releasing the outer array walks its elements and releases each inner buffer first.
+- An **empty array** (`int[0]`, or a runtime size of zero) has no buffer at all. Declaring, binding and iterating one are all legal and allocate nothing.
+
+**The ownership rule.** An array owns its **buffer** and nothing else. Freeing it drops the elements it holds — it never frees what they point at. Every object is released by whoever is responsible for it, exactly as in the summary table below. The one apparent exception, an array of arrays, is not one: an inner array is itself reference counted, so what it receives is a *decrement*, not a free.
+
+Two consequences deserve stating plainly.
+
+**An array of classes is born full, but the instances are yours.** Declaring `C[3]` builds three *distinct* instances, one per index, with `C`'s no-argument constructor — every class has one, implicitly, when it does not declare it. They are ordinary `new` allocations and follow the class convention: the array releasing its buffer does **not** free them.
+
+```fly
+void demo() {
+    Cell[3] cells          // three separate instances, already constructed
+    Cell first = cells[0]
+    first.set(7)           // does not affect cells[1] or cells[2]
+}   // ← the buffer of pointers is freed; the three Cell instances are NOT
+```
+
+A sized array of an **interface** is rejected at the declaration: an interface has no constructor to build the elements with. Supply them with an array literal instead.
+
+**Elements are borrowed, and a borrow can outlive its owner.** Storing a string, a class or a struct into an array neither copies it nor transfers ownership. Reading one back out into an owned slot *clones* it, by the string rule above, so the common direction is safe. The opposite direction is not:
+
+```fly
+string[] names = {"a", "b"}
+{
+    string s = str.toUpper("hello")
+    names[0] = s      // borrow — names does not own this buffer
+}                     // ← s is freed here; names[0] now dangles
+```
+
+That is the direct consequence of the ownership rule, not an oversight: cloning on store would mean the array *owned* the element, which is exactly what it must not do. Keep the owner alive at least as long as the array borrowing from it.
+
+String **literals** inside an array literal are unaffected: they are stored as pointers into static memory, allocate nothing per element, and need no freeing.
+
+**When the release happens.** An owned array is released where the scope *falls through* its end. There is no cleanup on an early `return`, on an uncaught `fail`, or on `break` / `continue` out of a scope — an array left behind on one of those paths simply is not released. This is a pre-existing limitation of the compiler's scope handling, shared with heap-allocated strings and class handles, not something specific to arrays; it is recorded here because reference counting otherwise reads as a complete guarantee, and on those paths it is not.
+
+**Class fields of array type** are likewise never released: only locals are registered as owners.
+
 ---
 
 #### Summary
@@ -838,6 +978,9 @@ void demo() {
 | `class C = new C()` | heap (malloc) | call the class's own `free()` method by convention |
 | `string s = …` (non-const, initialized) | heap | automatic at scope exit; reassignment frees the old buffer |
 | `const string s = …` | static/null | nothing to free |
+| `int[] xs = …` / `int[3] xs` | heap, `[refcount \| elements]` | reference counted: released at scope exit, freed when the last owner goes |
+| an array's **elements** | wherever they came from | never the array — each object is freed by whoever is responsible for it |
+| `C[3] cells` (array of classes) | heap buffer + one `new C()` per index | the buffer automatically; the **instances** by the class convention |
 
 #### Planned: ownership qualifiers (not yet implemented)
 
@@ -1069,7 +1212,42 @@ obj.field       // member access
 array[0]        // array access
 ```
 
-#### 8.1.3 Parenthesized Expressions
+#### 8.1.3 Array Subscript
+
+`xs[i]` reads or writes one element of an array. The index is any integer expression; the element takes the array's element type.
+
+```fly
+int[] k = {5, 6, 7}
+
+int x = k[1]        // read  → 6
+k[0] = 40           // write
+int y = k[x - 5]    // the index is an ordinary expression
+```
+
+**Both forms are bounds-checked at run time**, and on both sides: the index is compared against the array's `size` field and must satisfy `0 <= i < size`. A negative index is caught as surely as one past the end — the check is signed precisely so it can be.
+
+An out-of-range access **fails** with the dedicated error code `2989` (`0x0BAD`), which behaves like any other `fail`: it propagates to the caller, sets the exit code of `main`, and can be intercepted with `handle`.
+
+> **Reading the code from a shell.** `main` returns 2989 on every platform, but POSIX passes only the low 8 bits of a process status through `wait()`, so a Unix shell reports `173`. Windows preserves the full value. Intercepting with `handle` — below — is unaffected and is the portable way to inspect the code.
+
+```fly
+void demo() {
+    int[] k = {5, 6, 7}
+
+    handle {
+        int bad = k[9]      // out of range → fail 2989
+    }
+    bool caught = error     // ← true; execution continues after the handle
+}
+```
+
+A caught failure leaves the array — and every other local — untouched and still usable: control resumes in the same scope, so nothing is released early.
+
+What the subscript yields depends on the element type, and follows the ownership rules of §6.6: a **number** is a value, a **class** element is the instance itself (a reference), a **struct** element is copied by value, and a **string** element is a borrow that is cloned when it is bound to an owned slot.
+
+> **Note.** Chaining a subscript directly into a member access — `cells[0].set(7)` — is accepted by the self-host compiler but **not** by the reference, whose subscript does not chain. For code that must build with either, bind the element first: `Cell c = cells[0]` then `c.set(7)`.
+
+#### 8.1.4 Parenthesized Expressions
 
 ```fly
 (a + b)
@@ -1080,9 +1258,13 @@ array[0]        // array access
 
 **Syntax:**
 ```
-UnaryExpr ::= ( '++' | '--' | '!' | '-' | '+' ) Expression
+UnaryExpr ::= ( '++' | '--' | '!' | '-' ) Expression
             | Expression ( '++' | '--' )
 ```
+
+Unary `-` negates any numeric operand (`-5`, `-x`, `-(a * 2)`, `-2.5`).
+There is **no** unary `+`. Postfix `++`/`--` bind **same-line only** — a
+`++`/`--` at the start of a line is always a prefix statement.
 
 **Examples:**
 ```fly
@@ -1132,6 +1314,11 @@ k >= l          // greater than or equal
 flag1 && flag2  // logical AND
 cond1 || cond2  // logical OR
 ```
+
+Both operators **short-circuit**: the right operand is evaluated only when the
+left one does not already decide the result. `a && f()` never calls `f()` when
+`a` is `false`, and `a || f()` never calls `f()` when `a` is `true` — so the
+right operand may safely guard on the left (`p != null && p.ready()`).
 
 #### 8.3.4 Bitwise Operators
 
@@ -1261,6 +1448,10 @@ values = {1, 2, 3, 4, 5}
 matrix = {{1, 2}, {3, 4}}
 ```
 
+Each literal allocates its **own** reference-counted buffer, and a nested literal allocates one per level — `matrix` above is three buffers, the outer one holding the two rows. They are released like any other array (see [6.6](#6-6-allocation-and-lifetime)).
+
+An empty literal allocates nothing at all.
+
 ---
 
 ## 9. Statements
@@ -1377,6 +1568,12 @@ switch value {
         result = "other"
 }
 ```
+
+**Fall-through is C-style**: a case body that does not end in `break` (or
+`return`/`fail`) falls through into the **next** case body — the last open
+case falls into `default` (or out of the switch). Use `break` to stop.
+Stacked empty labels (`case 3:` `case 4:`) share the following body. Case
+bodies may be braced: `case 1: { r = 10  break }`.
 
 ### 9.5 Loop Statements
 
@@ -1539,7 +1736,7 @@ From Fly code you declare an error variable and test it with `if`:
 ```fly
 error err           // declare
 // …
-if (err) { /* error occurred */ }
+if (error) { /* error occurred */ }
 ```
 
 #### 9.7.2 Fail Statement
@@ -1597,7 +1794,8 @@ void fetchData() {
 void main() {
     fetchData()   // error is written to main's error struct
     // execution continues here, but error struct is now populated
-    // main() will return exit code 503
+    // main() prints "error 503: service unavailable" to stderr
+    // and returns exit code 503
 }
 ```
 
@@ -1605,11 +1803,14 @@ Because propagation is not stack unwinding, a failing callee does NOT unwind the
 
 #### 9.7.4 Handle Statement
 
-`handle` creates a guarded region. Functions called inside the region share a dedicated error handler. You can optionally declare a named `error` variable to inspect the outcome after the block.
+`handle` creates a guarded region. Failures raised inside it — directly or in
+a callee — are **consumed** by the handle instead of reaching the caller.
+After the block, the implicit **`error`** variable tells whether the guarded
+region recorded a failure.
 
 **Syntax:**
 ```
-HandleStmt ::= [ 'error' Identifier ] 'handle' ( Statement | Block )
+HandleStmt ::= 'handle' Block
 ```
 
 **How it works:**
@@ -1620,60 +1821,62 @@ The compiler emits two LLVM basic blocks for each `handle`:
 
 When `fail` fires **directly inside the handle body** (same function), execution jumps to `safe`, skipping the rest of the handle body. When `fail` fires **in a callee**, the callee returns void and the handle body continues at the next statement.
 
-After the handle, check `if (err)` to detect whether any error was written.
+On exit the handle **consumes** the error: the failure never propagates to
+the caller, and the implicit `error` variable — automatically in scope after
+any handle, no declaration needed — holds the outcome. It reads as a boolean:
+`true` when the guarded block recorded a failure, `false` otherwise. Each
+`handle` opens a fresh window: a later handle that stays clean resets `error`
+to `false`.
 
 **Forms:**
 
-**1. Unnamed — discard error details:**
+**1. Detect and recover:**
 ```fly
 void main() {
     handle {
         riskyOperation()
-        anotherOp()
     }
-    // execution always reaches here; error is silently swallowed
-}
-```
-
-**2. Named — inspect whether an error occurred:**
-```fly
-void main() {
-    error err handle {
-        riskyOperation()
-    }
-    if (err) {
-        // error occurred — take fallback path
+    if (error) {
+        // failure recorded — take the fallback path
         return
     }
     // success path
 }
 ```
 
-**3. Single-statement shorthand:**
+**2. Discard — swallow any failure:**
 ```fly
-void quickCheck() {
-    error err handle riskyOp()
-    if (err) { return }
+void main() {
+    handle {
+        riskyOperation()
+        anotherOp()
+    }
+    // execution always reaches here; a failure was consumed silently
 }
 ```
 
-**4. Nested handles:**
+**3. Nested handles — the innermost intercepts first:**
 ```fly
 void process() {
-    error outer handle {
-        error inner handle {
-            deepOp()   // inner intercepts first
+    handle {
+        handle {
+            deepOp()      // a failure here sets the INNER window
         }
-        if (inner) {
-            fail    // re-raise to outer
+        if (error) {
+            fail          // re-raise to the outer handle
         }
         followupOp()
     }
-    if (outer) {
-        // handle top-level failure
+    if (error) {
+        // handle the top-level failure
     }
 }
 ```
+
+> **Legacy form.** Older code may name the variable explicitly —
+> `error err handle { … }` followed by `if (err)`. The unnamed form with the
+> implicit `error` variable is the canonical syntax; the named form is
+> deprecated and will be removed.
 
 #### 9.7.5 Complete Examples
 
@@ -1699,12 +1902,12 @@ void openFile(const string path) {
 }
 
 void main() {
-    error err handle {
-        openFile("")       // fails and writes error; handle body continues
+    handle {
+        openFile("")       // fails and writes the error; handle body continues
         openFile("/tmp")   // STILL CALLED (callee fail ≠ jump in caller)
     }
-    if (err) {
-        // err is set; handle the 400 error
+    if (error) {
+        // the 400 failure was recorded and consumed here
     }
 }
 ```
@@ -1712,13 +1915,13 @@ void main() {
 **Example 3: Direct fail in handle — jumps immediately**
 ```fly
 void main() {
-    error err handle {
+    handle {
         if (someCondition) {
             fail 500    // jumps directly to safe block
         }
         neverReached()  // skipped when fail fires above
     }
-    if (err) { /* code = 500 */ }
+    if (error) { /* the failure (code 500) was recorded */ }
 }
 ```
 
@@ -1729,10 +1932,10 @@ void inner() {
 }
 
 void outer() {
-    error err handle {
+    handle {
         inner()
     }
-    if (err) {
+    if (error) {
         fail    // re-raise; outer's caller sees the error
     }
 }
@@ -1779,7 +1982,7 @@ So the process exit code equals the error code of the last unhandled failure —
 
 ### 9.8 Testing Constructs
 
-Fly has built-in testing support based on three constructs: inline `test` blocks, `suite` declarations, and `case` labels. These are compiled **only when the compiler runs in test mode** (the `--test` driver flag). Outside test mode, `test` blocks are stripped during semantic analysis and have no effect on the produced binary.
+Fly has built-in testing support based on three constructs: inline `test` blocks, `suite` declarations, and `case` labels. These are compiled **only when the compiler runs in test mode** (the `--test` driver flag, also implied by `--suite`, which additionally builds and runs the suite). Outside test mode, `test` blocks are stripped during semantic analysis and have no effect on the produced binary. See the **Testing** guide for the full runner, `--suite=Name`/`--test=Method` filters, and assertion reference.
 
 #### 9.8.1 Inline `test` Block
 
@@ -1886,6 +2089,18 @@ void main() {
 }
 ```
 
+A namespace import binds **only the prefix** — it does not bring the namespace's
+members into scope, so bare calls are an error:
+
+```fly
+import fly.str
+
+void main() {
+    int n = len("hello")    // → compile error: no function 'len' in scope
+                            //   (use str.len(...), or import fly.str.*)
+}
+```
+
 #### 10.2.2 Class import (Java style)
 
 When the last component of the path names a **class** (or enum/struct), that type is placed directly in the current scope — no prefix needed. This is the Fly equivalent of Java's `import java.util.List`.
@@ -1922,6 +2137,20 @@ void main() {
 ```fly
 // Error: fly.data.List is a class, not a namespace
 import fly.data.List.*  // → compile error: wildcard requires a namespace target
+```
+
+A wildcard import brings in the **symbols**, never the namespace prefix — the
+two forms are complementary, not overlapping:
+
+```fly
+import fly.str.*
+
+void main() {
+    int n = len("hello")        // OK: bare call, 'len' is in scope
+    int m = str.len("hello")    // → compile error: 'str' is not defined in this
+                                //   scope (a wildcard does not bind the prefix;
+                                //   add `import fly.str` for prefixed calls)
+}
 ```
 
 #### 10.2.4 Alias import
@@ -2121,7 +2350,10 @@ public final class Vector2 {
 
 ### 12.1 Line Comments
 
-Line comments start with `//` and continue to the end of the line.
+Line comments start with `//` and continue to the end of the line. A newline
+always terminates a line comment: Fly has **no line-splicing**, so a backslash
+at the end of the line is an ordinary comment character and does **not**
+continue the comment onto the next line.
 
 **Examples:**
 ```fly
@@ -2131,6 +2363,9 @@ int value = 42  // End-of-line comment
 // Multiple line comments
 // can be used for
 // multi-line documentation
+
+// A trailing backslash does not extend this comment \
+int next = 1    // this line is code, not comment
 ```
 
 ### 12.2 Block Comments
@@ -2151,7 +2386,14 @@ void calculate() {
 }
 ```
 
-**Note:** Block comments can span multiple lines and are preserved by the parser for documentation purposes.
+**Note:** Block comments can span multiple lines and are preserved by the parser for documentation purposes. A block comment ends only at a literal `*/`: since Fly has no line-splicing, a backslash-newline between `*` and `/` does not terminate the comment.
+
+### 12.3 No Line Splicing
+
+Unlike C and C++, Fly performs **no line-splicing** anywhere: a backslash
+followed by a newline is never a line continuation. Inside comments it is
+ordinary comment text; outside comments and string literals a stray backslash
+is a lexical error.
 
 ---
 
@@ -2255,6 +2497,7 @@ Statement       ::= Block
                   | ExprStmt 
                   | VarDeclStmt 
                   | AssignStmt
+                  | MultiAssignStmt
 
 Block           ::= '{' Statement* '}'
 
@@ -2280,13 +2523,18 @@ ContinueStmt    ::= 'continue'
 
 FailStmt        ::= 'fail' [ Expr [ ',' Expr [ ',' Expr ] ] ]
 
-HandleStmt      ::= [ 'error' Identifier ] 'handle' ( Statement | Block )
+HandleStmt      ::= 'handle' Block          (* implicit `error` var after the block; the
+                                               named `error Ident handle` form is legacy *)
 
 TestStmt        ::= 'test' Block
 
 VarDeclStmt     ::= Modifiers Type Identifier [ '=' Expr ]
 
 AssignStmt      ::= Identifier AssignOp Expr
+
+MultiAssignStmt ::= Identifier ( ',' Identifier )+ '=' CallExpr
+                    (* every receiver is an ALREADY-DECLARED variable; the
+                       call's return slots bind in order — see §5.4 *)
 ```
 
 ### 13.5 Expressions
@@ -2381,11 +2629,11 @@ public class Application {
     
     // Public void method with error handling
     public void process() {
-        error err handle {
+        handle {
             this.calculateResult()
         }
         
-        if (err) {
+        if (error) {
             // Error occurred
             this.currentStatus = Status.STOPPED
         }
@@ -2590,7 +2838,7 @@ unset       ushort      void        while
 
 Fly uses a **flat** precedence scheme with only six binary levels. From highest to lowest precedence (tightest to loosest binding):
 
-1. **Primary / postfix / unary**: literals, identifiers, calls `()`, subscript `[]`, member `.`, then prefix/postfix `++` `--`, `!`, unary `-` `+`
+1. **Primary / postfix / unary**: literals, identifiers, calls `()`, subscript `[]`, member `.`, then prefix/postfix `++` `--`, `!`, unary `-`. Postfix `++`/`--` bind **same-line only**: a leading `++`/`--` on the next line is a new prefix statement, never the previous operand's postfix.
 2. **Multiplicative**: `*`, `/`, `%`
 3. **Additive**: `+`, `-`
 4. **Relational & Equality** (one level): `==`, `!=`, `<`, `>`, `<=`, `>=`
@@ -2614,7 +2862,7 @@ Fly uses `fail` and `handle` keywords for error handling, which differs from tra
 | Throw with message | `fail "Error message"` | `throw new Exception("Error message")` |
 | Throw with code | `fail 404` | `throw 404` or custom exception |
 | Catch exception | `handle { ... }` | `try { ... } catch { ... }` |
-| Catch with variable | `error err handle { ... }` | `catch (Exception err) { ... }` |
+| Inspect the outcome | `handle { ... }` then `if (error)` | `catch (Exception err) { ... }` |
 | Error type | `error` | `Exception` or custom class |
 
 ### Common Patterns
@@ -2639,18 +2887,18 @@ void load() {
 handle operation()              // Catch and ignore
 
 // Pattern 5: Handle with error capture
-error err handle {
+handle {
     riskyOperation()
 }
-if (err) {
+if (error) {
     // Handle error
 }
 
 // Pattern 6: Handle with recovery
-error err handle {
+handle {
     computation()
 }
-if (err) {
+if (error) {
     fallbackOperation()
 }
 ```
@@ -2701,7 +2949,7 @@ void main() {
     handle {
         riskyOperation()
     }
-    if (err) {
+    if (error) {
         // Handle gracefully
     }
 }

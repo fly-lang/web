@@ -1,6 +1,6 @@
 +++
 title = "Testing"
-description = "First-class, zero-overhead testing built into Fly: inline test blocks, suites, case steps, and flyp test integration."
+description = "First-class, zero-overhead testing built into Fly: inline test blocks, suites, case steps, and the built-in fly --suite runner."
 template = "docs-page.html"
 weight = 3
 +++
@@ -78,10 +78,10 @@ test {
 
 ### Release vs test builds
 
-In a release build (`flyp build --release`, or just `fly` without `--test`), the compiler
+In a release build (any compile without `--test`/`--suite`), the compiler
 strips every `test {}` block at the Sema stage — no IR is emitted, no binary size increase.
 
-In test mode (`fly --test`, triggered automatically by `flyp test`), each block is wrapped
+In test mode (`fly --test`, implied by `fly --suite`), each block is wrapped
 in a TLS-guarded branch:
 
 ```
@@ -136,22 +136,84 @@ suite MathSuite {
 compiler recognises by their exact name inside a suite. Outside a suite they are ordinary
 identifiers.
 
+> `case` blocks are only parsed inside methods whose name ends in `Test` — in
+> a helper method, `case` is a syntax error.
+
+### Suite instance state
+
+A suite is a real instance: the runner allocates one zero-initialised object
+per suite and passes it as `this` to `setup`, every test-method and
+`teardown`. Instance **fields** and **helper methods** work exactly like in a
+class:
+
+```fly
+suite CounterSuite {
+    int calls            // shared across the suite's methods, starts at 0
+
+    int bump() {         // helper — full `this` access
+        this.calls = this.calls + 1
+        out = this.calls
+    }
+
+    void stateTest() {
+        case "fields persist across cases": {
+            this.bump()
+            this.bump()
+            assertEqI(this.calls, 2, 1)
+        }
+    }
+}
+```
+
+### Handled errors inside cases
+
+A `handle {}` block inside a case owns its errors: a failure **caught by a
+handle never fails the case** — the per-statement check is suspended inside
+the guarded block, exactly matching standalone semantics. Only errors that
+escape every handle reach the runner:
+
+```fly
+void recoveryTest() {
+    case "fallback path": {
+        handle {
+            mightFail()          // a caught failure stays inside the handle
+        }
+        if (error) { useFallback() }
+        assertTrue(ok(), 1)      // an UNCAUGHT failure here fails the case
+    }
+}
+```
+
 ### Implicit `main()`
 
-When compiled with `fly --test`, a suite file gets a generated `main()`:
+A suite file gets a generated `main()` that runs the suite and **reports every
+case**:
 
 ```
-setup()
-firstTest()
-secondTest()
-...
-teardown()
-return 0
+suite <Name>
+  <firstTest>
+    <case label> ... ok
+    <case label> ... FAIL(<code>): <message>
+  <secondTest>
+    ...
+suite <Name>: <N> cases, <P> passed, <F> failed
 ```
 
-No boilerplate is needed. The generated `main()` returns `0` after `teardown()`. If an
-assertion fails first, it calls `proc_exit(code)` with the `code` you passed, so the binary
-exits with that code (a non-zero value) and `teardown()`/remaining tests are skipped.
+Flow: `setup()` → each test-method (each `case` reported individually) →
+`teardown()` → summary. Rules:
+
+- A failing case does **not** stop the run: the error is reported and the next
+  case executes (per-case isolation).
+- Within one case the **first** failure wins: the runner checks the error after
+  every statement and jumps to the case's report as soon as one is recorded.
+- If `setup()` fails, it is reported (`setup ... FAIL(...)`), the test-methods
+  are **skipped**, and `teardown()` still runs.
+- A `fail` that escapes a test-method outside any `case` is reported as
+  `body ... FAIL(...)`.
+- Exit code: **0** when every case passed, **1** otherwise (the individual
+  codes are in the report lines).
+- The case label line is printed *before* the body runs and completed by the
+  result: if a case crashes the process, the last printed text names it.
 
 ---
 
@@ -174,8 +236,11 @@ void classifyTest() {
 
 ### Error scope isolation
 
-Each case block allocates its own error handler. An assertion failure in one case does not
-affect subsequent cases — each case is an independent unit of verification.
+Each case zeroes the shared error struct on entry and consumes it (reporting
+`ok` or `FAIL`) on exit, so an assertion failure in one case does not affect
+subsequent cases — each case is an independent unit of verification. Within a
+case, the runner checks the error after every statement: the **first** failure
+ends the case immediately (later statements do not run).
 
 ### Single-statement shorthand
 
@@ -208,9 +273,21 @@ import fly.assert.*     // assertTrue, assertEqI, … directly in scope
 import fly.assert       // call as assert.assertTrue(...), assert.assertEqI(...)
 ```
 
-Every assertion takes a **trailing `const int code`** argument. When the check fails, the
-process exits immediately with that `code` (via `proc_exit`), so each assertion doubles as a
-unique failure marker. A passing assertion does nothing.
+Every assertion takes a **trailing `const int code`** argument. When the check
+fails, the assertion does `fail code, <message>` — it records a language `error`
+(code + descriptive message, e.g. `assertEqI: got 5, expected 7`) in the
+caller's error struct. A passing assertion does nothing.
+
+What happens to the recorded error depends on the context:
+
+- **Inside a suite `case`**: the runner detects it right after the failing
+  statement, prints `<label> ... FAIL(<code>): <message>`, and moves on to the
+  next case.
+- **In a plain `main()`-based test**: the error propagates to `main()`, which
+  prints `error <code>: <message>` to stderr and exits with `<code>`. Note that
+  `fail` is not stack unwinding — execution continues after a failed assert, so
+  a later failing assert overwrites the recorded error (the reported failure is
+  the LAST one).
 
 | Function | Signature | Exits with `code` when |
 |---|---|---|
@@ -223,10 +300,11 @@ unique failure marker. A passing assertion does nothing.
 | `assertGtI` | `(const int got, const int threshold, const int code)` | `got <= threshold` |
 | `assertApprox` | `(const double got, const double exp, const int code)` | `\|got - exp\| > 1e-9` |
 | `assertApproxEps` | `(const double got, const double exp, const double eps, const int code)` | `\|got - exp\| > eps` |
-| `errExit` | `(const int code)` | always — unconditional exit with `code` |
+| `errExit` | `(const int code)` | always — unconditional `fail code` |
 
-> The process exit code on failure is the `code` you pass — not a fixed `1`. Use distinct
-> codes per assertion to pinpoint which check failed.
+> Use distinct codes per assertion: the code appears in the report line
+> (`FAIL(<code>): <message>`) and, for `main()`-based tests, becomes the exit
+> code. A suite binary always exits `0`/`1` — the codes live in the report.
 
 ```fly
 import fly.assert.*
@@ -245,45 +323,56 @@ void divideTest() {
 
 ---
 
-## Running tests — `flyp test`
+## Running tests — `fly --suite`
 
-### `fly.toml` configuration
-
-Add a `[test]` section to your project manifest:
-
-```toml
-[test]
-suites     = ["src/**/*Suite.fly"]
-parallel   = false
-timeout_ms = 5000
-fail_fast  = false
-```
-
-| Key | Type | Description |
-|---|---|---|
-| `suites` | `string[]` | Glob patterns for suite files |
-| `parallel` | `bool` | Run suites concurrently (default `false`) |
-| `timeout_ms` | `int` | Per-suite timeout in milliseconds (`0` = none) |
-| `fail_fast` | `bool` | Stop on first suite failure |
-
-### CLI
+`fly` compiles a **directory** (never a list of files — see
+[Command Line](@/docs/Fly-CLI.md)): the suites are discovered from the source
+root, compiled into **one test executable**, and run. `fly` exits with the
+run's code: **0** = every case passed, **1** = any failure.
 
 ```sh
-# Run all suites declared in fly.toml
-flyp test
+# Every suite under the current directory, one binary, one run
+fly --suite
 
-# Run only MathSuite
-flyp test --suite MathSuite
+# Every suite under ./src
+fly --suite --src-dir src
 
-# Run only the classifyTest method inside MathSuite
-flyp test --suite MathSuite::classifyTest
+# One suite by name
+fly --suite=MathSuite
 
-# Run only the "positive" case inside classifyTest
-flyp test --suite MathSuite::classifyTest::"positive"
+# One suite by fully qualified name
+fly --suite=fly.math.test.MathSuite
+
+# Every suite in a NAMESPACE (sub-namespaces included):
+fly --suite=fly.math.test
+
+# Run a single test-method ("Prova" matches "Prova" or "ProvaTest")
+fly --suite=MathSuite --test=Prova
 ```
 
-The filter is applied via the `FLY_TEST_FILTER` environment variable before executing the
-compiled suite binary. The compiler flag `--test` is passed automatically.
+The `--suite=<Sel>` selector accepts three forms:
+
+| Selector | Runs |
+|---|---|
+| `MathSuite` | the suite with that name |
+| `fly.math.test.MathSuite` | that exact suite, disambiguated by namespace |
+| `fly.math.test` | **every** suite declared in that namespace or any namespace under it |
+
+Organise suites by namespace and whole areas become runnable in one command
+(`--suite=fly.std.test`, `--suite=fly.compiler.codegen.test`, …).
+
+Notes:
+
+- `--suite` implies test mode (`test {}` blocks are compiled in).
+- A selector matching **no** suite or namespace is an error.
+- A `--test=<Method>` filter matching **zero** test-methods across the
+  selected suites is a **compile error** — a typo'd filter cannot produce a
+  green "0 cases" run.
+- A bare `--test` (no value) compiles in test mode without running anything —
+  useful for library builds whose `test {}` blocks are activated by a suite
+  linked later.
+- The suite/method filters are applied at compile time in the implicit
+  `main()`.
 
 ---
 
@@ -342,22 +431,12 @@ suite MathSuite {
 }
 ```
 
-**`fly.toml`**:
-
-```toml
-[package]
-name    = "myapp"
-version = "0.1.0"
-
-[test]
-suites = ["src/*Suite.fly"]
-```
-
 **Running:**
 
 ```sh
-flyp test
-# → compiles MathSuite.fly with --test
-# → runs setup → classifyTest (3 cases) → teardown
-# → exits 0 on success
+fly --suite --src-dir src
+# → discovers MathSuite.fly, pulls math.fly through the import, compiles in
+#   test mode and runs the suite
+# → setup → classifyTest (3 cases, each reported) → teardown → summary
+# → exits 0 when every case passed
 ```

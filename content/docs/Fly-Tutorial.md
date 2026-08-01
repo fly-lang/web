@@ -151,15 +151,15 @@ void main() {
 }
 ```
 
-Use `handle` to intercept errors. All calls inside the block share a dedicated error struct. After the block, check `if (err)`:
+Use `handle` to intercept errors. All calls inside the block share a dedicated error struct. After the block, check `if (error)`:
 
 ```fly
 void main() {
-    error err handle {
+    handle {
         fetch("")        // fails and writes error; handle body continues
         fetch("/ok")     // still called (callee fail ≠ jump in caller)
     }
-    if (err) {
+    if (error) {
         // handle the error
     }
 }
@@ -169,13 +169,13 @@ When `fail` fires **directly inside the handle body** (same function), execution
 
 ```fly
 void main() {
-    error err handle {
+    handle {
         if (someCondition) {
             fail 500        // jumps to safe block; neverReached() is skipped
         }
         neverReached()
     }
-    if (err) { /* code = 500 */ }
+    if (error) { /* code = 500 */ }
 }
 ```
 
@@ -193,10 +193,10 @@ To re-raise an error to the caller, use a bare `fail`:
 
 ```fly
 wrapper() {
-    error err handle {
+    handle {
         fetch("")
     }
-    if (err) {
+    if (error) {
         fail    // propagate to wrapper's caller
     }
 }

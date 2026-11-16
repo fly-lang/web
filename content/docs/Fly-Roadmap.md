@@ -50,7 +50,7 @@ dependency of every build.
 
 *The compiler does what the documentation says.*
 
-> **Status.** The semantic checks, `const` enforcement, the internal-error fixes and a blocking guard for all of them (`test_sema`) are implemented on the `release/0.14.X` branch and ship with 0.14.7. Verified downloads, the differential run against the seed and the removal of silently ignored options are still open.
+> **Status: done in 0.14.7.** The self-hosted compiler now enforces every rule the seed enforces, plus `const` on locals, parameters and fields, `private` on methods, and unique signatures within a file. Every one of them has a probe in the blocking `test_sema` guard, which also runs each probe through the seed. A non-`bool` condition and code after a `return` get a diagnostic instead of an internal error, and a semantic error is reported in its own file. Options with no effect say so. The seed archive is checked against a pinned SHA-256 before use, and a release publishes `SHA256SUMS`. Carried into phase 1: verifying the LLVM archive the same way, and running the stage 3 fixpoint check on every build rather than only on releases.
 
 - **Semantic parity.** The self-host accepts programs the seed rejects:
   implicit narrowing, access to `private` members, instantiating an `abstract`
@@ -77,7 +77,7 @@ enforces.
 - The runtime's **C primitives** are built from sources in the tree, or ported
   to Fly; no object file is inherited from the seed.
 - **Stage 3**: the released compiler recompiles itself and the result is
-  compared bit for bit — the fixpoint is demonstrated on every build.
+  compared bit for bit — the fixpoint is demonstrated on every build. *(Runs on release builds since 0.14.7.)*
 - **Reproducible builds**: two clean builds produce identical artifacts.
 - **Debug information** from the self-host, so the bundled `lldb` resolves
   source lines.

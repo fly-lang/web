@@ -248,7 +248,7 @@ Consequences worth keeping in mind:
 |---|---|
 | Linux x86_64 | built and tested in CI |
 | Windows x64 (UCRT, no Visual Studio needed) | built and tested in CI |
-| macOS | runtime sources in the tree; not built or tested in CI |
+| macOS | not supported for now: runtime sources are in the tree, but nothing builds or tests them |
 | aarch64 | not built |
 
 ---

@@ -65,12 +65,14 @@ machine without a seed.
 stage 0   download          seed fly 0.13.18  +  fork LLVM 20.1.8
               │
 stage 1   seed compiles     runtime → std → compiler+driver  ──link──▶  build/stage1/bin/fly
+              │             then stage1 fly rebuilds the std
               │             then: test_runtime, test_std, test_compiler   (run by stage1 fly)
               │
-stage 2   stage1 fly        runtime, compiler+driver          ──link──▶  build/stage2/bin/fly
-          compiles          std: copied from stage 1
-                            tools: fly-lsp, fly-registry
-                            then: every suite + ABI, leak, debugger guards
+stage 2   stage1 fly        runtime, std, compiler+driver     ──link──▶  build/stage2/bin/fly
+          compiles          tools: fly-lsp, fly-registry
+                            then: every suite + ABI, semantic, leak, debugger guards
+              │
+stage 3   stage2 fly        compiler+driver object, compared byte for byte with stage 2's
 ```
 
 ### Stage 0 — provisioning
@@ -98,6 +100,8 @@ Downloads two things into `build/`, and needs no system package manager:
    the driver's, which corrupted memory.
 4. **link** — `ld.lld` links the object with std, runtime and LLVM into
    `build/stage1/bin/fly`.
+5. **std again** — the `fly` just linked rebuilds the std in `build/stage1/lib`
+   (`FLY_STD_BUILDER=self`). The seed's build only served to link that compiler.
 
 Only then do the suites run, and they are compiled and executed by the `fly`
 that stage 1 just linked — never by the seed. `FLY_STAGE1_TESTS=0` skips them
@@ -105,50 +109,62 @@ for a fast local build.
 
 ### Stage 2 — the self-host builds what ships
 
-`STAGE=2`. `build/stage1/bin/fly` recompiles the runtime and the compiler, links
-`build/stage2/bin/fly`, and then builds the tools with that compiler.
-`build/stage2/{bin,lib}` is exactly what a release packages.
+`STAGE=2`. `build/stage1/bin/fly` recompiles the runtime, the std and the
+compiler, links `build/stage2/bin/fly`, and then builds the tools with that
+compiler. `build/stage2/{bin,lib}` is exactly what a release packages.
+
+### Stage 3 — the fixpoint
+
+`build/stage2/bin/fly` compiles the compiler once more, and the object must be
+byte-identical to the one stage 2 produced. If it differs, the compiler's
+output depends on which compiler built it: a defect no suite can see, because a
+suite runs a single compiler. CI runs it on every build.
 
 ---
 
 ## What compiles what
 
-The provenance of every shipped artifact, as of 0.14.7:
+The provenance of every shipped artifact, as of the next release (0.14.8):
 
 | Artifact | Compiled by | Notes |
 |---|---|---|
 | `fly` (compiler + driver) | stage 1 `fly` | a self-host compiled by a self-host that the seed compiled |
 | `fly-lsp`, `fly-registry` | stage 2 `fly` | the compiler that ships |
+| standard library | stage 1 `fly` | built at stage 2 like the compiler; was the seed's build up to 0.14.7 |
 | runtime — Fly part | stage 1 `fly` | |
 | runtime — C primitives | **the seed's build** | object files carried over from the seed's runtime archive |
-| standard library | **the seed** | copied from stage 1 — see below |
 | `lldb`, `ld.lld`, LLVM | fork LLVM release | provisioned, not compiled |
 
-Two rows are not yet self-hosted, and this is the most important thing to know
-about the current bootstrap:
+The seed still builds a standard library at stage 1, but only to link the
+stage 1 compiler, which it also compiles. As soon as that compiler exists it
+rebuilds the standard library in `build/stage1/lib`, and everything after it
+— the stage 1 suites and all of stage 2 — uses a library laid out the way the
+self-hosted compiler lays out classes.
 
-**The shipped standard library is compiled by the seed.** The seed and the
-self-host lay out a class that has a base differently: the seed places base
-sub-objects before the fields, the self-host lays everything out flat. A header
-describes a class without fixing its layout, so a std compiled by the self-host
-would disagree with the programs that consume its headers. Until the self-host
-adopts the reference layout, stage 2 ships the stage 1 std.
+Up to 0.14.7 the shipped standard library was the seed's build. The two
+compilers disagreed on class layout, and the self-hosted compiler resolved an
+interface call through a vtable slot computed for its whole module — so a
+program and a library compiled separately would pick different slots. Every
+class now carries one table of methods per interface it implements, found by
+the interface's identity, which both sides of any boundary agree on.
 
-**The runtime keeps C objects from the seed.** The C primitives of the runtime
-have their sources in the 0.13.x repository only. The stage scripts keep those
-object files from the seed's archive and add the freshly compiled Fly runtime
-next to them as weak symbols, so the C definition wins where both exist.
+One row is not yet self-hosted: **the runtime keeps C objects from the seed.**
+The C primitives of the runtime have their sources in the 0.13.x repository
+only. The stage scripts keep those object files from the seed's archive and
+add the freshly compiled Fly runtime next to them as weak symbols, so the C
+definition wins where both exist.
 
 ---
 
 ## Guards
 
-Because a user program compiled by the self-host calls into a std compiled by
-the seed, some defects are invisible to ordinary suites — a suite compiles both
-sides with one compiler. Stage 2 therefore ends with dedicated guards:
+Some defects are invisible to ordinary suites, which compile valid programs
+with a single compiler. Stage 2 therefore ends with dedicated guards, and
+stage 3 follows it:
 
 | Guard | Script | What it catches |
 |---|---|---|
+| Fixpoint | `stage3` | the compiler generating different code depending on which compiler built it. |
 | ABI | `test_abi` | a calling-convention mismatch between seed and self-host. Each probe has a library compiled by the seed and a program compiled by the self-host. |
 | Leaks | `test_leaks` | an ownership defect in codegen. Each probe loops millions of times over one pattern and fails above a 20 MB peak. |
 | Semantics | `test_sema` | a compile-time check that went missing. Each probe under `ci/sema_probes` is a program that must be rejected with a specific diagnostic, or an edge case that must keep compiling. |
@@ -225,15 +241,11 @@ workflows without debug symbols, takes the version from
 These are properties of the bootstrap today, tracked in the
 [roadmap](@/docs/Fly-Roadmap.md):
 
-- **No stage 3.** The build does not yet verify that the stage 2 compiler,
-  recompiling itself, produces an identical binary. That comparison is the
-  standard proof that a bootstrap has reached a fixpoint.
-- **Std and runtime C primitives come from the seed**, as described above.
-- **Downloads are not checksum-verified.** The seed and the LLVM archive are
-  fetched over HTTPS without a pinned hash, and releases publish no checksums.
+- **The runtime's C primitives come from the seed**, as described above.
 - **Linux stage 0 creates a symlink under `/usr/lib` with `sudo`** when the
   host has no LLVM 20, so the toolchain can find compiler-rt.
-- **Platforms.** CI builds Linux x86_64 and Windows x64. A macOS runtime exists
-  in the tree but is not built or tested by CI.
+- **Platforms.** CI builds Linux x86_64 and Windows x64; Linux aarch64 is
+  planned. macOS is not supported for now: its runtime is in the tree, but there
+  is no Mac to test on and no macOS runner, so nothing builds or tests it.
 - **The self-host emits no debug information** yet; `--debug-symbols` is
   accepted and has no effect on it.

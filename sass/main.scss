@@ -12,7 +12,7 @@
   --border:     #dde3ff;
   --code-bg:    #0d1117;
   --code-text:  #e6edf3;
-  --nav-h:      56px;
+  --nav-h:      64px;
   --font:       'Montserrat', system-ui, -apple-system, sans-serif;
   --mono:       'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
@@ -114,15 +114,18 @@ a {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid rgba(7, 0, 102, 0.08);
+  box-shadow: 0 4px 24px rgba(7, 0, 102, 0.06);
   height: var(--nav-h);
 }
 
 .nav-inner {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 0 1rem;
   height: 100%;
   display: flex;
   align-items: center;
@@ -131,9 +134,9 @@ a {
 .nav-logo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0;
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   color: var(--navy);
   text-decoration: none;
   &:hover { color: var(--blue); }
@@ -167,9 +170,9 @@ a {
 
   li a {
     display: block;
-    padding: 0.45rem 0.9rem;
+    padding: 0.4rem 0.7rem;
     color: var(--text);
-    font-size: 0.95rem;
+    font-size: 1rem;
     &:hover { color: var(--blue); }
   }
 
@@ -213,27 +216,63 @@ a {
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 .hero {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  // darker and darker towards the top, lighter sky towards the horizon
+  background: linear-gradient(180deg, #01002b 0%, #070066 32%, #143aba 68%, #4583fb 100%);
   color: #fff;
-  padding: 5rem 1.5rem;
+  padding: 7rem 1.5rem 11rem;
+
+  // Stylised flat clouds along the bottom edge, filled with the colour of the
+  // next section (--bg-alt = #f0f4ff) so the hero melts into it.
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    z-index: -1;
+    pointer-events: none;
+    background-repeat: repeat-x;
+    background-position: 0 100%;
+  }
+
+  // back layer: taller, translucent, slower
+  &::before {
+    height: 150px;
+    background-size: 900px 150px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 150'%3E%3Cg fill='%23f0f4ff' opacity='.45'%3E%3Cpath d='M0 110h900v40H0z'/%3E%3Ccircle cx='0' cy='100' r='46'/%3E%3Ccircle cx='900' cy='100' r='46'/%3E%3Ccircle cx='120' cy='88' r='52'/%3E%3Ccircle cx='235' cy='68' r='62'/%3E%3Ccircle cx='350' cy='96' r='44'/%3E%3Ccircle cx='500' cy='80' r='54'/%3E%3Ccircle cx='610' cy='66' r='60'/%3E%3Ccircle cx='730' cy='92' r='48'/%3E%3Ccircle cx='830' cy='104' r='36'/%3E%3C/g%3E%3C/svg%3E");
+    animation: sky-drift-back 120s linear infinite;
+  }
+
+  // front layer: solid, merges into the next section
+  &::after {
+    height: 110px;
+    background-size: 800px 110px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 140'%3E%3Cg fill='%23f0f4ff'%3E%3Cpath d='M0 100h800v40H0z'/%3E%3Ccircle cx='0' cy='98' r='42'/%3E%3Ccircle cx='800' cy='98' r='42'/%3E%3Ccircle cx='80' cy='95' r='45'/%3E%3Ccircle cx='170' cy='75' r='60'/%3E%3Ccircle cx='270' cy='95' r='45'/%3E%3Ccircle cx='380' cy='88' r='52'/%3E%3Ccircle cx='470' cy='70' r='62'/%3E%3Ccircle cx='580' cy='95' r='45'/%3E%3Ccircle cx='680' cy='85' r='55'/%3E%3Ccircle cx='760' cy='100' r='40'/%3E%3C/g%3E%3C/svg%3E");
+    animation: sky-drift-front 70s linear infinite reverse;
+  }
+
+  h1, .hero-sub { text-shadow: 0 2px 24px rgba(0, 0, 40, 0.35); }
+}
+
+@keyframes sky-drift-back  { to { background-position: -900px 100%; } }
+@keyframes sky-drift-front { to { background-position: -800px 100%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero::before, .hero::after { animation: none; }
 }
 
 .hero-inner {
   max-width: 1100px;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
-  align-items: center;
-
-  @media (max-width: 800px) {
-    grid-template-columns: 1fr;
-    gap: 2.5rem;
-  }
+  text-align: center;
 }
 
 .hero-text h1 {
-  font-size: 5rem;
+  font-size: 8rem;
   font-weight: 900;
   line-height: 1;
   color: #fff;
@@ -241,22 +280,27 @@ a {
 }
 
 .hero-sub {
-  font-size: 1.15rem;
+  font-size: 1.9rem;
+  line-height: 1.4;
+  max-width: 760px;
+  margin: 0 auto 2.5rem;
   color: rgba(255,255,255,0.85);
-  margin-bottom: 2rem;
 }
 
 .hero-actions {
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
-  margin-bottom: 1.25rem;
+  justify-content: center;
+  margin-bottom: 1.75rem;
+  .btn { font-size: 1.25rem; padding: 0.95rem 2.2rem; }
 }
 
 .hero-links {
-  font-size: 0.85rem;
-  color: rgba(255,255,255,0.55);
-  a { color: rgba(255,255,255,0.75); &:hover { color: #fff; } }
+  font-size: 1.05rem;
+  color: rgba(255,255,255,0.85);
+  text-shadow: 0 1px 12px rgba(5, 30, 100, 0.55);
+  a { color: #fff; &:hover { color: #fff; } }
 }
 
 // ── Code window ───────────────────────────────────────────────────────────────

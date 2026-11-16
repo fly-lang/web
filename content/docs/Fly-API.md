@@ -7,7 +7,7 @@ weight = 4
 
 The Fly standard library is organised in namespaces. Import a namespace with `import`, then call its functions through the namespace's last segment (`import fly.str` → `str.len(...)`). `const` parameters are read-only inputs; the return value is assigned directly at the call site.
 
-This reference documents the library shipped with Fly **0.14.6**. Every public function of `std/lib` is listed with the signature it has in the source.
+This reference documents the library shipped with Fly **0.14.7**. Every public function of `std/lib` is listed with the signature it has in the source.
 
 ## Conventions and guarantees
 

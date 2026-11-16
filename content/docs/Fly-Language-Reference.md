@@ -7,7 +7,7 @@ weight = 1
 
 # Fly Language Reference
 
-**Version:** 0.14.6  
+**Version:** 0.14.7  
 **Project:** [Fly Programming Language](https://flylang.org)  
 **License:** Apache License v2.0
 
@@ -2288,7 +2288,7 @@ class DefaultClass {}
 
 The `const` modifier marks values as immutable.
 
-> **Status:** the released 0.14.6 does not yet reject an assignment to a `const` variable or parameter; the next release does — see [Conformance](@/docs/Fly-Conformance.md). `const` protects the variable itself, not the fields of an object it refers to.
+> **Status:** 0.14.6 does not reject an assignment to a `const` variable or parameter; 0.14.7 does — see [Conformance](@/docs/Fly-Conformance.md). `const` protects the variable itself, not the fields of an object it refers to.
 
 **Examples:**
 ```fly

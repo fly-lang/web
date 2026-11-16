@@ -50,7 +50,7 @@ dependency of every build.
 
 *The compiler does what the documentation says.*
 
-> **Status.** The semantic checks, `const` enforcement, the internal-error fixes and a blocking guard for all of them (`test_sema`) are implemented on the `release/0.14.X` branch and ship with the next release. Verified downloads, the differential run against the seed and the removal of silently ignored options are still open.
+> **Status.** The semantic checks, `const` enforcement, the internal-error fixes and a blocking guard for all of them (`test_sema`) are implemented on the `release/0.14.X` branch and ship with 0.14.7. Verified downloads, the differential run against the seed and the removal of silently ignored options are still open.
 
 - **Semantic parity.** The self-host accepts programs the seed rejects:
   implicit narrowing, access to `private` members, instantiating an `abstract`

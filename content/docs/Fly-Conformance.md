@@ -1,6 +1,6 @@
 +++
 title = "Conformance"
-description = "What Fly actually checks: compile-time rules enforced by the released compiler, by the next release and by the seed; the run-time behaviour of unsafe operations; and the known limits of the standard library."
+description = "What Fly actually checks: compile-time rules enforced by the released 0.14.6, by 0.14.7 and by the seed; the run-time behaviour of unsafe operations; and the known limits of the standard library."
 template = "docs-page.html"
 weight = 6
 +++
@@ -16,8 +16,8 @@ Everything below was observed by compiling and running a probe program. Three
 compilers are compared:
 
 - **0.14.6** — the current release of the self-hosted compiler;
-- **Next** — the self-hosted compiler on the `release/0.14.X` branch, which
-  closes the gaps listed here and ships with the next release;
+- **0.14.7** — the next release of the self-hosted compiler (branch `release/0.14.X`), which
+  closes the gaps listed here;
 - **Seed** — the C++ bootstrap compiler, 0.13.18.
 
 Status values:
@@ -33,7 +33,7 @@ Status values:
 
 ## Compile-time rules
 
-| Rule | 0.14.6 | Next | Seed |
+| Rule | 0.14.6 | 0.14.7 | Seed |
 |---|---|---|---|
 | Every function declares a return type | Enforced | Enforced | Enforced |
 | A value function returns on every path | Enforced | Enforced | Enforced |
@@ -57,8 +57,8 @@ Status values:
 | Two functions of one file cannot share an identical signature | **Not enforced** | Enforced | Not enforced |
 | No statement may follow a `return` in the same block | **Internal error** | Enforced | Not enforced |
 
-The released 0.14.6 is **less strict than the seed** on eight rules. The next
-release closes all of them and enforces five rules the seed never did.
+The released 0.14.6 is **less strict than the seed** on eight rules. 0.14.7
+closes all of them and enforces five rules the seed never did.
 
 ### The rules in detail
 
@@ -68,7 +68,7 @@ you mean to narrow:
 
 ```fly
 long big = 5000000000
-int n = big          // error from the next release — 0.14.6 stores 705032704
+int n = big          // error from 0.14.7 — 0.14.6 stores 705032704
 int m = (int)big     // explicit: accepted everywhere
 ```
 
@@ -102,7 +102,7 @@ read-only everywhere else.
 
 ```fly
 const int k = 1
-k = 2                // error from the next release — 0.14.6 stores 2
+k = 2                // error from 0.14.7 — 0.14.6 stores 2
 ```
 
 **`private` is per class.** A `private` field can be read and written, and a
@@ -121,7 +121,7 @@ distinguish overloads.
 
 | Program | Result |
 |---|---|
-| In a build that compiles many suites at once (`fly --suite` over a tree), a diagnostic can name the wrong source file and column. | All versions. Compile the single suite (`--suite=<Name>`) to get the right position. |
+| A build of more than one source file (`fly --suite` over a tree, `--lib`, a module pulled in by an import) | **0.14.6:** a semantic error outside the first input file is reported with the name, line and column of the first file. Compile the single suite (`--suite=<Name>`) to get the right position. **Fixed in 0.14.7.** |
 
 ### Warnings
 
@@ -131,7 +131,7 @@ an unused variable or import, a shadowed name or a `switch` fall-through.
 Three command-line options are accepted but have no effect yet:
 `--debug-symbols` (the self-host back end emits no debug information),
 `--ftime-report` and `--mthread-model`. In 0.14.6 they are ignored silently; from
-the next release the driver prints a warning saying so, which `-w` suppresses.
+0.14.7 the driver prints a warning saying so, which `-w` suppresses.
 
 ---
 

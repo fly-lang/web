@@ -113,7 +113,7 @@ for a fast local build.
 
 ## What compiles what
 
-The provenance of every shipped artifact, as of 0.14.6:
+The provenance of every shipped artifact, as of 0.14.7:
 
 | Artifact | Compiled by | Notes |
 |---|---|---|

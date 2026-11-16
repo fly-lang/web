@@ -11,26 +11,15 @@
     <nav class="docs-nav">
       <p class="docs-nav-heading">Documentation</p>
       <ul>
-        <li><a href="{{ get_url(path='docs/tutorial') }}"
-          {% if page.slug == 'fly-tutorial' %}class="active"{% endif %}>
-          Tutorial
+        {# Generated from the docs section (ordered by `weight`), so a new page
+           shows up here without touching this template. #}
+        {% set docs_section = get_section(path="docs/_index.md") %}
+        {% for doc in docs_section.pages %}
+        <li><a href="{{ doc.permalink | safe }}"
+          {% if doc.slug == page.slug %}class="active"{% endif %}>
+          {{ doc.title }}
         </a></li>
-        <li><a href="{{ get_url(path='docs/fly-api') }}"
-          {% if page.slug == 'fly-api' %}class="active"{% endif %}>
-          Fly API
-        </a></li>
-        <li><a href="{{ get_url(path='docs/fly-testing') }}"
-          {% if page.slug == 'fly-testing' %}class="active"{% endif %}>
-          Testing
-        </a></li>
-        <li><a href="{{ get_url(path='docs/language-reference') }}"
-          {% if page.slug == 'language-reference' %}class="active"{% endif %}>
-          Language Reference
-        </a></li>
-        <li><a href="{{ get_url(path='docs/developer-reference') }}"
-          {% if page.slug == 'developer-reference' %}class="active"{% endif %}>
-          Compiler Internals
-        </a></li>
+        {% endfor %}
       </ul>
     </nav>
 

@@ -36,19 +36,19 @@ A `test {}` block can appear anywhere inside a function or method body.
 import fly.assert.*
 
 string classify(const int n) {
+    string label = "zero"
     if n > 0 {
-        out = "positive"
+        label = "positive"
         test {
-            assertTrue(out == "positive", 1)
+            assertTrue(label == "positive", 1)
         }
     } elsif n < 0 {
-        out = "negative"
+        label = "negative"
         test {
-            assertTrue(out == "negative", 2)
+            assertTrue(label == "negative", 2)
         }
-    } else {
-        out = "zero"
     }
+    return label
 }
 ```
 
@@ -58,19 +58,21 @@ Inside a `test {}` block, three scopes are available:
 
 | Scope | Contents | Access |
 |---|---|---|
-| 1 | All locals of the enclosing function, including `out` | **read-only** |
+| 1 | All locals of the enclosing function | **read-only** |
 | 2 | All module-level symbols (functions, globals) | read and call |
 | 3 | Fields and helper methods of the active suite | read and call |
 
 By design, a `test {}` block is meant to be an **observer**: it should only read locals and
-call helpers, never mutate the enclosing computation. Treat enclosing locals (including
-`out`) as read-only:
+call helpers, never mutate the enclosing computation. Treat enclosing locals as read-only:
 
 ```fly
 test {
-    out = "overridden"   // don't do this — test blocks should only observe
+    label = "overridden"   // don't do this — test blocks should only observe
 }
 ```
+
+A value a function is about to return is reachable the same way: keep it in a local, assert
+on that local, and `return` it — a test block cannot see the value of a `return` itself.
 
 > ⚠️ Read-only enforcement is **not yet active** in the current compiler. The resolver tracks
 > that it is inside a test block (an `InTestBlock` flag) but does not yet reject writes, so
@@ -152,7 +154,7 @@ suite CounterSuite {
 
     int bump() {         // helper — full `this` access
         this.calls = this.calls + 1
-        out = this.calls
+        return this.calls
     }
 
     void stateTest() {
@@ -388,23 +390,24 @@ import fly.assert.*
 // Returns a string classification of n.
 // test {} blocks observe intermediate state during suite runs.
 string classify(const int n) {
+    string label = "zero"
     if n > 0 {
-        out = "positive"
+        label = "positive"
         test {
-            assertTrue(out == "positive", 1)
+            assertTrue(label == "positive", 1)
             assertTrue(n > 0, 2)
         }
     } elsif n < 0 {
-        out = "negative"
+        label = "negative"
         test {
-            assertTrue(out == "negative", 3)
+            assertTrue(label == "negative", 3)
         }
     } else {
-        out = "zero"
         test {
             assertEqI(n, 0, 4)
         }
     }
+    return label
 }
 ```
 

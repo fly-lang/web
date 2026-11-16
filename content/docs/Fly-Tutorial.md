@@ -1,19 +1,24 @@
 +++
 title = "Tutorial"
-description = "Step-by-step practical guide to writing Fly programs — from Hello World to objects and error handling."
+description = "Step-by-step practical guide to writing Fly programs — from Hello World to classes, generics, error handling and tests. Every example compiles with Fly 0.14.6."
 template = "docs-page.html"
 weight = 3
 +++
 
+Every example on this page was compiled and run with `fly` 0.14.6. To try one,
+save it as `main.fly` in an empty directory and run `fly -o hello` there — `fly`
+compiles a **directory**, not a file (see [Command Line](@/docs/Fly-CLI.md)).
+
 ## Hello World
 
-Every Fly program starts from a `main()` function. Import a module with `import`, then call its functions using the namespace prefix.
+A program starts from `main()`. Every function declares a return type, `void`
+included. Import a namespace, then call its functions through its last segment.
 
 ```fly
-import fly.os
+import fly.os.io
 
 void main() {
-    os.print("Hello, World!")
+    io.printLn("Hello, World!")
 }
 ```
 
@@ -21,194 +26,233 @@ void main() {
 
 ## Variables and types
 
-Variables are declared with their type. An initial value is optional; uninitialized variables default to their zero value.
+A variable is declared with its type. The initial value is optional; a variable
+without one holds the zero value of its type.
 
 ```fly
-int count
-int x = 10
+int count              // 0
 bool ready = false
 string name = "Fly"
+double ratio = 0.5
 ```
 
-**Built-in types:** `bool`, `byte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `string`.
+**Built-in types:** `bool`, `byte`, `short`, `ushort`, `int`, `uint`, `long`,
+`ulong`, `float`, `double`, `string`, `pointer`.
+
+Fixed-size arrays carry their length in the type, and an out-of-range index is
+caught at run time:
+
+```fly
+int[3] arr = {10, 20, 30}
+int second = arr[1]     // 20
+```
+
+Statements end at the line break; there is no `;` terminator.
 
 ---
 
 ## Functions
 
-Declare a **return type** before the function name. Inside the body, assign to the special identifier `out` to produce the return value.
+Declare the return type before the name and hand the value back with `return`.
+Every path through a value function must reach a `return` — falling off the end
+is a compile error, not a silent zero.
 
 ```fly
-int double(const int n) {
-    out = n * 2
-}
-
-void main() {
-    int x = double(21)   // x = 42
+int twice(const int n) {
+    return n * 2
 }
 ```
 
-The source reads as return-by-value, but the compiler generates a hidden by-reference output parameter — so **no copy is ever made**. You get `int x = double(21)` ergonomics with `double(21, &x)` performance.
-
-`const` marks an input parameter (read-only). A function without a return type is void.
-
-For multiple outputs, you can use traditional output parameters (non-`const`):
+`const` marks a parameter as a read-only input. Parameters may have default
+values:
 
 ```fly
-minMax(const int a, const int b, int min, int max) {
-    if (a < b) {
-        min = a
-        max = b
+int scale(const int n, const int factor = 10) {
+    return n * factor
+}
+
+void main() {
+    int a = scale(4)       // 40
+    int b = scale(4, 2)    // 8
+}
+```
+
+A function can return **several values**. List the types, return the values in
+order, and receive them with a multi-assignment into variables that already
+exist:
+
+```fly
+int, int minMax(const int a, const int b) {
+    if a < b { return a, b }
+    return b, a
+}
+
+void main() {
+    int lo = 0
+    int hi = 0
+    lo, hi = minMax(7, 3)   // lo = 3, hi = 7
+}
+```
+
+---
+
+## Control flow
+
+Conditions need no parentheses; bodies use braces.
+
+```fly
+import fly.os.io
+
+void main() {
+    int total = 0
+
+    for int i = 0; i < 5; i++ {
+        total = total + i
+    }
+
+    while total > 3 {
+        total = total - 3
+    }
+
+    if total == 1 {
+        io.printLn("one")
+    } elsif total == 2 {
+        io.printLn("two")
     } else {
-        min = b
-        max = a
+        io.printLn("other")
+    }
+
+    switch total {
+        case 1:
+            io.printLn("one")
+            break
+        default:
+            io.printLn("default")
     }
 }
-
-void main() {
-    int lo
-    int hi
-    minMax(3, 7, lo, hi)   // lo=3, hi=7
-}
 ```
 
-Or declare multiple return types and use `out[0]`, `out[1]`, …:
+> **`switch` falls through, as in C.** A `case` body that does not end in
+> `break` continues into the next one. Always write the `break`.
 
-```fly
-int,int minMax(const int a, const int b) {
-    if (a < b) { out[0] = a  out[1] = b }
-    else       { out[0] = b  out[1] = a }
-}
+Two more things differ from C and are worth knowing early:
 
-void main() {
-    int lo = minMax(3, 7)   // lo = 3 (first return value)
-}
-```
+- Bitwise and shift operators bind **looser** than comparisons, and `&&` and
+  `||` share one precedence level. Parenthesize whenever you mix them:
+  `(a & mask) == 0`, `(x && y) || z`.
+- String literals keep escapes **raw**: `"\n"` is a backslash followed by `n`.
+  Use `io.printLn` to end a line.
 
 ---
 
 ## Importing modules
 
-Fly supports four import styles, modelled on Java-style imports.
-
-**Namespace import** — brings the last segment into scope; access symbols with a prefix:
-
-```fly
-import fly.str              // 'str' is in scope
-int n = str.len("hello")    // qualified access
-```
-
-**Class import** — brings a single class (or enum/struct) directly into scope, no prefix needed. This is the Java-style per-class import:
+**Namespace import** — the last segment becomes the call prefix. This is the
+standard style:
 
 ```fly
-import fly.data.List        // 'List' is in scope
-import fly.data.Map         // 'Map' is in scope
+import fly.str
 
-List  l = new List()        // no 'data.' prefix
-Map   m = new Map()
+int n = str.len("hello")
 ```
 
-The import path follows the **namespace hierarchy**, not the filesystem. There is no required link between the filename and the class name.
-
-**Wildcard import** — brings every public symbol (classes, enums, structs, functions) from a namespace directly into scope. The target must be a namespace:
+**Class import** — brings one class, struct or enum into scope by name:
 
 ```fly
-import fly.data.*           // List, Stack, Map, … all in scope
-List l = new List()
+import fly.data.List
+
+List<int> l = new List<int>()
 ```
 
-**Alias import** — binds the imported namespace or class under a local name:
+**Wildcard import** — every public symbol of a namespace, used bare:
+
+```fly
+import fly.data.*
+
+Stack<int> st = new Stack<int>()
+```
+
+**Alias import** — a local name of your choice:
 
 ```fly
 import fly.str as s
-import fly.data.List as L
 
-int n    = s.len("hello")
-L myList = new L()
+string t = s.convert(42)
 ```
+
+The path follows the **namespace** declared at the top of a source file
+(`namespace fly.str`), not the file system.
 
 ---
 
 ## Error handling
 
-Use `fail` inside a function to signal an error. `fail` accepts zero to three comma-separated arguments — an integer code, a string message, and/or an object instance, in any combination:
+Fly has no exceptions. A function signals an error with `fail`, which takes up
+to three arguments: an integer code, a message, an object.
 
 ```fly
-fetch(const string url) {
-    if (url == "") {
-        fail 404, "Not Found"   // integer code + string message
+import fly.str
+
+int parsePort(const string s) {
+    if str.isEmpty(s) {
+        fail 22, "empty port"
     }
+    return 8080
 }
 ```
 
-**How propagation works:** every function has a hidden error-pointer parameter. When `fail` fires with no enclosing `handle` in the current function, it writes to the error struct and returns immediately. The calling code resumes at the next instruction — it does **not** unwind the stack.
+A `handle` block guards a region. After it, the implicit variable `error` tells
+you whether anything inside failed:
 
 ```fly
-void main() {
-    fetch("")        // writes error 404; returns, execution continues
-    fetch("/ok")     // STILL CALLED — caller is not unwound
-    // main exits with code 404
-}
-```
+import fly.os.io
 
-Use `handle` to intercept errors. All calls inside the block share a dedicated error struct. After the block, check `if (error)`:
-
-```fly
 void main() {
     handle {
-        fetch("")        // fails and writes error; handle body continues
-        fetch("/ok")     // still called (callee fail ≠ jump in caller)
+        int p = parsePort("")
+        io.printLn("still runs")      // see below
     }
-    if (error) {
-        // handle the error
+    if error {
+        io.printLn("could not parse the port")
     }
 }
 ```
 
-When `fail` fires **directly inside the handle body** (same function), execution jumps immediately past the remaining handle code to the check point:
+**Propagation is not stack unwinding.** This is the most important rule of the
+error model:
 
-```fly
-void main() {
-    handle {
-        if (someCondition) {
-            fail 500        // jumps to safe block; neverReached() is skipped
-        }
-        neverReached()
-    }
-    if (error) { /* code = 500 */ }
-}
-```
-
-If you don't need to name the error, omit the variable:
+- A `fail` written **directly inside** a `handle` body jumps past the rest of
+  that body.
+- A `fail` inside a **called function** makes that function return. The caller
+  then **continues with the next statement** — which is why `"still runs"` is
+  printed above. The error is recorded; it does not interrupt the caller.
 
 ```fly
 void main() {
     handle {
-        fetch("")   // error is swallowed silently
+        fail 500
+        io.printLn("never printed")
     }
+    if error { io.printLn("caught 500") }
 }
 ```
 
-To re-raise an error to the caller, use a bare `fail`:
+An error that no `handle` intercepts reaches `main`, and the process exits with
+the failure code after `main` finishes:
 
-```fly
-wrapper() {
-    handle {
-        fetch("")
-    }
-    if (error) {
-        fail    // propagate to wrapper's caller
-    }
-}
+```text
+error 7: bad
 ```
+
+So check `error` after every `handle` whose result you rely on, and do not use a
+value returned by a call that may have failed without checking.
 
 ---
 
 ## Structs
 
-A `struct` holds data fields and can extend one other struct. Structs have no virtual dispatch — access is direct.
-
-Plain `new` on a struct allocates on the **stack**. The variable is freed automatically when the scope exits — do not call `delete`.
+A `struct` is plain data. It can extend another struct, has no virtual
+dispatch, and lives on the **stack**: it is released when its scope ends.
 
 ```fly
 struct Point {
@@ -221,184 +265,208 @@ struct Point3D : Point {
 }
 
 void main() {
-    Point3D p = new Point3D()   // stack allocation
+    Point3D p = new Point3D()
     p.x = 1
     p.y = 2
     p.z = 3
-}   // p freed automatically — no delete needed
+}   // p is released here
 ```
+
+Assigning a struct to another variable does not copy it — both names refer to
+the same data.
 
 ---
 
-## Classes
+## Classes and interfaces
 
-A `class` adds virtual method dispatch via vtable. It can extend a struct (inheriting its fields) and implement one or more interfaces.
-
-Plain `new` on a class allocates on the **heap**. You must call `delete` to free it.
+A `class` has methods with virtual dispatch and can implement interfaces. The
+constructor is a method named like the class, with no return type. Members are
+reached through `this`.
 
 ```fly
-interface Drawable {
-    draw()
+import fly.os.io
+import fly.str
+
+interface Shape {
+    int area()
 }
 
-class Circle : Point, Drawable {
-    int radius
+class Rect : Shape {
+    int w
+    int h
 
-    draw() {
-        // render the circle
+    public Rect(const int w, const int h) {
+        this.w = w
+        this.h = h
     }
+
+    public int area() {
+        return this.w * this.h
+    }
+
+    public void free() {}
 }
 
 void main() {
-    Circle c = new Circle()   // heap allocation
-    c.x = 0
-    c.y = 0
-    c.radius = 5
-    c.draw()
-    delete c   // free the heap memory
+    Rect r = new Rect(3, 4)
+    Shape s = r
+    io.printLn(str.convert(s.area()))   // 12
+    r.free()
 }
 ```
 
-Visibility modifiers for members: `public`, `private`, `protected`.  
-Use `static` for class-level fields and methods.
+Member visibility is `public`, `private` or `protected`; `static` makes a member
+class-level; `abstract` and `final` control inheritance.
+
+---
+
+## Enums
+
+```fly
+enum Color { RED, GREEN, BLUE }
+
+void main() {
+    Color c = Color.GREEN
+    if c == Color.GREEN {
+        // …
+    }
+}
+```
 
 ---
 
 ## Memory management
 
-Instead of managing `new`/`delete` manually, use a **smart allocation qualifier**. All three qualifiers work on both structs and classes.
+Fly has no garbage collector and no `delete` operator. Three rules cover
+everything:
 
-| Qualifier | Storage | Freed when | Copying |
-|---|---|---|---|
-| `new unique` | heap | variable goes out of scope | compile-time error |
-| `new shared` | heap + refcount | last reference exits scope | allowed; increments refcount |
-| `new weak` | heap | each holder exits scope | allowed; no refcount — first to exit frees, rest dangle |
-
-### `new unique` — single owner
-
-```fly
-process() {
-    Point p = new unique Point()   // heap-allocated
-    p.x = 10
-    p.y = 42
-}   // free(p) emitted automatically — no delete
-```
-
-`unique` ownership cannot be copied. Attempting to assign a `unique` variable to another variable is a compile-time error.
-
-### `new shared` — reference-counted
-
-The runtime stores an 8-byte reference count immediately before the object data. Copies increment the count; each scope exit decrements it. When the count reaches zero the entire block is freed.
+| Value | Where it lives | Who releases it |
+|---|---|---|
+| `struct` | stack | the compiler, at scope exit |
+| `string` | heap buffer | the compiler: at scope exit and on reassignment |
+| `class` | heap | **you**, by calling the class's `free()` method |
 
 ```fly
-process() {
-    Point a = new shared Point()   // refcount = 1
-    Point b = a                    // refcount = 2
-    // …
-}   // refcount → 0 → freed automatically
+import fly.data.List
 
+void main() {
+    List<int> l = new List<int>()
+    l.add(1)
+    l.add(2)
+    l.free()        // releases the list's buffer
+}
 ```
 
-### `new weak` — untracked alias
-
-No reference count. Every holder calls `free()` at its own scope exit. Use only when you know the lifetime is not ambiguous.
-
-```fly
-process() {
-    Point a = new weak Point()
-    Point b = a   // b and a share the same pointer
-}   // first scope exit frees the data; other becomes dangling
-```
+`free()` is a convention, not a keyword: a class that owns resources declares an
+ordinary `void free()` method and its user calls it. Every container in the
+standard library follows it. Forgetting the call leaks; using the object
+afterwards is not detected.
 
 ---
 
 ## Generics
 
-Fly supports **generic classes** and **generic functions** via monomorphization. Each instantiation with a different concrete type produces a separate, fully optimized implementation at compile time — no type erasure, no boxing overhead.
-
-### Generic classes
-
-Declare type parameters in angle brackets after the class name:
+Generic classes and functions are **monomorphized**: each concrete type gets its
+own compiled implementation, with no boxing.
 
 ```fly
-public class Wrapper<T> {
-    private T value
+class Box<T> {
+    T value
 
-    public Wrapper(T v) {
-        value = v
+    public Box(T v) {
+        this.value = v
     }
 
     public T get() {
-        out = value
-    }
-
-    public void set(T v) {
-        value = v
+        return this.value
     }
 }
-```
 
-Instantiate by supplying concrete type arguments:
-
-```fly
-import fly.data.wrapper
-
-void main() {
-    Wrapper<string> ws = new Wrapper<string>("hello")
-    string s = ws.get()   // s = "hello"
-
-    Wrapper<int> wi = new Wrapper<int>(42)
-    int n = wi.get()       // n = 42
-}
-```
-
-`Wrapper<string>` and `Wrapper<int>` are completely separate types in the generated code.
-
-### Generic functions
-
-Type parameters appear between the function name and its parameter list:
-
-```fly
 T identity<T>(const T v) {
-    out = v
+    return v
 }
 
 void main() {
-    int    i = identity(10)     // T inferred as int
-    string s = identity("fly")  // T inferred as string
+    Box<int> b = new Box<int>(42)
+    int n = b.get()                  // 42
+    string s = identity("fly")       // T inferred as string
 }
 ```
 
-The compiler **infers** the type argument from the argument expression, so explicit `identity<int>(10)` is optional.
+A generic **function** is always called by inference — `identity<int>(10)` does
+not compile, so a type parameter must appear among the parameters. Explicit type
+arguments belong to generic **classes**: `new Box<int>(42)`.
 
-### Managing a list of strings — fly.data.List\<string\> pattern
+---
 
-`fly.data.List` stores raw `long` values. To keep a typed list of strings, wrap each string in a `Wrapper<string>` and store the wrapper reference in the list:
+## Collections
+
+`fly.data` provides `List`, `Stack`, `Queue`, `Deque`, `Set`, `Map` and `Tree`,
+all generic. Owned values such as strings are copied in and released by the
+container.
 
 ```fly
-import fly.data.list
-import fly.data.wrapper
+import fly.os.io
+import fly.str
+import fly.data.List
+import fly.data.Map
 
 void main() {
-    List lst = new List()
+    List<string> names = new List<string>()
+    names.add("apple")
+    names.add("banana")
 
-    Wrapper<string> a = new Wrapper<string>("apple")
-    Wrapper<string> b = new Wrapper<string>("banana")
-    Wrapper<string> c = new Wrapper<string>("cherry")
-
-    lst.add(a)
-    lst.add(b)
-    lst.add(c)
-
-    int total = lst.size()   // total = 3
-    for int i = 0; i < total; i++ {
-        Wrapper<string> item = lst.get(i)
-        string text = item.get()
-        // use text …
+    for name in names {
+        io.printLn(name)
     }
+    names.free()
 
-    lst.free()
+    Map<string, int> ages = new Map<string, int>()
+    ages.put("ada", 36)
+    if ages.has("ada") {
+        io.printLn(str.convert(ages.get("ada")))
+    }
+    ages.free()
 }
 ```
 
-This pattern generalises to any heap-allocated type: `Wrapper<int>`, `Wrapper<MyClass>`, and so on.
+> `get` on a missing key or an out-of-range index returns the **zero value** of
+> the element type rather than failing. Test with `has()` or `size()` first.
+
+---
+
+## Testing
+
+Tests are part of the language. A `suite` groups test-methods; each `case` is
+one reported step.
+
+```fly
+import fly.assert
+
+int add(const int a, const int b) { return a + b }
+
+suite MathSuite {
+    void addTest() {
+        case "adds": assert.assertEqI(add(2, 3), 5, 1)
+    }
+}
+```
+
+```text
+$ fly --suite
+suite MathSuite
+  addTest
+    adds ... ok
+suite MathSuite: 1 cases, 1 passed, 0 failed
+```
+
+See [Testing](@/docs/Fly-Testing.md) for the full model.
+
+---
+
+## Where to go next
+
+- [Language Reference](@/docs/Fly-Language-Reference.md) — the complete syntax and semantics.
+- [Fly API](@/docs/Fly-API.md) — the standard library.
+- [Conformance](@/docs/Fly-Conformance.md) — exactly what the compiler checks today, and what it does not yet.
+- [Command Line](@/docs/Fly-CLI.md) — builds, libraries, projects and tools.

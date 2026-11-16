@@ -1,11 +1,39 @@
 +++
 title = "Fly API"
-description = "Reference for the Fly standard library — fly.str, fly.math, fly.mem, fly.os, fly.sync, fly.data, fly.json, fly.codec, fly.hash, fly.net, fly.targz, fly.log, fly.assert."
+description = "Reference for the Fly standard library — fly.str, fly.math, fly.mem, fly.os, fly.sync, fly.data, fly.json, fly.codec, fly.hash, fly.net, fly.targz, fly.log, fly.assert, fly.bridge — with the conventions every module follows."
 template = "docs-page.html"
 weight = 4
 +++
 
-The Fly standard library is organised in namespaces. Import a namespace with `import`, then call its functions using standard return-type syntax. `const` parameters are read-only inputs; the return value is assigned directly at the call site.
+The Fly standard library is organised in namespaces. Import a namespace with `import`, then call its functions through the namespace's last segment (`import fly.str` → `str.len(...)`). `const` parameters are read-only inputs; the return value is assigned directly at the call site.
+
+This reference documents the library shipped with Fly **0.14.6**. Every public function of `std/lib` is listed with the signature it has in the source.
+
+## Conventions and guarantees
+
+**Calling style.** Import the namespace and use the short prefix. Classes, structs and enums are imported by name (`import fly.data.List`). A fully qualified call such as `fly.str.len(...)` is not the convention.
+
+**Reporting failure.** The library does not yet report failure in one uniform way. Each function documents its own, and it is one of these:
+
+| Convention | Meaning | Modules |
+|---|---|---|
+| Sentinel result | a value that cannot be a success: `fd < 0`, `0`, `""`, an empty buffer, a null handle | `fly.os.fs`, `fly.os.io`, `fly.os.env`, `fly.net`, `fly.net.tls` |
+| `bool` result | `true` on success | socket options, HTTP downloads, archive extraction |
+| `int errOut` parameter | set to `0` on success, otherwise a documented code | `fly.codec`, `fly.json`, `fly.targz` |
+| Zero value | a missing element reads as `0` / `""` / `null` | `fly.data` |
+| `fail` | the language's own error model | `fly.assert` |
+
+A function never aborts the process on an ordinary failure; always test the result before using it.
+
+**Ownership.** A returned `string` is yours and is released automatically. A returned struct is a value. A returned class instance, or an opaque `pointer` handle, must be released with the matching `free`/`close` function named in its section.
+
+**Handles.** Several modules hand out an opaque `pointer` (JSON values, poll sets, multipart builders, tar readers, argument lists) or a `long` (sockets). They are not type-checked: passing a handle to a function of another module compiles. Keep each handle with the module that created it.
+
+**Text.** A `string` is a sequence of bytes. Lengths, indices and case conversion are byte-oriented and ASCII-only; UTF-8 text passes through unchanged but is not interpreted.
+
+**Thread safety.** Unless a section says otherwise, nothing in the library is safe to share between threads without a `fly.sync` lock.
+
+See [Conformance](@/docs/Fly-Conformance.md) for the security-relevant limits of individual modules.
 
 ---
 
@@ -27,6 +55,16 @@ Returns the decimal string representation of `src`.
 
 ```fly
 string s = str.convert(42)   // s = "42"
+```
+
+#### `convertL`
+```fly
+public string convertL(const long src)
+```
+Returns the decimal string representation of a 64-bit `long`. `convert` takes an `int` only.
+
+```fly
+string s = str.convertL(5000000000)   // s = "5000000000"
 ```
 
 ---
@@ -104,6 +142,30 @@ void main() {
     bool empty = str.isEmpty(msg)          // empty  = false
     bool found = str.contains(msg, "Fly")  // found  = true
 }
+```
+
+---
+
+### Bytes
+
+#### `byteAt`
+```fly
+public byte byteAt(const string s, const int i)
+```
+The `i`-th byte of `s`. The public way to read string bytes without calling `fly.llvm` directly.
+
+```fly
+byte b = str.byteAt("abc", 1)   // b = 98 ('b')
+```
+
+#### `fromBytes`
+```fly
+public string fromBytes(const pointer ptr, const int size)
+```
+Builds a string value from a raw buffer and a byte length. **Takes ownership of the buffer**: the string frees it, so the caller must not free it as well.
+
+```fly
+string s = str.fromBytes(buf, n)
 ```
 
 ---
@@ -421,102 +483,99 @@ void main() {
 
 ## fly.mem
 
-Raw memory operations and typed read/write primitives.
+Raw memory operations and typed read/write primitives. Addresses, sizes and
+offsets are all `pointer` — the pointer-width unsigned integer — never `long`.
 
 ```fly
 import fly.mem
 ```
 
-### Types
-
-```fly
-public struct Ptr {
-    ulong addr
-}
-```
-A raw memory address wrapper (`void*` equivalent).
-
----
+> `fly.mem` is **unsafe by nature**: nothing checks that an address is valid,
+> that an offset stays inside the block, or that a block is freed once. Prefer
+> the `fly.data` containers and `string` in application code.
 
 ### Allocation
 
 #### `alloc`
 ```fly
-public long alloc(const ulong size)
+public pointer alloc(const pointer size)
 ```
-Allocates `size` bytes and returns the raw address.
+Allocates `size` bytes and returns the address. The memory is **not** zeroed.
 
 #### `realloc`
 ```fly
-public long realloc(const long ptr, const ulong newSize)
+public pointer realloc(const pointer ptr, const pointer newSize)
 ```
-Resizes a previous allocation; returns the new address (may differ from `ptr`).
+Resizes the block at `ptr` to `newSize` bytes and returns its (possibly new) address.
 
 #### `free`
 ```fly
-public void free(const long ptr, const ulong size)
+public void free(const pointer ptr, const pointer size)
 ```
-Frees a previously allocated block.
+Releases a block obtained from `alloc` or `realloc`. `size` is the size of the block.
 
 #### `isNull`
 ```fly
-public bool isNull(const long ptr)
+public bool isNull(const pointer ptr)
 ```
-Returns `true` if `ptr` is `0` (unset).
-
-#### `toPtr`
-```fly
-public Ptr toPtr(const long addr)
-```
-Wraps a raw address as a `Ptr`.
+Returns `true` when `ptr` is the null address.
 
 ---
 
 ### Bulk operations
 
-#### `copy`
 ```fly
-public void copy(const long dst, const long src, const ulong size)
+public void copy(const pointer dst, const pointer src, const pointer size)
+public void move(const pointer dst, const pointer src, const pointer size)
+public void zero(const pointer dst, const pointer size)
+public int compare(const pointer a, const pointer b, const pointer size)
 ```
-Copies `size` bytes from `src` to `dst` (non-overlapping regions).
 
-#### `move`
-```fly
-public void move(const long dst, const long src, const ulong size)
-```
-Copies `size` bytes, handling overlapping regions correctly.
-
-#### `zero`
-```fly
-public void zero(const long dst, const ulong size)
-```
-Fills `size` bytes at `dst` with zeroes.
-
-#### `compare`
-```fly
-public int compare(const long a, const long b, const ulong size)
-```
-Returns `0` if equal, `< 0` if `a < b`, `> 0` if `a > b` (C `memcmp` semantics).
+- `copy` — copies `size` bytes; the ranges must not overlap (`memcpy`).
+- `move` — copies `size` bytes; the ranges may overlap (`memmove`).
+- `zero` — sets `size` bytes to zero.
+- `compare` — compares `size` bytes; returns `0` when equal, otherwise a negative
+  or positive value according to the first differing byte (`memcmp`).
 
 ---
 
 ### Typed reads
 
 ```fly
-public byte  readByte(const long ptr, const int offset)
-public short readShort(const long ptr, const int offset)
-public int   readInt(const long ptr, const int offset)
-public long  readLong(const long ptr, const int offset)
+public byte readByte(const pointer ptr, const pointer offset)
+public short readShort(const pointer ptr, const pointer offset)
+public int readInt(const pointer ptr, const pointer offset)
+public long readLong(const pointer ptr, const pointer offset)
+public pointer readPtr(const pointer ptr, const pointer offset)
 ```
-All offsets are in bytes.
+Read a value at `ptr + offset`. Offsets are in bytes. `readPtr` reads a
+pointer-sized address, so an address stored in a buffer stays typed `pointer`
+end to end.
 
 ### Typed writes
 
 ```fly
-public void writeByte(const long ptr, const int offset, const byte val)
-public void writeShort(const long ptr, const int offset, const short val)
-public void writeInt(const long ptr, const int offset, const int val)
-public void writeLong(const long ptr, const int offset, const long val)
+public void writeByte(const pointer ptr, const pointer offset, const byte val)
+public void writeShort(const pointer ptr, const pointer offset, const short val)
+public void writeInt(const pointer ptr, const pointer offset, const int val)
+public void writeLong(const pointer ptr, const pointer offset, const long val)
+public void writePtr(const pointer ptr, const pointer offset, const pointer val)
+```
+
+**Example:**
+
+```fly
+import fly.mem
+
+void main() {
+    pointer buf = mem.alloc(16)
+    mem.zero(buf, 16)
+    mem.writeInt(buf, 0, 42)
+    mem.writeLong(buf, 8, 7)
+    int a = mem.readInt(buf, 0)     // 42
+    long b = mem.readLong(buf, 8)   // 7
+    mem.free(buf, 16)
+}
 ```
 
 ---
@@ -567,9 +626,15 @@ public StringArray all()
 ```
 Returns all environment variables as `"KEY=VALUE"` strings.
 
+#### `stringArrayFree`
+```fly
+public void stringArrayFree(StringArray a)
+```
+Releases every string of `a` and the slot array itself, then empties it, so a second call is harmless. Use it on what `all`, `argsGet`, `path.glob`, `path.comp` and `io.readLines` return.
+
 #### `allCount`
 ```fly
-public int allCount()
+public pointer allCount()
 ```
 Returns the number of environment variables currently set.
 
@@ -577,7 +642,7 @@ Returns the number of environment variables currently set.
 ```fly
 public string expand(const string s)
 ```
-Replaces `$VAR` and `${VAR}` references in `s` with their values. Unknown variables expand to an empty string.
+Replaces `$VAR` and `${VAR}` references in `s` with their values. Unknown variables expand to an empty string. The result grows as needed, and a variable name may be of any length.
 
 ---
 
@@ -607,7 +672,7 @@ Returns all command-line arguments (`args[0]` is the executable path).
 
 #### `argsCount`
 ```fly
-public int argsCount()
+public pointer argsCount()
 ```
 Returns the number of command-line arguments (including `argv[0]`).
 
@@ -622,6 +687,37 @@ Returns the system hostname, or an empty string on failure.
 public string osname()
 ```
 Returns the OS name, e.g. `"linux"` or `"darwin"`.
+
+#### `arch`
+```fly
+public string arch()
+```
+Returns the host CPU architecture, e.g. `"x86_64"` or `"aarch64"`. Empty string on failure.
+
+#### `kernel` · `kernelVersion`
+```fly
+public string kernel()
+public string kernelVersion()
+```
+`kernel` returns the kernel release (e.g. `"7.0.0-22-generic"`); `kernelVersion` returns the kernel's version banner. Empty string on failure.
+
+#### `endianness`
+```fly
+public string endianness()
+```
+Returns `"little"` or `"big"`, the byte order of the host, determined at run time.
+
+#### `platform`
+```fly
+public string platform()
+```
+Returns one line describing the host — OS, architecture, kernel release and version, hostname and byte order — as space-separated `key=value` fields. Built on the functions above.
+
+#### `exePath`
+```fly
+public string exePath()
+```
+Returns the absolute path of the running executable, resolved independently of `argv[0]`. Empty string on failure. Prefer it to `argsGet()` index 0, which is the raw `argv[0]` and may be a bare name.
 
 #### `exit`
 ```fly
@@ -687,7 +783,7 @@ A heap-allocated array of `DirEntry` values.
 ```fly
 public File open(const string path)
 ```
-Opens `path` for reading (`O_RDONLY`). Check `out.fd >= 0` for success.
+Opens `path` for reading (`O_RDONLY`). Check `.fd >= 0` on the returned `File` for success.
 
 #### `create`
 ```fly
@@ -721,7 +817,7 @@ Calls `fsync` on `f`, flushing OS buffers to persistent storage.
 ```fly
 public fly.os.io.Buf read(const string path)
 ```
-Reads the entire file at `path` into a heap-allocated `Buf`. `out.size == 0` if the file is empty or missing.
+Reads the entire file at `path` into a heap-allocated `Buf`. The returned `Buf` has `size == 0` if the file is empty or missing.
 
 #### `readStr`
 ```fly
@@ -892,6 +988,12 @@ public DirEntries dirRead(const string path)
 ```
 Returns all entries in the directory at `path`.
 
+#### `dirEntriesFree`
+```fly
+public void dirEntriesFree(DirEntries d)
+```
+Releases every entry name and the entry array of what `dirRead` returned, then empties `d`, so a second call is harmless.
+
 ---
 
 ### Symlinks & temporary files
@@ -995,13 +1097,89 @@ Wraps `inner` in a `BufWriter` with a `cap`-byte internal buffer.
 
 ---
 
+### Buffered I/O
+
+A `BufReader` / `BufWriter` is driven through the **free functions** below.
+
+> Call these functions, not the methods of `BufReader`/`BufWriter` (`available()`, `refill()`, `bufAt()`, `takeByte()`, `flush()` …). Outside `fly.os.io`, a direct method call on these classes reads the wrong state; the functions, and calls through the `Reader`/`Writer` interfaces, are correct.
+
+#### `bufRead`
+```fly
+public long bufRead(BufReader r, Buf buf, const ulong n)
+```
+Reads up to `n` bytes from `r` into `buf`. Returns the number of bytes read, `0` at end of input.
+
+#### `bufReadLine`
+```fly
+public string bufReadLine(BufReader r)
+```
+Reads one line and returns it **without** the trailing LF; a trailing CR is dropped too, so CRLF input works. Returns `""` at end of input. A line may be longer than the buffer.
+
+#### `peek`
+```fly
+public Buf peek(BufReader r, const ulong n)
+```
+Returns up to `n` buffered bytes **without consuming them**. The returned `Buf` borrows the reader's storage: it is valid only until the next read, `fill` or close, and must not be freed. A short result is normal; size `0` means end of input.
+
+#### `fill`
+```fly
+public void fill(BufReader r)
+```
+Refills the internal buffer from the inner reader once every buffered byte has been consumed. Does nothing while data is still pending.
+
+#### `bufAvailable`
+```fly
+public ulong bufAvailable(BufReader r)
+```
+Returns the number of bytes buffered and not yet consumed.
+
+#### `bufClose`
+```fly
+public void bufClose(BufReader r)
+```
+Releases the read-ahead buffer and closes the inner reader.
+
+#### `bufWrite`
+```fly
+public void bufWrite(BufWriter w, Buf buf)
+```
+Writes the valid bytes of `buf` into `w`, flushing to the inner writer as the internal buffer fills.
+
+#### `bufFlush`
+```fly
+public void bufFlush(BufWriter w)
+```
+Drains the internal buffer into the inner writer.
+
+#### `bufWriterClose`
+```fly
+public void bufWriterClose(BufWriter w)
+```
+Flushes anything pending, releases the buffer and closes the inner writer. Always close a `BufWriter` this way: bytes still buffered when it is dropped are lost.
+
+#### `writeNL`
+```fly
+public void writeNL(Writer w)
+```
+Writes a single newline byte (`0x0A`) to `w`. String literals keep escapes raw — `"\n"` is two characters — so a line terminator must be written with this function.
+
+---
+
 ### Read utilities
 
 #### `readAll`
 ```fly
 public Buf readAll(Reader r)
 ```
-Reads from `r` until EOF and returns all data in a freshly allocated `Buf`.
+Reads from `r` until EOF and returns all data in a freshly allocated `Buf`. A read that reports an error (a negative count) ends the loop like EOF does.
+
+#### `bufFree`
+```fly
+public void bufFree(Buf b)
+```
+Releases a `Buf`'s memory and empties it, so a second call is harmless. Every `Buf` returned by `readAll`, `readExact`, `peek` or `fs.read` owns its bytes.
+
+A `Reader`, `Writer`, `BufReader` or `BufWriter` **object** cannot be released from Fly: there is no way to free a class handle. `close` (or `bufClose` / `bufWriterClose`) gives back the internal buffer and the descriptor, which is everything but the handle itself.
 
 #### `readLine`
 ```fly
@@ -1051,7 +1229,7 @@ use `fs.readBytes` / `fs.writeBytes`, which do this themselves.
 ```fly
 public bool writeAll(Writer w, Buf buf)
 ```
-Writes all bytes of `buf` to `w`. Returns `true` on success.
+Writes all bytes of `buf` to `w`. Returns `true` on success. A `FileWriter` loops over short writes and reports a failed write as `-1`, so a write that did not go through comes back as `false` here.
 
 #### `writeString`
 ```fly
@@ -1134,9 +1312,9 @@ Joins `base` and `comp` with exactly one `/` separator.
 
 #### `joinN`
 ```fly
-public string joinN(const string parts, const int n)
+public string joinN(fly.os.env.StringArray parts)
 ```
-Joins `n` path segments from the array `parts`.
+Joins the segments of `parts` left to right with `join`: `joinN` of `{"a", "b", "c"}` is `join(join("a", "b"), "c")`. An empty array gives `""`. The array is only read — its strings stay the caller's to release.
 
 #### `absolute`
 ```fly
@@ -1148,7 +1326,7 @@ Returns the absolute form of `path` (resolves relative to the current working di
 ```fly
 public string normalize(const string path)
 ```
-Resolves `.` and `..` components and removes duplicate separators.
+Resolves `.` and `..` components and removes duplicate separators. A `..` a RELATIVE path cannot resolve is kept (`"../a"` stays `"../a"`, `"a/../../b"` becomes `"../b"`); at the root of an absolute path it is dropped (`"/../a"` is `"/a"`).
 
 #### `normalizeInPlace`
 ```fly
@@ -1160,7 +1338,7 @@ Normalizes `path` in place (modifies the string directly).
 ```fly
 public string rel(const string base, const string target)
 ```
-Returns the relative path from `base` to `target`.
+Returns the relative path from `base` to `target`. Both are normalized first, and `"."` counts as the empty relative path, so `rel(".", "a")` is `"a"`.
 
 ---
 
@@ -1182,7 +1360,7 @@ Returns all but the last path component.
 ```fly
 public string ext(const string path)
 ```
-Returns the file extension including the leading dot, or an empty string.
+Returns the file extension including the leading dot, or an empty string. A dot that STARTS the basename marks a hidden file rather than an extension, so `ext(".bashrc")` is empty and `stem(".bashrc")` is `".bashrc"`.
 
 #### `stem`
 ```fly
@@ -1540,14 +1718,16 @@ import fly.sync
 ### Thread
 
 ```fly
-public struct Thread { long handle }
+public struct Thread { int id }
 ```
 
 #### `spawnThread`
 ```fly
-public Thread spawnThread(const long fn, const long arg, const ulong stack)
+public Thread spawnThread(const pointer fn, const pointer arg, const ulong stack)
 ```
-Starts `fn(arg)` in a new OS thread. `stack = 0` uses the default stack size (1 MiB).
+Starts `fn(arg)` in a new OS thread. `fn` is the address of the entry function and `arg` the single address-sized argument it receives. `stack = 0` uses the default stack size (1 MiB). `Thread.id` is `-1` when the thread could not be created.
+
+Threads are **detached**: there is no `join`. To wait for workers, have each one call `wgDone` on a shared [WaitGroup](#waitgroup) and call `wgWait` in the spawning thread.
 
 ---
 
@@ -1556,13 +1736,14 @@ Starts `fn(arg)` in a new OS thread. `stack = 0` uses the default stack size (1 
 ```fly
 public struct Mutex { long state }
 ```
-A simple spin/sleep mutual-exclusion lock.
+A simple spin/sleep mutual-exclusion lock. Each primitive here keeps its state in a small heap slot; the matching `…Free` gives it back once no thread can touch the primitive any more, and clears the handle so freeing twice is a no-op.
 
 ```fly
 public Mutex newMutex()
 public void  mutexLock(Mutex m)
 public void  mutexUnlock(Mutex m)
 public bool  mutexTryLock(Mutex m)
+public void  mutexFree(Mutex m)
 ```
 
 ---
@@ -1580,6 +1761,7 @@ public void    rwmutexRlock(RWMutex rw)
 public void    rwmutexRunlock(RWMutex rw)
 public void    rwmutexWlock(RWMutex rw)
 public void    rwmutexWunlock(RWMutex rw)
+public void    rwMutexFree(RWMutex rw)
 ```
 
 ---
@@ -1596,6 +1778,7 @@ public WaitGroup newWaitGroup()
 public void      wgAdd(WaitGroup wg, const int n)
 public void      wgDone(WaitGroup wg)
 public void      wgWait(WaitGroup wg)
+public void      waitGroupFree(WaitGroup wg)
 ```
 
 `wgAdd(wg, n)` increments the counter by `n`. `wgDone` decrements by 1. `wgWait` blocks until the counter reaches 0.
@@ -1613,6 +1796,7 @@ Runs an initialisation block exactly once, regardless of concurrent calls.
 public Once newOnce()
 public bool onceAcquire(Once o)
 public void onceRelease(Once o)
+public void onceFree(Once o)
 ```
 
 Usage pattern:
@@ -1637,43 +1821,95 @@ public Semaphore newSemaphore(const int initial)
 public void      semaphoreAcquire(Semaphore s)
 public void      semaphoreRelease(Semaphore s)
 public bool      semaphoreTryAcquire(Semaphore s)
+public void      semaphoreFree(Semaphore s)
 ```
 
 ---
 
 ## fly.data
 
-Generic heap-allocated data structures. All collections store `long` values (raw addresses or integers). Use `fly.mem.toPtr` / casting to store typed pointers.
+Generic containers. Every container is a generic **class**: it lives on the
+heap and is released by calling its `free()` method.
 
 ```fly
-import fly.data.list    // fly.data.List
-import fly.data.stack   // fly.data.Stack
-import fly.data.queue   // fly.data.Queue
-import fly.data.deque   // fly.data.Deque
-import fly.data.set     // fly.data.Set
-import fly.data.map     // fly.data.Map
-import fly.data.tree    // fly.data.Tree
-import fly.data.wrapper // fly.data.Wrapper<T>  (generic)
+import fly.data.List     // one class by name …
+import fly.data.Map
+import fly.data.*        // … or all of them
 ```
 
-All untyped collections (`List`, `Stack`, `Queue`, …) store `long` values. To build a **typed** collection, wrap values in `Wrapper<T>` and store the wrapper reference — see [Wrapper\<T\>](#wrappert) and the [List\<string\> pattern](#liststring-pattern) below.
+| Class | Structure | Complexity |
+|---|---|---|
+| `List<T>` | growable contiguous array | append O(1) amortised, index O(1), remove O(n) |
+| `Stack<T>` | growable array, LIFO | push/pop O(1) amortised |
+| `Queue<T>` | ring buffer, FIFO | enqueue/dequeue O(1) amortised |
+| `Deque<T>` | ring buffer, both ends | push/pop at either end O(1) amortised |
+| `Set<T>` | hash set, open addressing | add/has/remove O(1) average |
+| `Map<K, V>` | hash map, open addressing | put/get/has/remove O(1) average |
+| `Tree<K, V>` | **unbalanced** binary search tree, ordered by key | O(log n) average, **O(n)** when keys arrive sorted |
+| `Wrapper<T>` | single-value holder | — |
+
+### Rules common to all containers
+
+**Ownership.** What a container does with an element depends on the element type:
+
+| Element type | On insert | On remove / `clear` / `free` |
+|---|---|---|
+| `string` | the container stores its **own copy** | the copy is released |
+| numbers, `bool`, enums | copied by value | nothing to release |
+| class instances, arrays | the **reference** is stored | nothing — the object stays yours to `free()` |
+
+**Sizes and indices are `pointer`**, the pointer-width unsigned integer. A
+negative index cannot exist.
+
+**Missing elements return the zero value.** `get` with an out-of-range index or
+an absent key, and `pop`/`peek`/`dequeue` on an empty container, return the zero
+value of the element type (`0`, `""`, `null`) — they do not fail. Test with
+`size()`, `isEmpty()` or `has()` when a zero value is also a legitimate element.
+`set` and `remove` with an out-of-range index or absent key do nothing.
+
+**Keys.** `Set`, `Map` and `Tree` work with integer and `string` keys. Strings
+compare byte-wise; integers compare as signed values.
+
+**Thread safety.** None. Guard a shared container with a `fly.sync` mutex.
+
+**After `free()`** a container is empty and may be reused or freed again.
 
 ---
 
 ### List
 
-Dynamic array with O(1) amortised append and O(1) indexed access.
-
 ```fly
-public class List {
+public class List<T> {
     public List()
-    public void add(const long val)
-    public long get(const int idx)
-    public void set(const int idx, const long val)
-    public int  size()
-    public void remove(const int idx)
+    public void add(const T val)
+    public T get(const pointer idx)
+    public void set(const pointer idx, const T val)
+    public pointer size()
+    public void remove(const pointer idx)
     public void clear()
     public void free()
+}
+```
+
+A `List` can be iterated with `for … in`:
+
+```fly
+import fly.os.io
+import fly.data.List
+
+void main() {
+    List<string> names = new List<string>()
+    names.add("apple")
+    names.add("banana")
+    names.set(1, "cherry")
+
+    for name in names {
+        io.printLn(name)
+    }
+
+    string first = names.get(0)   // "apple"
+    names.remove(0)               // "cherry" is now at index 0
+    names.free()
 }
 ```
 
@@ -1681,16 +1917,14 @@ public class List {
 
 ### Stack
 
-LIFO stack backed by a dynamic array.
-
 ```fly
-public class Stack {
+public class Stack<T> {
     public Stack()
-    public void push(const long val)
-    public long pop()
-    public long peek()
+    public void push(const T val)
+    public T pop()
+    public T peek()
     public bool isEmpty()
-    public int  size()
+    public pointer size()
     public void free()
 }
 ```
@@ -1699,16 +1933,14 @@ public class Stack {
 
 ### Queue
 
-FIFO queue backed by a linked list.
-
 ```fly
-public class Queue {
+public class Queue<T> {
     public Queue()
-    public void enqueue(const long val)
-    public long dequeue()
-    public long peek()
+    public void enqueue(const T val)
+    public T dequeue()
+    public T peek()
     public bool isEmpty()
-    public int  size()
+    public pointer size()
     public void free()
 }
 ```
@@ -1717,19 +1949,17 @@ public class Queue {
 
 ### Deque
 
-Double-ended queue with O(1) push/pop at both ends.
-
 ```fly
-public class Deque {
+public class Deque<T> {
     public Deque()
-    public void pushBack(const long val)
-    public void pushFront(const long val)
-    public long popFront()
-    public long popBack()
-    public long peekFront()
-    public long peekBack()
+    public void pushBack(const T val)
+    public void pushFront(const T val)
+    public T popFront()
+    public T popBack()
+    public T peekFront()
+    public T peekBack()
     public bool isEmpty()
-    public int  size()
+    public pointer size()
     public void free()
 }
 ```
@@ -1738,34 +1968,52 @@ public class Deque {
 
 ### Set
 
-Hash set with O(1) average add/has/remove.
-
 ```fly
-public class Set {
+public class Set<T> {
     public Set()
-    public void add(const long key)
-    public bool has(const long key)
-    public void remove(const long key)
-    public int  size()
+    public void add(const T key)
+    public bool has(const T key)
+    public void remove(const T key)
+    public pointer size()
     public void free()
 }
 ```
+
+Adding a key that is already present leaves the set unchanged.
 
 ---
 
 ### Map
 
-Hash map with `long` keys and `long` values, O(1) average operations.
+```fly
+public class Map<K, V> {
+    public Map()
+    public void put(const K key, const V val)
+    public V get(const K key)
+    public bool has(const K key)
+    public void remove(const K key)
+    public pointer size()
+    public void free()
+}
+```
+
+`put` on an existing key replaces its value. The table grows when it is three
+quarters full. Strings are hashed with 32-bit FNV-1a and integers by their
+value, with no per-process seed — do not key a `Map` or `Set` on untrusted input
+in a long-running server.
 
 ```fly
-public class Map {
-    public Map()
-    public void put(const long key, const long val)
-    public long get(const long key)
-    public bool has(const long key)
-    public void remove(const long key)
-    public int  size()
-    public void free()
+import fly.data.Map
+
+void main() {
+    Map<string, int> ages = new Map<string, int>()
+    ages.put("ada", 36)
+    ages.put("ada", 37)            // replaces
+    if ages.has("ada") {
+        int a = ages.get("ada")    // 37
+    }
+    int missing = ages.get("bob")  // 0 — indistinguishable from a stored 0
+    ages.free()
 }
 ```
 
@@ -1773,109 +2021,55 @@ public class Map {
 
 ### Tree
 
-Ordered map backed by a binary search tree, O(log n) operations.
+An ordered map: keys are kept in sorted order.
 
 ```fly
-public class Tree {
+public class Tree<K, V> {
     public Tree()
-    public void put(const long key, const long val)
-    public long get(const long key)
-    public bool has(const long key)
-    public void remove(const long key)
-    public int  size()
+    public void put(const K key, const V val)
+    public V get(const K key)
+    public bool has(const K key)
+    public void remove(const K key)
+    public pointer size()
     public void free()
 }
 ```
+
+The tree is **not self-balancing**. Inserting keys in ascending or descending
+order produces a degenerate tree in which every operation is linear. Use `Map`
+unless you need ordering and your keys arrive in no particular order.
 
 ---
 
 ### Wrapper\<T\>
 
-Generic single-value holder (requires generics, v0.12+). The type parameter `T` is resolved at compile time via monomorphization — each instantiation (`Wrapper<string>`, `Wrapper<int>`, …) is a distinct, zero-overhead type.
+A single-value holder — a mutable box for one `T`.
 
 ```fly
 public class Wrapper<T> {
     public Wrapper(T v)
-    public T    get()
+    public T get()
     public void set(T v)
 }
 ```
 
-**Basic example:**
-
 ```fly
-import fly.data.wrapper
+import fly.data.Wrapper
 
 void main() {
-    // String wrapper
-    Wrapper<string> ws = new Wrapper<string>("hello")
-    string s = ws.get()   // s = "hello"
-    ws.set("world")
-    s = ws.get()           // s = "world"
-
-    // Integer wrapper
-    Wrapper<int> wi = new Wrapper<int>(42)
-    int n = wi.get()       // n = 42
-    wi.set(n + 1)
-    n = wi.get()            // n = 43
+    Wrapper<int> counter = new Wrapper<int>(42)
+    counter.set(counter.get() + 1)
+    int n = counter.get()   // 43
 }
 ```
 
 ---
 
-### List\<string\> Pattern
+### Not yet available
 
-`fly.data.List` stores raw `long` values (object addresses or integers). To maintain a **typed list of strings**, combine `List` with `Wrapper<string>`: each string is boxed into a `Wrapper<string>` instance, and the instance reference is added to the list.
-
-```fly
-import fly.data.list
-import fly.data.wrapper
-
-void main() {
-    List lst = new List()
-
-    // Add strings — box each into a Wrapper<string>
-    lst.add(new Wrapper<string>("apple"))
-    lst.add(new Wrapper<string>("banana"))
-    lst.add(new Wrapper<string>("cherry"))
-
-    int n = lst.size()   // n = 3
-
-    // Read strings — retrieve wrapper, then unwrap
-    for int i = 0; i < n; i++ {
-        Wrapper<string> item = lst.get(i)
-        string text = item.get()
-        // use text …
-    }
-
-    lst.free()
-}
-```
-
-The same pattern works for any heap-allocated type — replace `Wrapper<string>` with `Wrapper<int>`, `Wrapper<MyClass>`, etc.
-
----
-
-**Untyped example (raw long):**
-
-```fly
-import fly.data.list
-import fly.data.map
-
-void main() {
-    List l = new List()
-    l.add(10)
-    l.add(20)
-    int n = l.size()      // n = 2
-    long v = l.get(0)     // v = 10
-
-    Map m = new Map()
-    m.put(1, 100)
-    long val = m.get(1)   // val = 100
-    l.free()
-    m.free()
-}
-```
+`Map`, `Set` and `Tree` cannot be iterated and do not expose their keys. There
+is no sort, search (`contains`/`indexOf`), insertion at an index, or slicing.
+These are planned — see the [roadmap](@/docs/Fly-Roadmap.md).
 
 ---
 
@@ -2800,7 +2994,8 @@ public bool download(const string url, const string destPath)
 public bool postFile(const string url, const string filePath, const string token)
 ```
 GET a URL into a file (written in binary mode), and POST a file's contents as
-`application/octet-stream` with an optional bearer token.
+`application/octet-stream` with an optional bearer token. A chunked response is
+decoded before it is written, so the file holds the body and nothing else.
 
 ---
 
@@ -3099,7 +3294,7 @@ unhandled `fail`.
 
 ## fly.assert
 
-Test assertion helpers. All functions call `exit(code)` on failure.
+Test assertion helpers. Every assertion takes a trailing `code`: when the check does not hold, the function `fail`s with that code and a message naming the check and the values. Inside a `suite` the failing `case` is reported and the run continues with the next one; in a plain program the failure becomes the process exit code.
 
 ```fly
 import fly.assert
@@ -3159,6 +3354,39 @@ public void assertApproxEps(const double got, const double exp, const double eps
 ```
 Asserts `|got − exp| ≤ eps`.
 
+#### `assertNeI` / `assertNeL`
+```fly
+public void assertNeI(const int got, const int notExp, const int code)
+public void assertNeL(const long got, const long notExp, const int code)
+```
+Assert `got != notExp` (integers, longs).
+
+#### `assertStrNe`
+```fly
+public void assertStrNe(const string got, const string notExp, const int code)
+```
+Asserts that the two strings differ.
+
+#### `assertEmpty`
+```fly
+public void assertEmpty(const string s, const int code)
+```
+Asserts that `s` is empty.
+
+#### `assertEqP` / `assertNeP`
+```fly
+public void assertEqP(const pointer got, const pointer exp, const int code)
+public void assertNeP(const pointer got, const pointer notExp, const int code)
+```
+Assert that two addresses are equal / different. The addresses themselves are not printed in the failure message.
+
+#### `assertNull` / `assertNotNull`
+```fly
+public void assertNull(const pointer p, const int code)
+public void assertNotNull(const pointer p, const int code)
+```
+Assert that `p` is / is not the null address.
+
 **Example:**
 
 ```fly
@@ -3171,3 +3399,42 @@ void main() {
     assert.assertTrue(n > 0, 2)      // passes
 }
 ```
+
+---
+
+## fly.bridge
+
+**Experimental.** Declarations for calling a function of a C library from Fly.
+The surface below is what `std/lib/bridge/clang.fly` declares; it is not yet
+covered by the stability expectations of the rest of the library.
+
+```fly
+import fly.bridge.CLang
+import fly.bridge.Args
+```
+
+```fly
+public struct Args {}
+
+public class CLang {
+    public CLang(const string libPath)
+    public void call(string sym, const Args args)
+    public void call(string sym, const Args args, int out)
+    public void call(string sym, const Args args, long out)
+    public void call(string sym, const Args args, float out)
+    public void call(string sym, const Args args, double out)
+    public void call(string sym, const Args args, bool out)
+    public void call(string sym, const Args args, pointer out)
+}
+```
+
+- `Args` is the base of an argument pack: extend it with one field per C
+  parameter, in order — `struct OpenArgs : Args { string filename }`.
+- `CLang(libPath)` names the library. `libPath` must be a string literal: the
+  library is linked statically. One instance serves any number of symbols.
+- `call(sym, args[, out])` invokes the C symbol `sym`, which must also be a
+  string literal. The overload chosen by the type of `out` selects the C return
+  type; the result is written into `out`.
+
+To link an existing native library into a program without `fly.bridge`, pass
+`--link-lib <name>` to `fly` — see [Command Line](@/docs/Fly-CLI.md).

@@ -95,9 +95,27 @@ incompatibly is a diagnosed error — no axis silently rewrites another.
 | Option | Product |
 |---|---|
 | *(default)* | executable |
-| `--lib`, `--lib-static` | one merged object + a `.fly.h` per public module (the archive is built on top) |
+| `--lib`, `--lib-static` | one merged object + the declaration artifacts (see below); the archive is built on top |
 | `--lib-dyn`, `--lib-dynamic` | dynamic library (`.so`/`.dylib`/`.dll`), implies PIC |
-| `--header` | only the `.fly.h` headers, no object |
+| `--header` | only the declaration artifacts, no object |
+
+### What a library ships
+
+Each public module produces exactly one `<module>.fly.h`. A library directory
+holds those and the archive — no other textual file.
+
+Most of a header is declarations: signatures with no bodies, since the code lives
+in the archive. The exception is a **generic** class or function, which the header
+carries **as source, body included**. Monomorphization re-walks a template's
+syntax with the type parameter bound to a concrete type, so — exactly as in C++
+headers or Rust's rlib metadata — no compiled form of a template can be shipped
+in its place.
+
+Only the templates travel that way; everything else in the module stays a
+declaration, and no name is emitted twice. When a template's body calls a
+non-public declaration of its own module, that declaration travels with it and
+the compiler warns, naming it — it is private code becoming readable in a
+shipped artifact.
 
 ---
 
@@ -148,9 +166,9 @@ A selector that matches no suite or namespace is an error.
 | `--target-cpu <cpu>` | target CPU (default: generic) |
 | `-j`, `--jobs <n>` | LLVM parallelism (0 = auto) |
 | `--mcmodel <m>` | memory code model |
-| `--mthread-model <m>` | `posix` (default) or `single` — validated, not yet applied by the backend |
+| `--mthread-model <m>` | `posix` (default) or `single` — validated, not yet applied by the backend (a warning says so; silent in 0.14.6) |
 | `-static` / `-pie` | link-mode flags (ELF/Linux targets; ignored by the Windows linker) |
-| `--debug-symbols` | request DWARF debug symbols (the self-host codegen does not emit them yet) |
+| `--debug-symbols` | request DWARF debug symbols (no effect yet: the self-host emits none — a warning says so; silent in 0.14.6) |
 | `--trace-calls` | instrument every function entry/exit with [`fly.log`](@/docs/Fly-API.md) trace hooks (see below) |
 
 ### `--trace-calls`: function-call tracing
@@ -204,8 +222,8 @@ with and without the flag.
 | `--stats-file <f>` | write the statistics as JSON to `<f>` |
 | `--log-file <f>` | log every diagnostic to `<f>` |
 | `--log-format <fmt>` | diagnostics log format: `txt` (default) or `json` |
-| `--ftime-report` | accepted; not yet implemented |
-| `-w`, `--no-warning` | accepted; the compiler currently emits no warnings to suppress |
+| `--ftime-report` | no effect yet (a warning says so; silent in 0.14.6) — use `--print-stats` |
+| `-w`, `--no-warning` | suppress warnings; today these are the driver's "no effect yet" notes |
 | `--version` | print the version |
 | `--help` | full usage |
 

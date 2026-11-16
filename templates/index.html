@@ -71,8 +71,8 @@
             <div class="highlight-text">
                 <h2>Return values without the copy</h2>
                 <p>
-                    Declare a return type before the function name.
-                    Inside the body, assign to <code>out</code> — the implicit return variable.
+                    Declare a return type before the function name,
+                    and hand the value back with <code>return</code>.
                 </p>
                 <p>
                     In C++ you must choose: <code>File f = open(path)</code> (readable, but implies a copy)
@@ -94,7 +94,7 @@
                     </div>
                     <pre class="code-pre"><code><span class="cc">// return type declared in the signature</span>
 <span class="ct">int</span> <span class="cf">calc</span>(<span class="ck">const</span> <span class="ct">int</span> n) {
-    <span class="ck">out</span> = n * <span class="cn">2</span>   <span class="cc">// 'out' is the implicit return variable</span>
+    <span class="ck">return</span> n * <span class="cn">2</span>   <span class="cc">// written into the caller's slot, then ret</span>
 }
 
 <span class="ct">void</span> <span class="cf">main</span>() {
@@ -291,12 +291,14 @@
 }
 
 <span class="ct">string</span> <span class="cf">classify</span>(<span class="ck">const</span> <span class="ct">int</span> n) {
+    <span class="ct">string</span> label = <span class="cs">"zero"</span>
     <span class="ck">if</span> n &gt; <span class="cn">0</span> {
-        <span class="ck">out</span> = <span class="cs">"positive"</span>
+        label = <span class="cs">"positive"</span>
         <span class="ck">test</span> {
-            <span class="cf">assertTrue</span>(<span class="ck">out</span> == <span class="cs">"positive"</span>)
+            <span class="cf">assertTrue</span>(label == <span class="cs">"positive"</span>)
         }
     }
+    <span class="ck">return</span> label
 }</code></pre>
         </div>
       </div>

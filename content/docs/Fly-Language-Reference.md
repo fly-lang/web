@@ -7,7 +7,7 @@ weight = 1
 
 # Fly Language Reference
 
-**Version:** 0.13.3  
+**Version:** 0.14.6  
 **Project:** [Fly Programming Language](https://flylang.org)  
 **License:** Apache License v2.0
 
@@ -38,7 +38,9 @@ weight = 1
 
 ## 1. Introduction
 
-Fly is a compiled, high-level, general-purpose programming language with particular attention to simplicity, readability, and multi-paradigm support. Fly is built on LLVM infrastructure and aims to provide optional Garbage Collection.
+Fly is a compiled, high-level, general-purpose programming language with particular attention to simplicity, readability, and multi-paradigm support. Fly is built on LLVM infrastructure. It has no garbage collector: structs live on the stack, strings are released automatically, and class instances are released explicitly (see [6.6](#6-6-allocation-and-lifetime)).
+
+This reference describes the language as designed. Where the released compiler does not yet enforce a rule stated here, the difference is recorded in [Conformance](@/docs/Fly-Conformance.md), which is the page to consult when a guarantee matters.
 
 **Design Principles:**
 - **Simple** - Easy to read and write
@@ -66,7 +68,7 @@ switch      test        true        uint        ulong
 unset       ushort      void        while
 ```
 
-> **`out`** is *not* a reserved keyword — it is a special identifier automatically declared inside any function that has a return type. It holds the value to be returned. For functions with multiple return types, use `out[0]`, `out[1]`, … See [Section 5.4](#5-4-return-values).
+> **`return`** carries the value a function hands back (`return expr`, or `return a, b` when several return types are declared). The value travels through a hidden output parameter the compiler adds to the signature, never through a copy out of the callee's frame. See [Section 5.4](#5-4-return-values).
 
 > **`this`** is *not* a reserved keyword either — it is a special identifier available inside instance methods that refers to the current object (e.g. `this.value`). See [Section 6.4](#6-4-class-members).
 
@@ -394,7 +396,7 @@ int[] xs = {10, 20, 30}
 
 ### 5.1 Function Declaration
 
-Every function and method **must** declare a **return type** before the function name — this is mandatory. A function that produces no value declares `void`. When a non-`void` return type is present, the special identifier `out` is implicitly declared inside the body and holds the value to be returned.
+Every function and method **must** declare a **return type** before the function name — this is mandatory. A function that produces no value declares `void`. When a non-`void` return type is present, the body must hand a value back with `return expr` on every path; the compiler adds a hidden output parameter to the signature and the return writes through it.
 
 > **Important:** A missing return type is a compile error (`err_parser_missing_return_type`). Write `void doSomething() { … }`, not `doSomething() { … }`. The only exceptions are **constructors** (a method named exactly like its class — see [§6.4](#6-4-class-members)) and **interface method declarations**, which omit the return type.
 
@@ -413,26 +415,24 @@ void doSomething() {
     // function body
 }
 
-// Function with a return type — assign to 'out' to return a value
+// Function with a return type — `return` carries the value
 int add(const int a, const int b) {
-    out = a + b
+    return a + b
 }
 
-// Multiple return types — use out[0], out[1], …
+// Multiple return types — one return, values in declaration order
 int,int minMax(const int a, const int b) {
     if (a < b) {
-        out[0] = a
-        out[1] = b
+        return a, b
     } else {
-        out[0] = b
-        out[1] = a
+        return b, a
     }
 }
 ```
 
 ### 5.2 Function Parameters
 
-The `const` modifier on a parameter is **optional**. A `const` parameter is read-only inside the body (an input); a non-`const` parameter may be written and is the mechanism used for output parameters (including the hidden `out` parameter generated for return values). A parameter may also declare a **default value** with `= <literal>`.
+The `const` modifier on a parameter is **optional**. A `const` parameter is read-only inside the body (an input); a non-`const` parameter may be written and is the mechanism used for output parameters (including the hidden parameter generated for return values). A parameter may also declare a **default value** with `= <literal>`.
 
 **Syntax:**
 ```
@@ -461,7 +461,7 @@ void retry(const string url, const int attempts = 3) {
 
 // Generic parameter without const (see §6.7)
 T identity<T>(T v) {
-    out = v
+    return v
 }
 ```
 
@@ -485,14 +485,14 @@ protected void protectedMethod() {}
 
 ### 5.4 Return Values
 
-When a function declares a return type, the special identifier `out` is implicitly available inside the body. Assigning to `out` sets the return value. The caller receives it as if the function returned by value — but the compiler generates a hidden by-reference output parameter, so **the result is never copied out of the callee's frame**.
+A function hands a value back with `return expr`. The caller receives it as if the function returned by value — but the compiler generates a hidden by-reference output parameter, writes the value into it and then returns, so **the result is never copied out of the callee's frame**.
 
-That is a statement about the calling convention, not a promise that assigning to `out` is free. `out = expr` is an ordinary assignment and obeys the ownership rules of [6.6](#6-6-allocation-and-lifetime): returning a *borrowed* string — a parameter or a field — clones its buffer, which is exactly what makes every call result independently owned; returning an array transfers ownership without copying a single element.
+That is a statement about the calling convention, not a promise that returning is free. `return expr` is lowered to an ordinary assignment into that hidden slot and obeys the ownership rules of [6.6](#6-6-allocation-and-lifetime): returning a *borrowed* string — a parameter or a field — clones its buffer, which is exactly what makes every call result independently owned; returning an array transfers ownership without copying a single element.
 
 ```fly
 // Looks like return-by-value to the caller…
 int square(const int n) {
-    out = n * n
+    return n * n
 }
 
 void main() {
@@ -500,27 +500,49 @@ void main() {
 }
 ```
 
-This resolves the classic C++ ergonomics/performance tension: in C++ you must choose between `File f = open(path)` (readable, but implies a copy) or `open(path, &f)` (efficient, but noisy). Fly does both with the same syntax — the source reads as a normal assignment, and the compiler silently passes `x` by reference to `square`.
+This resolves the classic C++ ergonomics/performance tension: in C++ you must choose between `File f = open(path)` (readable, but implies a copy) or `open(path, &f)` (efficient, but noisy). Fly does both with the same syntax — the source reads as a plain return, and the compiler silently passes `x` by reference to `square`.
 
-Because `out` is a real writable variable, it can also be **passed directly as the output argument** of another call — the standard library uses this idiom heavily:
+**Every path must return.** In a function that declares a return type, reaching the closing brace without a `return` is a compile error rather than a silent zero. An `if` counts only when it has an `else` and every branch returns, a `switch` only when it has a `default` and no case falls out of it; `fail` also ends the function, and so does `while true` with no `break`.
 
 ```fly
-public int size() {
-    // 'out' is forwarded as the destination of the read; no extra local needed
-    fly.llvm.ptrReadInt(this.ptr, 8, out)
+// error: 'classify' must return a value on every path
+int classify(const int n) {
+    if n > 0 {
+        return 1
+    }
 }
 ```
 
-**Multiple return types** use `out[0]`, `out[1]`, …:
+**Building a struct in place.** When every `return` in a body hands back the same struct local, that local *is* the caller's slot: its fields are written straight into the returned object and the return copies nothing. This is what makes the idiomatic shape below cost exactly what filling an output parameter by hand used to cost:
+
+```fly
+Stat statOf(const string path) {
+    Stat s
+    s.size = sizeOf(path)
+    s.mode = modeOf(path)
+    return s          // no copy: `s` was the caller's Stat all along
+}
+```
+
+**Writing into a value you are about to return.** An intrinsic that fills an output parameter needs a local to fill, which the return then hands back:
+
+```fly
+public int size() {
+    int n = 0
+    fly.llvm.ptrReadInt(this.ptr, 8, n)
+    return n
+}
+```
+
+**Multiple return types** are returned in one statement, in declaration order:
 
 ```fly
 int,int divmod(const int a, const int b) {
-    out[0] = a / b   // quotient
-    out[1] = a % b   // remainder
+    return a / b, a % b   // quotient, remainder
 }
 
 void main() {
-    int q = divmod(17, 5)   // q = 3 — a plain assignment binds out[0]
+    int q = divmod(17, 5)   // q = 3 — a plain assignment binds the first value
 }
 ```
 
@@ -534,11 +556,13 @@ receiver count must match the callee's return count exactly:
 void main() {
     int q = 0
     int r = 0
-    q, r = divmod(17, 5)   // q ← out[0] = 3, r ← out[1] = 2
+    q, r = divmod(17, 5)   // q ← 3, r ← 2
 }
 ```
 
-**Early exit** in void functions still uses `return` (without a value). `return` **never** carries a value in Fly — `return expr` is a compile error; use `out` to set a result instead:
+A `return` with the wrong number of values is a compile error, as is a value in a function declared `void`.
+
+**Early exit** in a void function is a bare `return`:
 
 ```fly
 void process(const int x) {
@@ -571,15 +595,15 @@ on `main` — single (`int main()`) or multiple (`int, int main()`) — is a com
 error in both compilers:
 
 ```
-error: 'main()' must be declared 'void': the exit code comes from an unhandled 'fail', not from 'out'
+error: 'main()' must be declared 'void': the exit code comes from an unhandled 'fail', not from a returned value
 ```
 
-It follows that the implicit `out` variable **does not exist inside `main`**:
-a `void` function has no out-parameter, so writing to it there is an ordinary
-"cannot find 'out' in this scope" error. The process exit code is not something
-`main` returns — it is derived from the error state described next, so the only
-things a program can act on are `fail` (to set an error) and `handle` (to stop
-one from propagating).
+It follows that `main` cannot `return` a value: a `void` function has no output
+parameter, so a value there is the ordinary "'return' cannot carry a value in a
+function declared 'void'" error (a bare `return` still exits early). The process
+exit code is not something `main` returns — it is derived from the error state
+described next, so the only things a program can act on are `fail` (to set an
+error) and `handle` (to stop one from propagating).
 
 **Error Handling and Return Codes:**
 
@@ -801,7 +825,7 @@ public class Person {
     
     // Public method with return type
     public string getName() {
-        out = this.name
+        return this.name
     }
     
     // Private void method
@@ -811,7 +835,7 @@ public class Person {
     
     // Static method with return type
     public static int getCount() {
-        out = instanceCount
+        return instanceCount
     }
 }
 ```
@@ -897,7 +921,7 @@ void demo(const string param) {
 
 The empty string is the one case that goes the other way: it owns no heap at all, so cloning it allocates nothing and freeing it is a no-op.
 
-Because `out = <lvalue>` goes through the same rule, a function that returns a *borrowed* string — a parameter or a field — returns a **clone**. That is what makes every call result a fresh buffer, and why the third row above is safe.
+Because `return <lvalue>` is lowered to that same assignment, a function that returns a *borrowed* string — a parameter or a field — returns a **clone**. That is what makes every call result a fresh buffer, and why the third row above is safe.
 
 #### Arrays: reference-counted, freed automatically
 
@@ -929,7 +953,7 @@ The rules, all of them:
 - **Binding another array** (`int[] j = k`) copies the fat pointer and **retains**. No element is ever copied, whatever the array's size.
 - **Reassigning** (`k = {7, 8}`) retains the new buffer, releases the old one, then stores — in that order, so `k = k` is harmless.
 - **Passing as an argument** is a **borrow**: no retain, no release. The callee sees the array for the duration of the call.
-- **Returning through `out`** transfers ownership to the caller: the callee retains on the caller's behalf, then its own variable releases, leaving the caller holding the only reference.
+- **Returning an array** transfers ownership to the caller: the callee retains on the caller's behalf, then its own variable releases, leaving the caller holding the only reference.
 - The **item of a `for in`** is a view of the element, not an owner.
 - **Nested arrays** (`int[][]`) have one buffer and one count *per level*. Releasing the outer array walks its elements and releases each inner buffer first.
 - An **empty array** (`int[0]`, or a runtime size of zero) has no buffer at all. Declaring, binding and iterating one are all legal and allocate nothing.
@@ -1018,7 +1042,7 @@ public class Wrapper<T> {
     }
 
     public T get() {
-        out = value
+        return value
     }
 
     public void set(T v) {
@@ -1062,28 +1086,29 @@ GenericFunc ::= [ Modifiers ] ReturnType Identifier '<' TypeParam ( ',' TypePara
 TypeParam   ::= Identifier [ ':' Type ]
 ```
 
-**Example:**
+**The type argument is inferred from the call's arguments** — and only from them. A generic function is called like any other, with no `<…>` at the call site:
+
 ```fly
 // Generic identity function — returns its argument unchanged
 T identity<T>(const T v) {
-    out = v
+    return v
 }
 
-void main() {
-    int    i = identity<int>(10)        // explicit type argument
-    string s = identity<string>("fly")  // explicit type argument
-}
-```
-
-**Type inference** — when the argument type is unambiguous, the type argument can be omitted and the compiler infers it automatically:
-
-```fly
 void main() {
     int    i = identity(10)     // T inferred as int
     string s = identity("fly")  // T inferred as string
     bool   b = identity(true)   // T inferred as bool
 }
 ```
+
+> **Explicit type arguments are for generic *classes*, not functions.**
+> `new Wrapper<int>(42)` is how you name an instantiation ([6.7.2](#6-7-2-instantiation));
+> `identity<int>(10)` does **not** compile — the compiler reads `<` as a comparison and
+> reports that `identity` is a function, not a value. Write `identity(10)` instead.
+>
+> It follows that **a type parameter must appear among the parameters**: one that shows up
+> only in the return type (`T make<T>()`) has nothing to be inferred from, and such a
+> function cannot be called.
 
 #### 6.7.4 Managing a List of Strings — fly.data.List\<string\> Pattern
 
@@ -1658,19 +1683,26 @@ for (line in lines) {
 
 #### 9.6.1 Return Statement
 
-`return` exits a void function early. Functions with a return type use `out` to carry the result; `return` may still be used to exit early from such functions.
+`return` leaves the function. In a function that declares a return type it carries the value — one expression per declared type — and every path through the body must reach one. In a `void` function it takes no value and is used to exit early.
 
 **Syntax:**
 ```
-ReturnStmt ::= 'return'
+ReturnStmt ::= 'return' [ Expr { ',' Expr } ]
 ```
+
+A value must begin on the same line as the keyword: Fly has no statement
+terminator, so that is what separates `return` followed by a value from a bare
+`return` followed by the next statement.
 
 **Examples:**
 ```fly
-// Return exits the function
-return
+// Hand a value back
+return n * n
 
-// Early return based on condition
+// One value per declared return type
+return a / b, a % b
+
+// Early exit from a void function
 if (done) {
     return
 }
@@ -2180,7 +2212,7 @@ public class Circle {
 }
 
 public int area(const int r) {
-    out = r * r
+    return r * r
 }
 ```
 
@@ -2256,6 +2288,8 @@ class DefaultClass {}
 
 The `const` modifier marks values as immutable.
 
+> **Status:** the released 0.14.6 does not yet reject an assignment to a `const` variable or parameter; the next release does — see [Conformance](@/docs/Fly-Conformance.md). `const` protects the variable itself, not the fields of an object it refers to.
+
 **Examples:**
 ```fly
 
@@ -2268,7 +2302,7 @@ void process(const int size) {
 // Constant local variable
 void func() {
     const int limit = 50
-    // limit = 100  // Error: cannot modify const
+    // limit = 100  // not allowed: limit is const
 }
 ```
 
@@ -2282,7 +2316,7 @@ class Counter {
     static int totalCount = 0
     
     public static int getTotal() {
-        out = totalCount
+        return totalCount
     }
     
     public void increment() {
@@ -2515,7 +2549,8 @@ ForStmt         ::= 'for' [ '(' ] VarDecl ( ',' VarDecl )* ';' Expr ';'
 
 ForInStmt       ::= 'for' [ '(' ] Identifier 'in' Expr [ ')' ] Statement
 
-ReturnStmt      ::= 'return'
+ReturnStmt      ::= 'return' [ Expr { ',' Expr } ]   (* one value per declared
+                       return type; the first must start on the keyword's line *)
 
 BreakStmt       ::= 'break'
 
@@ -2622,9 +2657,9 @@ public class Application {
         instanceCount++
     }
     
-    // Method with return type — 'out' carries the result
+    // Method with return type — `return` carries the result
     public int getValue() {
-        out = this.value
+        return this.value
     }
     
     // Public void method with error handling
@@ -2830,7 +2865,7 @@ switch      test        true        uint        ulong
 unset       ushort      void        while
 ```
 
-> `out`, `this`, and `delete` are **not** reserved keywords (see [Section 2.1](#2-1-keywords)).
+> `this` and `delete` are **not** reserved keywords (see [Section 2.1](#2-1-keywords)); neither is `out`, which is now an ordinary identifier — the standard library still uses it as a parameter name for C-ABI output parameters.
 
 ---
 

@@ -7,6 +7,10 @@ weight = 2
 
 # Compiler Internals
 
+> **Which compiler this describes.** Fly has two implementations of the same design: the C++ seed (`release/0.13.X`) and the self-hosted compiler written in Fly (`release/0.14.X`, under `compiler/lib/{ast,parser,sema,codegen,driver}`). Sections 1–18 describe the AST and Sema model both share; class names are identical in the two (`ASTFunction`, `SemaType`, `Resolver`, …), and the C++ spellings used in the examples (`ASTExpr*`, `nullptr`, `llvm::SmallVector`) correspond to Fly class references and `fly.data.List` in the self-host. Section 19 describes the self-hosted toolchain. The checks each implementation actually enforces are listed in [Conformance](@/docs/Fly-Conformance.md); the build is described in [Building Fly](@/docs/Fly-Bootstrap.md).
+>
+> `ASTDeleteStmt` is documented below for completeness: the node exists in both trees, but the language has no `delete` statement and the parser never produces it.
+
 This document describes every Abstract Syntax Tree (AST) construct produced by the Fly parser and how those nodes are translated into Semantic Analysis (Sema) objects before the CodeGen pass. It includes detailed examples from the test suite and concentrates on symbol table formation and on the `SemaType`, `SemaVar`, `SemaCall`, and `SemaMember*` families that participate in symbol resolution.
 
 ## 1. Pipeline Overview
@@ -1831,102 +1835,131 @@ This reference reflects the Fly compiler as of the LLVM 20 migration. It covers 
 
 ## 19. Library & Linking System
 
-This section describes how the two Fly runtime libraries are built, how they are
-discovered, and how the compiler links them into a final executable.
+This section describes the self-hosted toolchain (`release/0.14.X`): which
+libraries exist, how they are produced, how a `fly` binary finds them, and how a
+program is linked. The implementation is `compiler/lib/driver/ToolChain.fly`;
+how the libraries themselves are built during the bootstrap is described in
+[Building Fly](@/docs/Fly-Bootstrap.md).
 
-### 19.1 The Two Static Archives
+### 19.1 The archives
 
-| Archive | Built by | Contents |
-|---------|----------|----------|
-| `fly_std_lib.a` | `fly --lib` (invoked by CMake) | All stdlib namespaces: `fly.str`, `fly.os.*`, `fly.math`, `fly.mem`, `fly.data.*`, etc. |
-| `fly_runtime_lib.a` | CMake C target (`FlyRuntime`) | Freestanding runtime: `fly_mem_alloc`, `fly_io_write`, `fly_proc_exit`, mutex/atomics, platform syscall wrappers |
+A Fly installation is `bin/` plus `lib/`. `lib/` holds static archives and one
+`.fly.h` header per public module:
 
-Both archives are **static** (`.a` / `.lib`). No shared library (`.so` / `.dylib`) is
-involved in a normal Fly build. Both land in `build/lib/` during development and
-in `<prefix>/lib/` when installed.
+| Archive | Source | Contents |
+|---------|--------|----------|
+| `fly_std_lib` | `std/lib/**` | every `fly.*` standard namespace |
+| `fly_runtime_lib` | `runtime/lib/Runtime<Platform>.fly` + C primitives | the `fly.runtime` layer: memory, files, processes, sockets, threads, time |
+| `fly_tls_stub` | `runtime/lib/TlsStub.fly` | `tls_*` symbols that report "TLS unavailable"; linked into every program |
+| `fly_tls_lib` | `runtime/lib/TlsOpenSSL.fly` / `TlsSchannel.fly` | the real TLS back end; linked only with `--tls` |
 
-### 19.2 Two-Phase Build
+The extension is `.a` on Linux and macOS and `.lib` on Windows. All of them are
+**static**: a Fly program has no Fly shared-library dependency.
 
-**Phase 1 — stdlib compilation** (driven by CMake, runs once):
+The TLS split is deliberate. The real back end is linked *ahead of* the stub
+when `--tls` is given, so archive lazy extraction never pulls the stub member
+and no symbol is defined twice; without `--tls` a program has no dependency on
+`libssl` at all.
+
+### 19.2 What `--lib` produces
+
+`fly --lib` compiles the whole source directory into a library:
+
+- **one merged object** holding every module, which the build scripts archive;
+- **one `.fly.h` per public module**. A header carries declarations only — no
+  `{}` stubs — plus, for a module that declares generics, the **source of its
+  templates**, because a consumer has to specialize them.
+
+A lib directory therefore contains `.fly.h` files and archives and nothing else.
+A consumer passes it with `-L <dir>`: the headers resolve its imports, the
+archives are linked.
+
+A header does not describe a class's memory layout. Two compilers that lay out a
+class differently can therefore disagree across a header; this is why the
+bootstrap ships a guard for exactly that boundary (`test_abi`).
+
+### 19.3 The linker: LLD as a subprocess
+
+The self-host does not link in process. It builds an argument list and runs the
+LLD binary that ships next to `fly`:
+
+| Target | Function | Linker binary |
+|--------|----------|---------------|
+| Linux / ELF | `LinkLinux` | `ld.lld` |
+| macOS / Mach-O | `LinkDarwin` | `ld64.lld` |
+| Windows, `x86_64-w64-windows-gnu` (default) | `LinkMinGW` | `ld.lld -m i386pep` |
+| Windows, MSVC triple | `LinkWindows` | `lld-link` |
+
+LLD selects its flavor from `argv[0]`, so the binary is shipped under its native
+name and needs no `-flavor` argument. `runLinker` looks for it in the directory
+of the running `fly` first and falls back to `PATH`. Generated `.fly.h` files
+are filtered out of the input list before the linker runs.
+
+On Windows the default target is the **GNU / UCRT** triple: the program links
+against the bundled llvm-mingw sysroot (`<exe>/mingw`, overridable with
+`--mingw-sysroot`), so neither building nor using Fly requires Visual Studio.
+
+### 19.4 Link order
+
+Static archive members are extracted only when something earlier on the command
+line references them, so the order is fixed:
 
 ```
-fly --lib -o build/lib/fly_std_lib  std/lib/str.fly  std/lib/os/io.fly  ...
+program objects            the compiled user program
+user archives              the .a / .lib found in each -L package directory
+fly_std_lib                the standard library
+fly_runtime_lib            the runtime
+fly_tls_lib   (--tls only) the real TLS back end (+ -lssl -lcrypto) …
+fly_tls_stub               … ahead of the always-present stub
+-L <dir>                   search paths
+-lc -lm                    the C library
+--link-lib names           native libraries requested by the user
+compiler-rt builtins       arithmetic helpers (replaces libgcc)
 ```
 
-`ToolChain::BuildOutput()` detects `FrontendOpts.CreateLibrary == true`, compiles
-each `.fly` source to a `.o` object, then calls `Archiver::CreateLib()`
-(`fly/compiler/Basic/Archiver.h`) to pack them into `fly_std_lib.a`.
+`fly_std_lib` calls into `fly_runtime_lib`, which calls into the C library;
+reversing any pair produces unresolved symbols.
 
-**Phase 2 — user program link** (runs on every `fly myprog.fly -o myprog`):
+On Windows the tail of the command line is the mingw set — `-lmingw32`, the
+compiler-rt builtins, `-lmoldname -lmingwex -lmsvcrt`, then
+`-ladvapi32 -lshell32 -luser32 -lkernel32 -lntdll` — and `--tls` adds
+`-lsecur32 -lcrypt32` (Schannel) where Linux adds `-lssl -lcrypto`.
 
-`BuildOutput()` detects `CreateLibrary == false` and delegates to the
-platform-specific link function, which calls LLD in-process (see §19.3).
+The compiler-rt builtins archive is a hard requirement: when it cannot be found
+the link stops with `compiler-rt builtins not found` rather than failing later
+on a missing arithmetic helper.
 
-### 19.3 In-Process Linker: LLD
+### 19.5 Library discovery
 
-Fly does not shell out to an external `ld`. It calls **LLD** through its C++ API:
+A `fly` binary locates everything relative to **its own executable**:
 
-| Platform | LLD entry point | `ToolChain` function |
-|----------|----------------|----------------------|
-| Linux / ELF | `lld::elf::link()` | `LinkLinux()` |
-| macOS / Mach-O | `lld::macho::link()` | `LinkDarwin()` |
-| Windows / COFF | `lld::coff::link()` | `LinkWindows()` |
+| What | Default | Override |
+|------|---------|----------|
+| std and runtime archives, headers | `<exe>/../lib` | `--runtime-lib-dir <dir>` |
+| the linker | `<exe>/` then `PATH` | — |
+| mingw sysroot (Windows) | `<exe>/mingw` | `--mingw-sysroot <dir>` |
+| LLVM library for programs using the LLVM C API | `<exe>/llvm/lib` | `--llvm-lib-dir <dir>` |
 
-All three functions are in `fly/compiler/Driver/ToolChain.cpp`.
+There is no install prefix baked into the binary, so an installation can be
+moved or unpacked anywhere. The bootstrap relies on the same rule: stage 1 hard
+links the seed as `build/stage1/bin/fly0` so that it resolves `build/stage1/lib`
+instead of its own.
 
-### 19.4 Link Order
+### 19.6 The intrinsic namespaces: `fly.llvm` and `fly.runtime`
 
-Static archive symbols are only extracted when something earlier in the command
-line references them, so order matters:
-
-```
-user_objects.o          ← compiled user program
-fly_std_lib.a           ← stdlib (fly.os.io, fly.str, fly.math, …)
-fly_runtime_lib.a       ← runtime (fly_mem_alloc, fly_io_write, …)
--lc  -lm                ← libc / libm
-compiler-rt builtins    ← arithmetic and float helpers (replaces -lgcc)
-```
-
-Source: `ToolChain::LinkLinux()`, lines ~900–938 in `ToolChain.cpp`.
-
-**Why this order**: `fly_std_lib.a` calls symbols defined in `fly_runtime_lib.a`
-(e.g. `fly_mem_alloc`). The runtime in turn calls into libc (`malloc`, `write`,
-etc.). Reversing the order would cause unresolved-symbol errors at link time.
-
-For static executables (`--static` / `--static-pie`), LLD wraps the system
-libraries in `--start-group` / `--end-group` to handle circular references.
-
-### 19.5 Library Path Discovery
-
-`GetStdLibPath()` and `GetRuntimeLibPath()` use a two-level fallback:
-
-1. **Runtime auto-discovery** — at startup the Driver resolves
-   `<fly_binary>/../lib/` and stores the result in
-   `FrontendOpts.StdLibDir` / `CodeGenOpts.RuntimeLibDir`. This works for
-   installed binaries regardless of the install prefix.
-   Source: `fly/compiler/Driver/Driver.cpp`.
-
-2. **Compile-time baked path** — CMake defines `FLY_STD_LIB_DIR` and
-   `FLY_RUNTIME_LIB_DIR` pointing at `${CMAKE_BINARY_DIR}/lib`, used as the
-   fallback when the binary is run directly from the build tree.
-
-The lookup functions try each candidate directory and return the first path where
-the archive file exists.
-Source: `ToolChain.cpp:1386–1430`.
-
-### 19.6 Bridge Header Stubs: fly.llvm and fly.runtime
-
-Alongside the two archives, `build/lib/` also contains two hand-maintained
-declaration-only headers:
+Two namespaces are not ordinary libraries:
 
 | Header | Namespace | Purpose |
 |--------|-----------|---------|
-| `llvm.fly.h` | `fly.llvm` | LLVM intrinsic wrappers (direct IR calls) |
-| `runtime.fly.h` | `fly.runtime` | C runtime bridge: `malloc`, `free`, `memcpy`, syscall wrappers |
+| `llvm.fly.h` | `fly.llvm` | intrinsics the code generator expands inline: memory, pointer reads and writes, and the generic slot operations (`slotSizeT`, `slotPokeT`, `slotReadT`, `slotHashT`, `slotCmpT`, `slotFreeT`) that the containers are built on |
+| `runtime.fly.h` | `fly.runtime` | the C-ABI primitives implemented by `fly_runtime_lib` |
 
-Sources live in `fly/runtime/lib/`. They are **not** compiled into any `.a`:
-the stdlib imports them for type-checking only. The linker resolves the actual
-symbols against `fly_runtime_lib.a` and `-lc` at link time.
+`fly.llvm` has no object code at all: a call to one of its functions never
+becomes a call instruction. `fly.runtime` functions are emitted with the C
+calling convention and unmangled names, and their definitions live in the
+per-platform runtime source.
 
-These headers are copied to `build/lib/` by the `fly_runtime_lib_headers` CMake
-target defined in `fly/runtime/CMakeLists.txt`.
+Both are always written **fully qualified** (`fly.runtime.mem_alloc(...)`), are
+intended for the runtime and the standard library, and are the lowest layer of
+the unsafe surface of the language: nothing validates the addresses they are
+given.

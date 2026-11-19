@@ -131,8 +131,7 @@ The provenance of every shipped artifact, as of the next release (0.14.8):
 | `fly` (compiler + driver) | stage 1 `fly` | a self-host compiled by a self-host that the seed compiled |
 | `fly-lsp`, `fly-registry` | stage 2 `fly` | the compiler that ships |
 | standard library | stage 1 `fly` | built at stage 2 like the compiler; was the seed's build up to 0.14.7 |
-| runtime — Fly part | stage 1 `fly` | |
-| runtime — C primitives | **the seed's build** | object files carried over from the seed's runtime archive |
+| runtime | stage 1 `fly` | all Fly on every platform; on Linux it also carried C objects from the seed up to 0.14.7 |
 | `lldb`, `ld.lld`, LLVM | fork LLVM release | provisioned, not compiled |
 
 The seed still builds a standard library at stage 1, but only to link the
@@ -148,11 +147,14 @@ program and a library compiled separately would pick different slots. Every
 class now carries one table of methods per interface it implements, found by
 the interface's identity, which both sides of any boundary agree on.
 
-One row is not yet self-hosted: **the runtime keeps C objects from the seed.**
-The C primitives of the runtime have their sources in the 0.13.x repository
-only. The stage scripts keep those object files from the seed's archive and
-add the freshly compiled Fly runtime next to them as weak symbols, so the C
-definition wins where both exist.
+Nothing that ships is compiled by the seed any more. The last piece was the
+Linux runtime: up to 0.14.7 its archive kept the C primitives of the seed's
+runtime (sources only in the 0.13.x repository) next to the Fly runtime, made
+weak so the C definitions won. The Fly runtime defines every one of those
+primitives, and the self-hosted compiler lowers the runtime's atomic operations
+to LLVM atomic instructions instead of calls into a libatomic, so the stage 2
+archive is the Fly runtime alone. Stage 1 still links the seed's C objects:
+the seed compiles that runtime and cannot lower the atomics itself.
 
 ---
 
@@ -241,7 +243,6 @@ workflows without debug symbols, takes the version from
 These are properties of the bootstrap today, tracked in the
 [roadmap](@/docs/Fly-Roadmap.md):
 
-- **The runtime's C primitives come from the seed**, as described above.
 - **Linux stage 0 creates a symlink under `/usr/lib` with `sudo`** when the
   host has no LLVM 20, so the toolchain can find compiler-rt.
 - **Platforms.** CI builds Linux x86_64 and Windows x64; Linux aarch64 is

@@ -1470,7 +1470,7 @@ empty = {}
 
 // Array with values
 values = {1, 2, 3, 4, 5}
-matrix = {{1, 2}, {3, 4}}
+matrix = {% raw %}{{1, 2}, {3, 4}}{% endraw %}
 ```
 
 Each literal allocates its **own** reference-counted buffer, and a nested literal allocates one per level — `matrix` above is three buffers, the outer one holding the two rows. They are released like any other array (see [6.6](#6-6-allocation-and-lifetime)).

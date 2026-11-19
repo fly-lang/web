@@ -10,8 +10,7 @@ internal_level = "warn"
 external_level = "warn"
 
 [markdown.highlighting]
-highlight_code = true
-theme = "base16-ocean-dark"
+theme = "github-dark"
 
 [extra]
 github_org   = "https://github.com/fly-lang"

@@ -10,7 +10,8 @@
   --bg:         #ffffff;
   --bg-alt:     #f0f4ff;
   --border:     #dde3ff;
-  --code-bg:    #0d1117;
+  --code-bg:    #070b24;   // very dark navy
+  --code-bar:   #0d1436;
   --code-text:  #e6edf3;
   --nav-h:      64px;
   --font:       'Montserrat', system-ui, -apple-system, sans-serif;
@@ -207,11 +208,67 @@ a {
     align-items: stretch;
     padding: 0.5rem 1rem 1rem;
 
-    li a { padding: 0.65rem 0.5rem; }
+    box-shadow: 0 12px 24px rgba(7, 0, 102, 0.12);
+    max-height: calc(100vh - var(--nav-h));
+    overflow-y: auto;
+
+    li a { padding: 0.8rem 0.5rem; font-size: 1.05rem; }
     .nav-sep { border-left: none; border-top: 1px solid var(--border); margin: 0.5rem 0 0; padding: 0.5rem 0 0; }
   }
 
   .nav-toggle:checked ~ .nav-links { display: flex; }
+
+  // hamburger -> X
+  .nav-toggle:checked ~ .nav-toggle-label span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-toggle:checked ~ .nav-toggle-label span:nth-child(2) { opacity: 0; }
+  .nav-toggle:checked ~ .nav-toggle-label span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+}
+
+// ── Responsive tuning ─────────────────────────────────────────────────────────
+html { -webkit-text-size-adjust: 100%; }
+// grid children must be allowed to shrink below their content (wide <pre>)
+.highlight-grid > *, .feature-grid > *, .community-grid > *,
+.docs-index-grid > *, .footer-inner > *, .footer-nav > * { min-width: 0; }
+.code-window { max-width: 100%; }
+img { max-width: 100%; }
+// logos: keep the intended height (attribute alone is overridden by auto-sizing rules)
+.nav-logo img { height: 48px; width: auto; }
+@media (max-width: 700px) { .nav-logo img { height: 36px; } }
+.footer-brand img { height: 44px; width: auto; }
+body { overflow-x: hidden; }
+
+@media (max-width: 900px) {
+  .highlight-grid { gap: 2rem; }
+}
+
+@media (max-width: 600px) {
+  .hero-actions .btn { flex: 1 1 100%; justify-content: center; }
+
+  .features, .highlight, .cta { padding: 3rem 1rem; }
+  .feature-card { padding: 1.5rem; }
+  .highlight-text h2 { font-size: 1.6rem; }
+  .cta h2 { font-size: 1.8rem; }
+  .code-pre { font-size: 0.78rem; padding: 1rem; }
+
+  .page-hero { padding: 2rem 1rem; h1 { font-size: 1.8rem; } }
+  .page-body { padding: 2rem 1rem; h2 { font-size: 1.35rem; } }
+  .install-card { padding: 1.25rem; }
+  .install-btns .btn { flex: 1 1 100%; justify-content: center; }
+
+  .docs-index-card { padding: 1.4rem; }
+  .docs-layout { padding: 0 1rem; gap: 0; }
+  .docs-content {
+    padding: 1.5rem 0 3rem;
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.3rem; margin-top: 2rem; }
+    pre { font-size: 0.78rem; padding: 1rem; margin-left: -0.25rem; margin-right: -0.25rem; }
+    // wide tables scroll instead of stretching the page
+    table { display: block; overflow-x: auto; white-space: nowrap; }
+  }
+  .page-body table { display: block; overflow-x: auto; }
+  .footer-inner { padding: 2.5rem 1rem 2rem; }
+  .footer-bottom { padding: 1.25rem 1rem; }
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
@@ -222,7 +279,14 @@ a {
   // darker and darker towards the top, lighter sky towards the horizon
   background: linear-gradient(180deg, #01002b 0%, #070066 32%, #143aba 68%, #4583fb 100%);
   color: #fff;
-  padding: 7rem 1.5rem 11rem;
+  // fills exactly the visible viewport under the navbar (svh = small viewport,
+  // so mobile browser toolbars never push it off-screen); content scales by vw/vh
+  min-height: calc(100vh - var(--nav-h));
+  min-height: calc(100svh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 6vh, 5rem) clamp(1rem, 4vw, 1.5rem) clamp(7rem, 20vh, 11rem);
 
   // Stylised flat clouds along the bottom edge, filled with the colour of the
   // next section (--bg-alt = #f0f4ff) so the hero melts into it.
@@ -258,7 +322,20 @@ a {
   h1, .hero-sub { text-shadow: 0 2px 24px rgba(0, 0, 40, 0.35); }
 }
 
-@keyframes sky-drift-back  { to { background-position: -900px 100%; } }
+// landscape phones: very little height, so shrink the cloud band and spacing
+@media (max-height: 500px) {
+  :root { --nav-h: 48px; }
+  .nav-logo img { height: 32px; }
+  .hero { padding-top: 0.5rem; padding-bottom: 4.5rem; }
+  .hero::before { height: 90px; background-size: 540px 90px; }
+  .hero::after  { height: 70px; background-size: 510px 70px; }
+  .hero-text h1 { font-size: 2.6rem; margin-bottom: 0.25rem; }
+  .hero-sub { font-size: 1rem; margin-bottom: 0.75rem; }
+  .hero-actions { margin-bottom: 0.6rem; .btn { font-size: 0.95rem; padding: 0.5rem 1.4rem; } }
+  .hero-links { font-size: 0.9rem; }
+}
+
+@keyframes sky-drift-back { to { background-position: -900px 100%; } }
 @keyframes sky-drift-front { to { background-position: -800px 100%; } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -272,18 +349,18 @@ a {
 }
 
 .hero-text h1 {
-  font-size: 8rem;
+  font-size: clamp(3.2rem, min(15vw, 17vh), 8rem);
   font-weight: 900;
   line-height: 1;
   color: #fff;
-  margin-bottom: 1.25rem;
+  margin-bottom: clamp(0.5rem, 2.2vh, 1.25rem);
 }
 
 .hero-sub {
-  font-size: 1.9rem;
+  font-size: clamp(1.1rem, min(4.6vw, 3.6vh), 1.9rem);
   line-height: 1.4;
   max-width: 760px;
-  margin: 0 auto 2.5rem;
+  margin: 0 auto clamp(1.25rem, 4.5vh, 2.5rem);
   color: rgba(255,255,255,0.85);
 }
 
@@ -293,7 +370,7 @@ a {
   flex-wrap: wrap;
   justify-content: center;
   margin-bottom: 1.75rem;
-  .btn { font-size: 1.25rem; padding: 0.95rem 2.2rem; }
+  .btn { font-size: clamp(1rem, 2.6vh, 1.25rem); padding: clamp(0.7rem, 2vh, 0.95rem) clamp(1.5rem, 4vw, 2.2rem); }
 }
 
 .hero-links {
@@ -316,7 +393,7 @@ a {
   align-items: center;
   gap: 6px;
   padding: 0.7rem 1rem;
-  background: #161b22;
+  background: var(--code-bar);
 }
 
 .dot {
@@ -504,7 +581,7 @@ a {
   }
 
   pre {
-    background: var(--code-bg);
+    background: var(--code-bg) !important;  // wins over the highlighter's inline background
     color: var(--code-text);
     padding: 1.25rem;
     border-radius: 8px;
@@ -759,8 +836,15 @@ footer {
   @media (max-width: 900px) {
     position: static;
     max-height: none;
-    padding: 1.5rem 0 0;
+    padding: 1.5rem 0 1rem;
     border-bottom: 1px solid var(--border);
+
+    // docs pages as wrapping chips; the per-page TOC is dropped on small screens
+    .docs-nav { margin-bottom: 0.5rem; }
+    .docs-nav ul { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .docs-nav li { margin: 0; }
+    .docs-nav a { border: 1px solid var(--border); padding: 0.4rem 0.8rem; }
+    .docs-toc { display: none; }
   }
 }
 
@@ -841,7 +925,7 @@ footer {
   }
 
   pre {
-    background: var(--code-bg);
+    background: var(--code-bg) !important;  // wins over the highlighter's inline background
     color: var(--code-text);
     padding: 1.25rem;
     border-radius: 8px;

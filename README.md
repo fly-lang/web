@@ -40,7 +40,7 @@ This repository contains the source of [flylang.org](https://flylang.org), built
 
 | Layer | Tool |
 |-------|------|
-| Static site generator | [Zola](https://www.getzola.org/) 0.19+ |
+| Static site generator | [Zola](https://www.getzola.org/) 0.23+ |
 | Styles | SCSS (compiled by Zola) |
 | Hosting | [Cloudflare Pages](https://pages.cloudflare.com/) |
 | CI/CD | GitHub Actions |
@@ -61,7 +61,7 @@ snap install zola --edge
 
 **Linux (manual)**
 ```bash
-ZOLA_VERSION="0.19.2"
+ZOLA_VERSION="0.23.6"
 curl -sL "https://github.com/getzola/zola/releases/download/v${ZOLA_VERSION}/zola-v${ZOLA_VERSION}-x86_64-unknown-linux-gnu.tar.gz" | tar xz
 sudo mv zola /usr/local/bin/
 ```

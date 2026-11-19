@@ -78,9 +78,9 @@ enforces.
   to Fly; no object file is inherited from the seed.
 - **Stage 3**: the released compiler recompiles itself and the result is
   compared bit for bit — the fixpoint is demonstrated on every build. *(Runs on release builds since 0.14.7.)*
-- **Reproducible builds**: two clean builds produce identical artifacts.
+- **Reproducible builds**: two clean builds produce identical artifacts. *(Verified by hand on Linux and Windows on the 0.14.x branch; not yet checked automatically in CI.)*
 - **Debug information** from the self-host, so the bundled `lldb` resolves
-  source lines.
+  source lines. *(Lines, parameters and locals from 0.14.8; class fields still to come.)*
 - Bootstrap without elevated privileges; CI for **Linux aarch64**. macOS is out
   of scope for now: there is no Mac to test on and no macOS runner available to
   the project.

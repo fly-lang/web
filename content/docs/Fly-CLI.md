@@ -168,7 +168,8 @@ A selector that matches no suite or namespace is an error.
 | `--mcmodel <m>` | memory code model |
 | `--mthread-model <m>` | `posix` (default) or `single` — validated, not yet applied by the backend (a warning says so; silent in 0.14.6) |
 | `-static` / `-pie` | link-mode flags (ELF/Linux targets; ignored by the Windows linker) |
-| `--debug-symbols` | request DWARF debug symbols (no effect yet: the self-host emits none — a warning says so; silent in 0.14.6) |
+| `--debug-symbols` | emit DWARF: functions, files, source lines, parameters and locals (from 0.14.8; ignored with a warning in 0.14.7, silently in 0.14.6) |
+| `--debug-prefix-map=OLD=NEW` | write `NEW` instead of the directory prefix `OLD` in the DWARF file names (repeatable; the last match wins; `/` and `\` compare equal). Keeps the build machine's paths out of a debug build (from 0.14.8) |
 | `--trace-calls` | instrument every function entry/exit with [`fly.log`](@/docs/Fly-API.md) trace hooks (see below) |
 
 ### `--trace-calls`: function-call tracing
@@ -475,14 +476,27 @@ commands (Python scripting is intentionally off):
 lldb -b -o 'breakpoint set -f main.fly -l 3' -o run -o bt -o continue -- ./myprog
 ```
 
-**Current limits**, stated rather than hidden: the self-hosted compiler does
-not emit DWARF yet — `--debug-symbols` is accepted but produces no debug info.
-Today `lldb` gives **source-level** debugging (breakpoints by `file.fly:line`,
-stepping, variable inspection) for binaries compiled by the reference compiler
-with `--debug-symbols`, and for the toolchain's own debug CI builds; a
-self-host-compiled program debugs at the symbol/assembly level until DWARF
-emission lands. Debug info is tagged as C, so types and mangled method names
-read C-flavoured.
+**What the debug information covers**, from 0.14.8. A program compiled with
+`--debug-symbols` describes every function and method body, its file and the
+line of each statement, plus its parameters, its local variables and `this`.
+That gives breakpoints by `file.fly:line` or by function name, backtraces with
+file, line and argument values, `next`/`step`, and `frame variable`:
+
+| Fly type | Shown as |
+|---|---|
+| `bool`, integers, `float`, `double` | their value (`long` reads as `long long`: the info is tagged as C) |
+| `pointer` | an address |
+| `string` | `(data = "…", size = n)` |
+| arrays | `(data = 0x…, len = n)` |
+| enums | the entry index |
+| classes and structs | a pointer to the class (`Box *`) |
+
+**Current limits**, stated rather than hidden: the **fields** of a class are not
+described yet, so `p *this` shows nothing useful; and a string's bytes are not
+NUL-terminated, so a debugger prints `data` past its end — trust `size`
+(`p s.size`). A method is named by its own name, without its class. At `-O0` the
+back end runs without optimization so every statement keeps its own line. In
+0.14.7 and earlier the self-host emitted no debug information at all.
 
 #### `lldb-dap` — IDE debugging
 

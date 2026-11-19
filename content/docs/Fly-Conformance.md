@@ -128,10 +128,11 @@ distinguish overloads.
 The self-hosted compiler emits **no language warnings**: there is no report for
 an unused variable or import, a shadowed name or a `switch` fall-through.
 
-Three command-line options are accepted but have no effect yet:
-`--debug-symbols` (the self-host back end emits no debug information),
-`--ftime-report` and `--mthread-model`. In 0.14.6 they are ignored silently; from
-0.14.7 the driver prints a warning saying so, which `-w` suppresses.
+Two command-line options are accepted but have no effect yet: `--ftime-report`
+and `--mthread-model`. In 0.14.6 they are ignored silently; from 0.14.7 the
+driver prints a warning saying so, which `-w` suppresses. `--debug-symbols` was
+the third until 0.14.8, which emits DWARF (line tables, parameters and locals; not yet the fields of a
+class).
 
 ---
 

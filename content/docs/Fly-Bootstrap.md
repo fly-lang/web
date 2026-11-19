@@ -206,7 +206,7 @@ Useful switches, as environment variables:
 | `FLY_VERSION` | override the seed pin |
 | `FLY_BUNDLE_LLVM=1` | self-contained stage: LLVM, `ld.lld` and `lldb` copied next to `fly` (what CI and releases use) |
 | `FLY_STAGE1_TESTS=0` | skip the stage 1 suites |
-| `FLY_DEBUG_SYMBOLS=1` | DWARF in the stage 1 build (the seed emits it; the self-host does not yet) |
+| `FLY_DEBUG_SYMBOLS=1` | DWARF in every stage: the seed emits it at stage 1, the self-host from stage 2 |
 | `STAGE=1\|2` | select the stage for an individual `build_*` / `test_*` script |
 | `FLY=<path>` | test another compiler binary with a `test_*` script |
 
@@ -248,5 +248,7 @@ These are properties of the bootstrap today, tracked in the
 - **Platforms.** CI builds Linux x86_64 and Windows x64; Linux aarch64 is
   planned. macOS is not supported for now: its runtime is in the tree, but there
   is no Mac to test on and no macOS runner, so nothing builds or tests it.
-- **The self-host emits no debug information** yet; `--debug-symbols` is
-  accepted and has no effect on it.
+- **Debug information without class fields.** From 0.14.8 the self-host emits
+  DWARF with `--debug-symbols`: functions, files, source lines, parameters and
+  locals, enough for breakpoints, backtraces, stepping and `frame variable`. The
+  fields of a class are not described yet.

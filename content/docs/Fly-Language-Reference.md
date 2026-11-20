@@ -898,6 +898,38 @@ void main() {
 }
 ```
 
+#### `new unique`: one owner, released at the end of its scope
+
+From 0.15.0 a class instance can be created with **`new unique`**. The variable it
+initializes **owns** the object, and the compiler deletes it (as `delete` does:
+`free()`, release, null) when that variable's scope ends — on every exit, `return`,
+`fail` and `break` included. Nothing is written by hand and nothing leaks.
+
+```fly
+void process() {
+    Res r = new unique Res()   // r owns the object
+    use(r)                     // passing it to a call only LENDS it
+}                              // ← r deleted here
+
+Res make() {
+    Res r = new unique Res()
+    return r                   // the object MOVES to the caller, not deleted
+}
+```
+
+The owner can **move** the object, and the source is then left `null` (a later use
+stops on the null-reference trap):
+
+- into a new declaration: `Res b = a` — `b` now owns it;
+- out of the function: `return a` — the caller receives it (in this step the
+  caller's variable is not an owner: release it with `delete`).
+
+In this first step `new unique` must initialize a variable declaration, an owner
+cannot be reassigned, and it cannot be assigned to another variable or a field: those
+are compile-time errors, lifted when fields and reassignment gain ownership. A
+`struct` cannot be `new unique` (it is already a value on the stack). `new shared` and
+`new weak` are accepted by the parser and rejected for now.
+
 > **Transition.** A local initialized directly with `new` (`C x = new C()`) is still released automatically at the end of its scope when it has not escaped (passed to a call or assigned elsewhere) — only the object, not what its `free()` would release. `delete x` before the end of the scope makes that automatic release a no-op. In a later release a plain `new` will require `delete`, and automatic release will belong to `new unique`. Up to 0.14.x there was no `delete`: classes exposed `free()` and the caller invoked it.
 
 #### Strings: managed automatically

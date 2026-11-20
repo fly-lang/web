@@ -960,6 +960,34 @@ owning fields then leak; nothing is freed twice). A
 `struct` cannot be `new unique` (it is already a value on the stack). `new shared` and
 `new weak` are accepted by the parser and rejected for now.
 
+#### `new shared`: counted references
+
+From 0.15.0 a class instance created with **`new shared`** lives as long as it has a
+**holder**. The variable it initializes is the first holder; every copy into another
+holder counts one more, and each holder lets go at the end of its scope, on
+reassignment, with `= null` or with `delete`. When the last holder lets go the object is
+destroyed — `free()`, its owning fields, its memory.
+
+```fly
+void main() {
+    Res a = new shared Res()   // count 1
+    Res b = a                  // count 2: a copy, not a move
+    use(b)                     // passing it to a call only LENDS it
+    delete a                   // count 1: a is null, the object lives on in b
+}                              // ← b lets go: count 0, the object is destroyed
+```
+
+- A function that returns a holder (`return r`) hands its count to the caller, and
+  the variable that takes the result (`Res m = make()`) is a holder.
+- A holder takes only a `new shared` object, another holder, a held result or
+  `null`; it is copied only into another holder, a new declaration or a return.
+  Mixing it with `new unique` owners or plain references is a compile-time error.
+- `delete` on a holder releases **that** reference, not the object. Never `delete` a
+  shared object received as a plain (borrowed) reference.
+- The count lives in a 16-byte header in front of the object; it is **not atomic**:
+  do not share these objects between threads yet.
+- In this step holders are local variables; holding fields come next.
+
 > **Transition.** A local initialized directly with `new` (`C x = new C()`) is still released automatically at the end of its scope when it has not escaped (passed to a call or assigned elsewhere) — only the object, not what its `free()` would release. `delete x` before the end of the scope makes that automatic release a no-op. In a later release a plain `new` will require `delete`, and automatic release will belong to `new unique`. Up to 0.14.x there was no `delete`: classes exposed `free()` and the caller invoked it.
 
 #### Strings: managed automatically

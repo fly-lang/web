@@ -7,7 +7,7 @@ weight = 1
 
 # Fly Language Reference
 
-**Version:** 0.14.7  
+**Version:** 0.14.9  
 **Project:** [Fly Programming Language](https://flylang.org)  
 **License:** Apache License v2.0
 

@@ -1,6 +1,6 @@
 +++
 title = "Building Fly"
-description = "How Fly builds itself: the pinned C++ seed, the three bootstrap stages, what each shipped artifact is compiled by, the guards that run at every stage, and the known limits of the current bootstrap."
+description = "How Fly builds itself: the chain of pinned seeds (C++ up to 0.14.x, self-host from 0.15), the three bootstrap stages, what each shipped artifact is compiled by, the guards that run at every stage, and the known limits of the current bootstrap."
 template = "docs-page.html"
 weight = 7
 +++
@@ -14,26 +14,34 @@ the released toolchain is the **staged bootstrap**.
 
 This page describes the bootstrap as it is implemented in `ci/linux/*.sh` and
 `ci/windows/*.ps1` of the `release/0.14.X` branch. The scripts are the source of
-truth; the two platforms mirror each other step for step.
+truth; the two sets mirror each other step for step. The POSIX scripts serve
+both Linux x86_64 and macOS arm64 (from 0.14.9): what differs between the two
+systems is set once in `ci/linux/platform.sh`.
 
 ---
 
-## The two compilers
+## The chain of seeds
 
-| | Seed | Self-host |
-|---|---|---|
-| Branch | `release/0.13.X` | `release/0.14.X` |
-| Written in | C++ (LLVM, CMake) | Fly |
-| Role | compiles the 0.14.x tree **once**, at stage 1 | everything a user installs |
-| Ships | `bin/fly`, `llvm.fly.h`, `runtime.fly.h`, the C runtime archive | `fly`, `fly-lsp`, `fly-registry`, `lldb`, runtime, std |
-| Standard library | none | in-tree, `std/lib` |
+Each release series is built by one pinned seed, and each series has its own
+branch, so the whole chain can be rebuilt from sources in order:
 
-The seed is deliberately small. It has no standard library, no package manager
+| Series | Branch | Seed | Seed written in |
+|---|---|---|---|
+| 0.14.x | `release/0.14.X` | 0.13.19, the C++ reference (`release/0.13.X`) | C++ |
+| 0.15.x | `release/0.15.X` | **0.14.9**, the last 0.14.x release | Fly |
+
+From 0.15 the seed is the previous **self-host** release: the C++ compiler is
+frozen at 0.13.19 and only starts the chain from scratch (0.13.19 builds 0.14.x,
+whose 0.14.9 builds 0.15.x). The rest of this section describes the C++ seed of
+the 0.14.x series.
+
+The C++ seed is deliberately small. It has no standard library, no package manager
 and no test runner: it exists to turn the 0.14.x sources into a first working
 `fly`. The rule that follows from this is the **bootstrap subset**:
 
 > The sources under `compiler/`, `runtime/` and `std/lib` may only use syntax
 > the pinned seed can parse, because the seed compiles all of them at stage 1.
+> From 0.15 the limit is what the previous self-host release compiles.
 
 Language features that go beyond the seed are available to user programs and to
 the tools (which are built at stage 2), not to the compiler tree itself.
@@ -41,8 +49,10 @@ the tools (which are built at stage 2), not to the compiler tree itself.
 ### The seed pin
 
 The seed version is pinned in `ci/linux/stage0.sh` and `ci/windows/stage0.ps1`
-(`FLY_VERSION`, currently **0.13.18**). A seed is re-cut only when the tree needs
-something from it. The history of pins documents why each one was needed:
+(`FLY_VERSION`: **0.13.19** on `release/0.14.X`, **0.14.9** on `release/0.15.X`),
+with the SHA-256 of each platform's archive. A C++ seed was re-cut only when the
+tree needed something from it. The history of the C++ pins documents why each
+one was needed:
 
 | Seed | What it brought to the tree |
 |---|---|
@@ -52,6 +62,8 @@ something from it. The history of pins documents why each one was needed:
 | 0.13.16 | a generated `.fly.h` is a declaration file, with no `{}` stubs |
 | 0.13.17 | `.fly.h` is the only textual file in a lib directory (declarations + generic templates) |
 | 0.13.18 | `return expr` replaces the implicit `out` variable; every path must return; NRVO |
+| 0.13.19 | macOS arm64 (the language of 0.13.18) — the last C++ seed |
+| 0.14.9 | first self-host seed (`release/0.15.X`): stage 1 runs the same commands as stage 2 |
 
 `stage0` checks the installed seed with `--version` and replaces it when it does
 not match the pin; the swap is atomic, so a failed download never leaves a
@@ -62,7 +74,7 @@ machine without a seed.
 ## The stages
 
 ```text
-stage 0   download          seed fly 0.13.18  +  fork LLVM 20.1.8
+stage 0   download          seed fly (0.14.9 on 0.15.x)  +  LLVM 20.1.8
               │
 stage 1   seed compiles     runtime → std → compiler+driver  ──link──▶  build/stage1/bin/fly
               │             then stage1 fly rebuilds the std
@@ -243,11 +255,10 @@ workflows without debug symbols, takes the version from
 These are properties of the bootstrap today, tracked in the
 [roadmap](@/docs/Fly-Roadmap.md):
 
-- **Linux stage 0 creates a symlink under `/usr/lib` with `sudo`** when the
-  host has no LLVM 20, so the toolchain can find compiler-rt.
-- **Platforms.** CI builds Linux x86_64 and Windows x64; Linux aarch64 is
-  planned. macOS is not supported for now: its runtime is in the tree, but there
-  is no Mac to test on and no macOS runner, so nothing builds or tests it.
+- **Platforms.** CI builds Linux x86_64, Windows x64 and, from 0.14.9, macOS
+  arm64 (Apple Silicon), each through stage 3. Linux aarch64 (ARM 64-bit Linux)
+  is a later platform. On
+  macOS TLS has no backend yet (`tlsAvailable()` is `false`).
 - **Debug information without class fields.** From 0.14.8 the self-host emits
   DWARF with `--debug-symbols`: functions, files, source lines, parameters and
   locals, enough for breakpoints, backtraces, stepping and `frame variable`. The

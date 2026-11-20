@@ -81,14 +81,17 @@ enforces.
 - **Reproducible builds**: two clean builds produce identical artifacts. *(Verified by hand on Linux and Windows on the 0.14.x branch; not yet checked automatically in CI.)*
 - **Debug information** from the self-host, so the bundled `lldb` resolves
   source lines. *(Lines, parameters and locals from 0.14.8; class fields still to come.)*
-- Bootstrap without elevated privileges; CI for **Linux aarch64**. macOS is out
-  of scope for now: there is no Mac to test on and no macOS runner available to
-  the project.
-- The seed becomes the previous self-host release.
+- Bootstrap without elevated privileges. *(Done in 0.14.8.)*
+- **macOS arm64**: built and tested through stage 3 in CI, shipped from 0.14.9.
+  *(Done: seed 0.13.19 carries it.)*
+- **Linux aarch64** (ARM 64-bit Linux): a later platform, through the same chain
+  (LLVM, then a seed, then a self-host release).
+- The seed becomes the previous self-host release. *(Done: `release/0.15.X` is
+  seeded by 0.14.9.)*
 
-**Exit:** `stage2 == stage3` on the three supported targets (Linux x86_64 and
-aarch64, Windows x64); the release contains no artifact
-compiled by the C++ seed.
+**Exit:** `stage2 == stage3` on the three supported targets (Linux x86_64,
+Windows x64, macOS arm64); the release contains no artifact compiled by the C++
+seed.
 
 ## Phase 2 — A safe language
 

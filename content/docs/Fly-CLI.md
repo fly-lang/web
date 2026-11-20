@@ -328,6 +328,7 @@ Run from the directory holding the manifest.
 | `fly remove <name>` | drop a dependency and re-lock |
 | `fly why <name>` | explain why a package is in the graph |
 | `fly version` | the toolchain version |
+| `fly fmt [--check] <path>...` | lay out the `.fly` files under each path in the house style (from 0.14.9; see below) |
 
 Shared flags: `--release` (or `--profile <name>`) selects the profile, and
 `--force` bypasses the incremental cache.
@@ -336,6 +337,30 @@ Shared flags: `--release` (or `--profile <name>`) selects the profile, and
 > `publish`, `workspace`, `deploy`, `cache` and `doctor` are **not implemented**
 > in the self-hosted driver: `fly` rejects them as an unknown argument and exits
 > 1, rather than pretending to do something.
+
+### `fly fmt`
+
+`fly fmt` rewrites the layout of Fly sources and nothing else. It needs no
+manifest: give it files or directories (every `.fly` below a directory; never a
+`.fly.h`).
+
+- Every statement of a block starts on a line of its own and the closing `}`
+  stands alone, so one-line bodies are expanded, one level deeper than the line
+  of the block's `{`. An empty body (`{}`, an extern) is left as it is.
+- A parameter list on a line longer than 120 columns is broken after a comma,
+  continuation indented 8 more; when two lines are not enough, one parameter per
+  line.
+- No trailing whitespace, never two blank lines in a row, exactly one final
+  newline. A file keeps its line endings (LF or CRLF).
+
+Statement boundaries come from the parser, never from guessing: Fly needs no
+separator between two statements, so only the grammar can split `a()  b = 1`. A
+file that does not parse is left untouched, its errors are printed, and the exit
+code is 2. `--check` writes nothing: it lists the files that would change and
+exits 1 if there is any.
+
+Long calls, long conditions and long string literals are not broken: where to
+break them is a judgement call.
 
 ### The lockfile
 

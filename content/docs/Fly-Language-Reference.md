@@ -921,12 +921,42 @@ The owner can **move** the object, and the source is then left `null` (a later u
 stops on the null-reference trap):
 
 - into a new declaration: `Res b = a` — `b` now owns it;
-- out of the function: `return a` — the caller receives it (in this step the
-  caller's variable is not an owner: release it with `delete`).
+- into another owner: `b = a` deletes what `b` held, then `b` owns the object;
+- out of the function: `return a` — the caller receives it, and the variable that
+  takes the result (`Res m = make()`) **owns** it.
 
-In this first step `new unique` must initialize a variable declaration, an owner
-cannot be reassigned, and it cannot be assigned to another variable or a field: those
-are compile-time errors, lifted when fields and reassignment gain ownership. A
+An owner can also be **reassigned**: `a = new unique Res()`, `a = b` (another owner)
+or `a = make()` (an owned result) first delete what `a` held; `a = null` just deletes
+it. An owner takes nothing else — a plain `new` object or a borrowed reference would
+be deleted by someone who does not own it.
+
+**Owning fields.** A field that a method fills with `this.f = new unique C()` or with
+an owner (`this.f = x`) is an **owning field**: when the object is deleted — by
+`delete`, or because its own owner's scope ended — the compiler first calls the
+class's `free()`, then deletes every owning field, then releases the object. Assigning
+an owning field deletes what it held, exactly like an owner variable. **Reading** an
+owning field only **borrows** (`Res r = this.inner`, `return this.inner`): the field
+keeps the object. A class may own a field of its own type, so a linked list built
+with `new unique` nodes is deleted node by node.
+
+```fly
+public class Box {
+    Res inner
+    public Box() {
+        this.inner = new unique Res()   // inner is an owning field
+    }
+}
+
+void main() {
+    Box b = new unique Box()
+}   // ← b deleted: Box.free() (if any), then b.inner, then the Box
+```
+
+`new unique` must initialize a declaration or be assigned to an owner, and an owner
+moves only into another owner, a new declaration or a return — never into a plain
+variable: those are compile-time errors. Deleting an object through a base or
+interface type deletes only the owning fields that type declares (a subclass's own
+owning fields then leak; nothing is freed twice). A
 `struct` cannot be `new unique` (it is already a value on the stack). `new shared` and
 `new weak` are accepted by the parser and rejected for now.
 

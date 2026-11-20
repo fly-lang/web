@@ -106,26 +106,30 @@ self-host only.
 2. **Warnings.** Unused variables and imports, shadowing, unreachable code,
    lossy conversions, non-exhaustive `switch` over an enum.
 3. **Conversions.** Widening is implicit; narrowing needs an explicit cast.
-4. **Null safety.** Class references are non-null unless declared nullable, and
-   a nullable must be checked before use.
+4. **Null safety.** No new syntax: any class reference may be null, and every
+   use of a null one stops the program with a diagnostic, in every build. *(Done
+   in 0.15: the null trap.)*
 5. **Diagnosed traps.** Division by zero and a null dereference stop the
    program with a message and a source position, not a bare crash; integer
    overflow traps in debug builds.
 6. **`switch` without implicit fall-through.**
 7. **Deterministic release of resources**, replacing the "remember to call
-   `free()`" convention.
+   `free()`" convention. *(In 0.15: `delete`, `new unique`, `new shared` and
+   `weak h`; a plain `new` will require `delete` from the next release branch.)*
 8. **Operator precedence**: mixing bitwise, shift and comparison operators — or
    `&&` with `||` — without parentheses becomes an error instead of a surprise.
 9. **Strings**: escape sequences in ordinary literals, explicit raw literals,
    and a UTF-8 model with distinct byte and code-point APIs.
 10. **Generics**: generic methods, explicit type arguments, and internal calls
     inside generic classes.
-11. **An `unsafe` boundary** around raw memory, pointer arithmetic and the
-    runtime intrinsics.
+11. **Privileged namespaces** instead of an `unsafe` keyword: `fly.llvm` and
+    `fly.runtime` are callable only from the standard library and the toolchain;
+    user code reaches raw memory through `fly.mem`. *(Done in 0.15.)*
 12. Then power: first-class functions and closures, bounded generic
     interfaces, pattern matching over enums.
 
-**Exit:** no undefined or unchecked behaviour is reachable outside `unsafe`.
+**Exit:** no undefined or unchecked behaviour is reachable from user code except
+through `fly.mem`.
 
 ## Phase 3 — A coherent standard library
 
@@ -171,6 +175,6 @@ uniformity.
 - The stage 3 fixpoint holds on every supported target.
 - The specification, the conformance suite and the compiler agree, with no
   undocumented divergence.
-- No unchecked behaviour is reachable outside `unsafe`.
+- No unchecked behaviour is reachable from user code except through `fly.mem`.
 - The standard library uses a single error model.
 - The documentation is generated from, and verified against, the sources.

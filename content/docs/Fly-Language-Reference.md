@@ -957,8 +957,7 @@ moves only into another owner, a new declaration or a return — never into a pl
 variable: those are compile-time errors. Deleting an object through a base or
 interface type deletes only the owning fields that type declares (a subclass's own
 owning fields then leak; nothing is freed twice). A
-`struct` cannot be `new unique` (it is already a value on the stack). `new shared` and
-`new weak` are accepted by the parser and rejected for now.
+`struct` cannot be `new unique` (it is already a value on the stack).
 
 #### `new shared`: counted references
 
@@ -984,13 +983,48 @@ void main() {
   Mixing it with `new unique` owners or plain references is a compile-time error.
 - `delete` on a holder releases **that** reference, not the object. Never `delete` a
   shared object received as a plain (borrowed) reference.
-- The count lives in a 16-byte header in front of the object; it is **not atomic**:
-  do not share these objects between threads yet.
+- The count lives in a 16-byte header in front of the object (with the weak count, see
+  below); it is **not atomic**: do not share these objects between threads yet.
 - **Holding fields.** A field a method fills with `this.f = new shared C()` or with a
   holder is a holding field: assigning it releases what it held, copying it
   (`Res c = this.f`) counts one more holder (and a method that returns that copy
   hands the count to its caller), and destroying the object releases it — the shared
   object survives the container while another holder has it.
+
+#### `weak h`: observing without holding
+
+From 0.15.0 a **weak reference** observes a `new shared` object without keeping it
+alive. It does not create anything: it is made from a holder with **`weak h`**.
+
+```fly
+void main() {
+    Res h = new shared Res()   // creation: h is the first holder
+    Res w = weak h             // link: w observes h's object, the count stays 1
+    if w != null {
+        w.use()                // while a holder has it, w reads as the object
+    }
+    h = null                   // last holder gone: the object is destroyed
+    if w == null {
+        // … and every weak reference to it now reads null
+    }
+}
+```
+
+- Every read of a weak variable or field yields the object while it lives and `null`
+  once its last holder has let go, so a use after that stops on the null trap
+  instead of touching a destroyed object.
+- `weak` takes a holder or another weak reference, and it must initialize a
+  declaration or be assigned to a weak variable or field; a weak variable takes only
+  `weak h` or `null`. `new weak C()` is a compile-time error.
+- Copying a weak reference into a holder **promotes** it: `Res p = w` is a holder that
+  counts one more (or is `null`, if the object has gone).
+- **Weak fields.** A field a method fills with `this.f = weak h` is a weak field: the
+  typical use is the back reference of a parent/child pair (the parent holds the child,
+  the child observes the parent), which a pair of holding fields would keep alive
+  forever.
+- The 16-byte header in front of a shared object keeps two counts — holders and weak
+  references. The object is destroyed with its last holder; the header is freed when
+  the last weak reference has gone too.
 
 > **Transition.** A local initialized directly with `new` (`C x = new C()`) is still released automatically at the end of its scope when it has not escaped (passed to a call or assigned elsewhere) — only the object, not what its `free()` would release. `delete x` before the end of the scope makes that automatic release a no-op. In a later release a plain `new` will require `delete`, and automatic release will belong to `new unique`. Up to 0.14.x there was no `delete`: classes exposed `free()` and the caller invoked it.
 
@@ -1109,15 +1143,14 @@ String **literals** inside an array literal are unaffected: they are stored as p
 | an array's **elements** | wherever they came from | never the array — each object is freed by whoever is responsible for it |
 | `C[3] cells` (array of classes) | heap buffer + one `new C()` per index | the buffer automatically; the **instances** by the class convention |
 
-#### Planned: ownership qualifiers (not yet implemented)
+#### Ownership qualifiers at a glance
 
-The language design reserves smart-pointer **ownership qualifiers** — `new unique`, `new shared`, and `new weak` — to make heap lifetimes automatic for classes:
-
-- **`unique`** — exclusive ownership; freed automatically at scope exit; copying is a compile error.
-- **`shared`** — reference-counted (`[i64 refcount | data]` block); freed when the count reaches 0.
-- **`weak`** — untracked alias; no reference count.
-
-> ⚠️ **These qualifiers are not accepted by the current parser.** The corresponding code paths exist in the compiler internals but cannot yet be reached from source — `new unique T()` / `new shared T()` / `new weak T()` will not parse today. Until they are wired up, use plain `new` plus the conventions in the summary table above. This subsection documents intended future behaviour only.
+| Form | Who frees the object | Copy `C y = x` |
+|------|----------------------|----------------|
+| `new C()` | `delete x` (transition: automatic at scope end if it did not escape) | an alias, nothing counted |
+| `new unique C()` | the owner, at the end of its scope (or `delete`) | a **move**: `x` is left null |
+| `new shared C()` | the last holder | one more holder |
+| `weak h` | never — it only observes a shared object | a holder (promotion) |
 
 ### 6.7 Generics
 
@@ -2994,7 +3027,7 @@ switch      test        true        uint        ulong
 unset       ushort      void        while
 ```
 
-> `this` is **not** a reserved keyword (see [Section 2.1](#2-1-keywords)); `delete` is one from 0.15.0. Neither is `out`, which is now an ordinary identifier — the standard library still uses it as a parameter name for C-ABI output parameters.
+> `this` is **not** a reserved keyword (see [Section 2.1](#2-1-keywords)); `delete` is one from 0.15.0. Neither is `out`, which is now an ordinary identifier — the standard library still uses it as a parameter name for C-ABI output parameters. The ownership qualifiers `unique`, `shared` and `weak` are contextual: they mean something only after `new` (`unique`, `shared`) or in front of a holder (`weak h`), and remain usable as names.
 
 ---
 

@@ -72,7 +72,7 @@ unset       ushort      void        while
 
 > **`this`** is *not* a reserved keyword either — it is a special identifier available inside instance methods that refers to the current object (e.g. `this.value`). See [Section 6.4](#6-4-class-members).
 
-> **`delete`** is **not** a keyword in Fly. It is an ordinary identifier (the standard library uses it as a regular method name, e.g. `fs.delete(path)`). Heap memory is managed automatically — see [Section 6.6](#6-6-allocation-and-lifetime).
+> **`delete`** is a keyword from 0.15.0: the statement `delete x` releases an object created with `new` (see [Section 6.6](#6-6-allocation-and-lifetime)). From 0.15.0 **no reserved word can be used as a declared name** (variable, parameter, field, method, function, class): `int delete = 3` and `int while = 3` are errors. `fs.delete` and `env.delete` became `fs.del` and `env.del`. Up to 0.14.x `delete` was an ordinary identifier.
 
 ### 2.2 Identifiers
 
@@ -524,7 +524,7 @@ Stat statOf(const string path) {
 }
 ```
 
-**Writing into a value you are about to return.** An intrinsic that fills an output parameter needs a local to fill, which the return then hands back:
+**Writing into a value you are about to return.** An intrinsic that fills an output parameter needs a local to fill, which the return then hands back (this is standard-library code: from 0.15.0 `fly.llvm` can only be called from a `fly.*` namespace, see [Section 10.4](#10-4-reserved-namespaces)):
 
 ```fly
 public int size() {
@@ -859,7 +859,7 @@ int count = Person.getCount()    // count = 1
 
 ### 6.6 Allocation and Lifetime
 
-The `new` keyword allocates a new instance. Where the memory comes from — and how it is reclaimed — depends on whether the type is a `struct` or a `class`. Fly has **no** `delete` operator.
+The `new` keyword allocates a new instance. Where the memory comes from — and how it is reclaimed — depends on whether the type is a `struct` or a `class`. A class instance is released with `delete` (from 0.15.0).
 
 #### Struct: stack-allocated, freed automatically
 
@@ -875,21 +875,30 @@ void process() {
 }   // ← p released automatically when the scope exits
 ```
 
-#### Class: heap-allocated, freed by convention
+#### Class: heap-allocated, released with `delete`
 
-A `new` on a `class` allocates on the **heap** (`malloc(sizeof(T))`). The current compiler does **not** insert an automatic free for a plain class allocation and there is no `delete` operator, so a class that owns resources should expose its own `free()` method (an ordinary `void` method) that the caller invokes when done. This is exactly the convention used throughout the standard library.
+A `new` on a `class` allocates on the **heap** (`malloc(sizeof(T))`). From 0.15.0 the object is released with **`delete x`**, which:
+
+1. does nothing when `x` is `null`;
+2. calls the class's `free()` method, when it declares one with no parameters (its own or inherited) — that is where a class releases what it owns, such as a buffer;
+3. releases the object itself;
+4. sets `x` to `null`, so a second `delete x` is harmless and a later use of `x` stops on the null-reference trap instead of reading freed memory.
+
+The target must be a variable, a parameter or a field holding a class or interface reference; it cannot be `this`, a `struct` or a `const` variable.
 
 ```fly
 import fly.data.List
 
 void main() {
-    List l = new List()     // ← heap allocation
+    List<int> l = new List<int>()     // ← heap allocation
     l.add(1)
     l.add(2)
     // … use l …
-    l.free()                // ← release via the class's own free() method
+    delete l                          // ← l.free(), then the object, then l = null
 }
 ```
+
+> **Transition.** A local initialized directly with `new` (`C x = new C()`) is still released automatically at the end of its scope when it has not escaped (passed to a call or assigned elsewhere) — only the object, not what its `free()` would release. `delete x` before the end of the scope makes that automatic release a no-op. In a later release a plain `new` will require `delete`, and automatic release will belong to `new unique`. Up to 0.14.x there was no `delete`: classes exposed `free()` and the caller invoked it.
 
 #### Strings: managed automatically
 
@@ -999,7 +1008,7 @@ String **literals** inside an array literal are unaffected: they are stored as p
 | Expression | Memory | Reclaimed by |
 |---|---|---|
 | `struct S = new S()` | stack (alloca) | automatic at scope exit |
-| `class C = new C()` | heap (malloc) | call the class's own `free()` method by convention |
+| `class C = new C()` | heap (malloc) | `delete x` (calls `free()`, releases, sets `x` to null) |
 | `string s = …` (non-const, initialized) | heap | automatic at scope exit; reassignment frees the old buffer |
 | `const string s = …` | static/null | nothing to free |
 | `int[] xs = …` / `int[3] xs` | heap, `[refcount \| elements]` | reference counted: released at scope exit, freed when the last owner goes |
@@ -2251,6 +2260,30 @@ void main() {
 
 ---
 
+### 10.4 Reserved namespaces
+
+From 0.15.0, two namespaces of the standard library are **reserved to the standard
+library and the toolchain** — that is, to modules whose namespace is `fly` or starts
+with `fly.`:
+
+- `fly.llvm.*` — compiler intrinsics (raw string and pointer access, atomics, …);
+- `fly.runtime.*` — the operating-system primitives under the std.
+
+A call to either from any other module is an error:
+
+```text
+main.fly:2:17: error: 'fly.runtime.proc_exit' can only be called from the standard library
+(namespace fly.*): use fly.mem or a std function
+```
+
+User code reaches raw memory through **`fly.mem`**, and everything else through a std
+function that wraps the primitive; what is missing is added to the std as a wrapper.
+The unsafe code of a program is therefore found by searching for its calls to
+`fly.mem`. Generic templates of the std (`List<T>`, …) keep using `fly.llvm`
+internally: their bodies are std code wherever they are instantiated.
+
+---
+
 ## 11. Modifiers
 
 ### 11.1 Visibility Modifiers
@@ -2850,12 +2883,14 @@ private void processNumber(const int num) {
 
 ## Appendix A: Reserved Keywords
 
-All keywords are reserved and cannot be used as identifiers:
+All keywords are reserved and cannot be used as declared names (variables, parameters,
+fields, methods, functions, classes) — enforced from 0.15.0:
 
 ```
 abstract    as          bool        break       byte
 case        char        class       const       continue
-default     double      else        elsif       enum
+default     delete      double      else        elsif
+enum
 error       fail        false       final       float
 for         handle      if          import      in
 int         interface   long        namespace   new
@@ -2865,7 +2900,7 @@ switch      test        true        uint        ulong
 unset       ushort      void        while
 ```
 
-> `this` and `delete` are **not** reserved keywords (see [Section 2.1](#2-1-keywords)); neither is `out`, which is now an ordinary identifier — the standard library still uses it as a parameter name for C-ABI output parameters.
+> `this` is **not** a reserved keyword (see [Section 2.1](#2-1-keywords)); `delete` is one from 0.15.0. Neither is `out`, which is now an ordinary identifier — the standard library still uses it as a parameter name for C-ABI output parameters.
 
 ---
 

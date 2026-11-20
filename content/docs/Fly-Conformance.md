@@ -145,8 +145,9 @@ class).
 | Signed integer overflow | Not checked. Wraps: `2147483647 + 1` is `-2147483648`. |
 | Integer division by zero | Not checked. The process terminates abnormally, with no message. |
 | Method call or field access on a class or interface reference that is `null` or was never assigned | **Checked from 0.15.0, in every build** (release included): the program stops with `error 134: null reference: calling 'size' on a null 'Box' at main.fly:16:5` (or `accessing field 'v' of …`) and exit code 134. Calls through `this` are not checked: the caller already did. Up to 0.14.x: segmentation fault, with no message. |
-| Use of an object after its `free()` | Not checked. |
-| A class instance whose `free()` is never called | Leaks. There is no garbage collector. |
+| Use of an object after `delete x` | **Checked from 0.15.0** through the same variable: `delete` sets it to `null`, so a later use stops on the null-reference trap. Another variable that still points at the object is not checked. |
+| Use of an object after calling its `free()` directly | Not checked. |
+| A class instance that is never deleted | Leaks, unless it is a local created with `new` that has not escaped: that one is released at the end of its scope (transitional, see the Language Reference §6.6). There is no garbage collector. |
 | A `string` | Released automatically at scope exit and on reassignment. |
 | A `struct` | Stack storage, released at scope exit. |
 

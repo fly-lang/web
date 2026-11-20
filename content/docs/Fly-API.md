@@ -492,7 +492,10 @@ import fly.mem
 
 > `fly.mem` is **unsafe by nature**: nothing checks that an address is valid,
 > that an offset stays inside the block, or that a block is freed once. Prefer
-> the `fly.data` containers and `string` in application code.
+> the `fly.data` containers and `string` in application code. It is also the
+> **only** raw-memory module user code may call: from 0.15.0 `fly.llvm` and
+> `fly.runtime` are reserved to the standard library (Language Reference §10.4),
+> so searching a program for `fly.mem` finds all of its unsafe code.
 
 ### Allocation
 
@@ -614,11 +617,12 @@ public void set(const string key, const string value)
 ```
 Sets `key` to `value`, overwriting any existing value.
 
-#### `delete`
+#### `del`
 ```fly
-public void delete(const string key)
+public void del(const string key)
 ```
-Removes `key` from the environment. No-op if not present.
+Removes `key` from the environment. No-op if not present. Named `del` from 0.15.0
+(it was `delete`, a keyword from 0.15.0).
 
 #### `all`
 ```fly
@@ -935,11 +939,12 @@ public void chmod(const string path, const int mode)
 ```
 Changes the permission bits of `path` (e.g. `0644` = `420`).
 
-#### `delete`
+#### `del`
 ```fly
-public void delete(const string path)
+public void del(const string path)
 ```
-Removes the file or empty directory at `path`.
+Removes the file or empty directory at `path`. Named `del` from 0.15.0 (it was
+`delete`, a keyword from 0.15.0).
 
 #### `copy`
 ```fly

@@ -986,7 +986,11 @@ void main() {
   shared object received as a plain (borrowed) reference.
 - The count lives in a 16-byte header in front of the object; it is **not atomic**:
   do not share these objects between threads yet.
-- In this step holders are local variables; holding fields come next.
+- **Holding fields.** A field a method fills with `this.f = new shared C()` or with a
+  holder is a holding field: assigning it releases what it held, copying it
+  (`Res c = this.f`) counts one more holder (and a method that returns that copy
+  hands the count to its caller), and destroying the object releases it — the shared
+  object survives the container while another holder has it.
 
 > **Transition.** A local initialized directly with `new` (`C x = new C()`) is still released automatically at the end of its scope when it has not escaped (passed to a call or assigned elsewhere) — only the object, not what its `free()` would release. `delete x` before the end of the scope makes that automatic release a no-op. In a later release a plain `new` will require `delete`, and automatic release will belong to `new unique`. Up to 0.14.x there was no `delete`: classes exposed `free()` and the caller invoked it.
 

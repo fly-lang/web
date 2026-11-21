@@ -57,7 +57,7 @@ Fly reserves the following keywords:
 
 ```
 abstract    as          bool        break       byte
-case        char        class       const       continue
+case        class       const       continue
 default     double      else        elsif       enum
 error       fail        false       final       float
 for         handle      if          import      in
@@ -110,15 +110,19 @@ true        // boolean true
 false       // boolean false
 ```
 
-#### 2.3.3 Character Literals
+#### 2.3.3 Characters
+
+Fly has no character type and no character literal (from 0.15.0 `char` is not
+even a keyword): a character is a **string of one character**, written `"a"`.
+The functions of `fly.str` that work on characters count Unicode code points,
+not bytes: `charAt`, `charCount`, `chars`, `charCode` and `fromCharCode`.
 
 ```fly
-'a'         // character
-'Z'         // uppercase character
+string first = str.charAt("héllo", 1)      // "é" (2 bytes, 1 character)
+int n = str.charCount("héllo")             // 5
+int code = str.charCode("é", 0)            // 233
+string e = str.fromCharCode(233)           // "é"
 ```
-
-> Character literals are reserved syntax: the 0.15 compiler does not accept them
-> in expressions yet. Use a one-character string, or the byte value.
 
 #### 2.3.4 String Literals
 
@@ -148,8 +152,9 @@ to the closing `"""` is its text, backslashes, quotes and newlines included.
 `fly fmt` leaves the lines of a raw literal untouched.
 
 Strings are sequences of **bytes** (`str.len`, `str.byteAt`, `str.substring`
-count bytes); text is UTF-8, read by code point with `str.runeAt`,
-`str.runeLen`, `str.runeCount` and `str.fromRune` (see the API reference).
+count bytes); text is UTF-8, read by character (code point) with `str.charAt`,
+`str.charCount`, `str.chars`, `str.charCode` and `str.fromCharCode` (see §2.3.3
+and the API reference).
 
 > Up to 0.14.x every literal was raw: `"\n"` was the two characters `\` and
 > `n`, and a line break had to be written with `io.printLn` or a byte.
@@ -281,7 +286,6 @@ double precise = 3.14159265359
 | Type     | Description                                          |
 |----------|------------------------------------------------------|
 | `bool`   | Boolean type (true or false)                         |
-| `char`   | Character type                                       |
 | `string` | String type (heap-managed, see [§6.6](#6-6-allocation-and-lifetime)) |
 | `error`  | Error type for error handling                        |
 | `void`   | Absence of a value — used only as a function return type |
@@ -289,7 +293,6 @@ double precise = 3.14159265359
 **Examples:**
 ```fly
 bool isActive = true
-char letter = 'A'
 string name = "Fly"
 ```
 
@@ -1426,7 +1429,6 @@ void setColor(const Color c) {
 42              // integer literal
 3.14            // float literal
 true            // boolean literal
-'c'             // character literal
 "string"        // string literal
 null            // null literal
 ```
@@ -2717,7 +2719,7 @@ Type            ::= BuiltinType
                   | NamedType 
                   | ArrayType
 
-BuiltinType     ::= 'void' | 'bool' | 'byte' | 'char' 
+BuiltinType     ::= 'void' | 'bool' | 'byte' 
                   | 'short' | 'ushort' | 'int' | 'uint' 
                   | 'long' | 'ulong' | 'float' | 'double' 
                   | 'string' | 'error'
@@ -3114,7 +3116,7 @@ fields, methods, functions, classes) — enforced from 0.15.0:
 
 ```
 abstract    as          bool        break       byte
-case        char        class       const       continue
+case        class       const       continue
 default     delete      double      else        elsif
 enum
 error       fail        false       final       float

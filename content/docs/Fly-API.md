@@ -170,31 +170,79 @@ string s = str.fromBytes(buf, n)
 
 ---
 
-### UTF-8
+### Characters
 
-A string is a sequence of **bytes**: `len`, `byteAt` and `substring` count bytes.
-Text is UTF-8, and these functions read it by **code point** ("rune"), from
-0.15.0. A byte that does not start a valid sequence — a stray continuation byte,
-an overlong form, a surrogate, a value past `10FFFF`, a truncated sequence — is
-read as one rune, U+FFFD, of length 1, so a loop that advances by `runeLen` visits
-every byte exactly once.
+Fly has no character type: a character is a **string of one character**. A
+string is a sequence of bytes (`len`, `byteAt`, `substring`, `indexOf` count
+bytes); its text is UTF-8, and these functions count **characters** — Unicode
+code points, 1 to 4 bytes each — from 0.15.0. A byte that does not start a valid
+UTF-8 sequence (a stray continuation byte, an overlong form, a surrogate, a value
+past `10FFFF`, a truncated sequence) is one character of one byte, read as U+FFFD.
 
 ```fly
-public int    runeLen(const string s, const int at)    // bytes of the rune at byte `at` (1-4; 0 past the end)
-public int    runeAt(const string s, const int at)     // its code point (U+FFFD if invalid; -1 past the end)
-public int    runeCount(const string s)                // number of runes
-public bool   isUtf8(const string s)                   // every byte part of a valid sequence?
-public string fromRune(const int r)                    // UTF-8 encoding of a code point
+public int          charCount(const string s)             // number of characters
+public string       charAt(const string s, const int i)   // character i as a string ("" past the end)
+public List<string> chars(const string s)                 // every character, in order
+public int          charCode(const string s, const int i) // code point of character i (-1 past the end)
+public string       fromCharCode(const int cp)            // the character with that code point
+public bool         isUtf8(const string s)                // every byte part of a valid sequence?
+public string       reverse(const string s)               // characters in reverse order
+public string       padLeft(const string s, const int width, const string fill)
+public string       padRight(const string s, const int width, const string fill)
 ```
 
+`charAt` and `charCode` scan the string from the start (UTF-8 has no fixed
+width): to visit every character, iterate over `chars(s)`. `padLeft` and
+`padRight` count characters: `str.padLeft("7", 3, "0")` is `"007"`; a fill of
+several characters is repeated and cut to the width; an empty fill changes
+nothing.
+
 ```fly
-string s = "caf\u{E9}"            // 5 bytes, 4 runes
+List<string> cs = str.chars("caf\u{E9}")   // "c", "a", "f", "é"
 int i = 0
-while i < str.len(s) {
-    int r = str.runeAt(s, i)       // 99, 97, 102, 233
-    i = i + str.runeLen(s, i)
+while i < (int)cs.size() {
+    string c = cs.get(i)
+    i = i + 1
 }
 ```
+
+### Split, join, compare, search
+
+```fly
+public List<string> split(const string s, const string sep)
+public string       join(const List<string> parts, const string sep)
+public int          compare(const string a, const string b)
+public int          indexOfFrom(const string src, const string sub, const int from)
+public string       replaceFirst(const string src, const string from, const string to)
+```
+
+- `split` keeps empty parts (`"a,,b"` → `"a"`, `""`, `"b"`; `""` → one empty
+  part); an empty `sep` splits into characters.
+- `join` puts `sep` between each two parts.
+- `compare` returns `-1`, `0` or `1`, byte by byte — for UTF-8 text, the order of
+  the code points; a prefix sorts first.
+- `indexOfFrom` is `indexOf` starting at byte `from`.
+- `replaceFirst` replaces only the first occurrence (`replace` replaces all).
+
+### Parsing
+
+```fly
+public long toLong(const string s, int errOut)
+public int  toInt(const string s, int errOut)
+```
+
+The decimal integer `s` spells: an optional sign, then digits, nothing else (no
+blanks). `errOut`: `0` ok, `1` not a number, `2` out of the range of the type;
+on an error the result is `0`.
+
+```fly
+int e = 0
+int port = str.toInt("8080", e)       // 8080, e = 0
+int bad = str.toInt("80a", e)         // 0, e = 1
+```
+
+> Floating-point parsing and formatting (`toDouble`, a `double` → `string`
+> conversion) are not in the standard library yet.
 
 ---
 

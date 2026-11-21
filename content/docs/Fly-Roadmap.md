@@ -129,7 +129,8 @@ self-host only.
    *(Done in 0.15.)*
 9. **Strings**: escape sequences in ordinary literals, explicit raw literals,
    and a UTF-8 model with distinct byte and code-point APIs. *(Done in 0.15:
-   C escapes plus `\xHH` and `\u{…}`, raw `"""…"""`, `str.rune*`.)*
+   C escapes plus `\xHH` and `\u{…}`, raw `"""…"""`, character functions in `fly.str` (`charAt`, `chars`, …);
+   no `char` type: a character is a one-character string.)*
 10. **Generics**: generic methods, explicit type arguments, and internal calls
     inside generic classes.
 11. **Privileged namespaces** instead of an `unsafe` keyword: `fly.llvm` and

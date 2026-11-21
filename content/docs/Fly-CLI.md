@@ -224,9 +224,32 @@ with and without the flag.
 | `--log-file <f>` | log every diagnostic to `<f>` |
 | `--log-format <fmt>` | diagnostics log format: `txt` (default) or `json` |
 | `--ftime-report` | no effect yet (a warning says so; silent in 0.14.6) — use `--print-stats` |
-| `-w`, `--no-warning` | suppress warnings; today these are the driver's "no effect yet" notes |
+| `-w`, `--no-warning` | report no warning (the compiler's and the driver's "no effect yet" notes) |
+| `--warnings-as-errors` | a warning fails the build like an error (from 0.15.0) |
+| `--no-warn=<name>` | switch off one warning, by the name shown after its message: `unused-variable`, `shadow`, `header-private` (repeatable; from 0.15.0) |
 | `--version` | print the version |
 | `--help` | full usage |
+
+### Warnings
+
+From 0.15.0 the compiler reports code that is valid but probably not what was
+meant. A warning never stops the build (unless `--warnings-as-errors`), and its
+message ends with its name in brackets:
+
+```
+main.fly:8:9: warning: unused variable 'count' [unused-variable]
+main.fly:5:13: warning: 'total' shadows the local variable of the same name declared in an enclosing scope [shadow]
+```
+
+| Name | Reported when |
+|---|---|
+| `unused-variable` | a local variable that no name ever refers to, at the end of its block. Not reported for a name starting with `_` (unused on purpose: `bool _ok = table.insert(x)`) nor for a `new unique` owner or `new shared` holder, whose scope alone gives it a job |
+| `shadow` | a local variable that hides a local variable or a parameter of an enclosing scope |
+| `header-private` | a private declaration shipped as readable source in a `.fly.h` because a generic template uses it |
+
+Warnings are about the code being compiled: none is reported inside a shipped
+`.fly.h` header, including the generic code instantiated from one. The Fly tree
+builds its own libraries and tools with `--warnings-as-errors`.
 
 ---
 

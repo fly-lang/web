@@ -104,7 +104,10 @@ self-host only.
    This is the most consequential change on the roadmap and will be introduced
    behind an edition switch.
 2. **Warnings.** Unused variables and imports, shadowing, unreachable code,
-   lossy conversions, non-exhaustive `switch` over an enum.
+   lossy conversions, non-exhaustive `switch` over an enum. *(In 0.15: the
+   warning machinery — `--warnings-as-errors`, `--no-warn=<name>` — with
+   `unused-variable` and `shadow`; code after a `return` is already an error.
+   Still to come: unused imports, lossy conversions, non-exhaustive `switch`.)*
 3. **Conversions.** Widening is implicit; narrowing needs an explicit cast.
 4. **Null safety.** No new syntax: any class reference may be null, and every
    use of a null one stops the program with a diagnostic, in every build. *(Done

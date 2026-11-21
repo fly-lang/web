@@ -1725,42 +1725,47 @@ if (condition) doSomething()
 **Syntax:**
 ```
 SwitchStmt  ::= 'switch' [ '(' ] Expression [ ')' ] '{' CaseClause* [ DefaultClause ] '}'
-CaseClause  ::= 'case' Expression ':' Statement*
+CaseClause  ::= 'case' Expression ( ',' Expression )* ':' Statement+
 DefaultClause ::= 'default' ':' Statement*
 ```
 
 **Examples:**
 ```fly
-switch (value) {
+switch value {
     case 1:
         // code for case 1
-        break
     case 2:
         // code for case 2
-        break
-    case 3:
-    case 4:
-        // code for case 3 and 4 (fall-through)
-        break
+    case 3, 4:
+        // code for case 3 and 4
     default:
         // default code
 }
 
-// Without parentheses
 switch value {
     case 0:
         result = "zero"
-        break
+        if strict {
+            break              // leaves the switch early
+        }
+        result = "zero, relaxed"
     default:
         result = "other"
 }
 ```
 
-**Fall-through is C-style**: a case body that does not end in `break` (or
-`return`/`fail`) falls through into the **next** case body — the last open
-case falls into `default` (or out of the switch). Use `break` to stop.
-Stacked empty labels (`case 3:` `case 4:`) share the following body. Case
-bodies may be braced: `case 1: { r = 10  break }`.
+**No fall-through** (from 0.15.0): when a case body ends, the switch ends — it
+never continues into the next case or into `default`, so a `break` at the end of
+a case is not needed (it is still allowed, and `break` in the middle of a body
+leaves the switch early). Several values share one body by being listed in one
+case: `case 3, 4:`. A case with **no statements** is a compile-time error: up to
+0.14 it shared the next case's body (C stacking), and the same text must not
+quietly turn into a case that does nothing. Case bodies may be braced:
+`case 1: { r = 10 }`.
+
+> Up to 0.14.x the `switch` was C-style: a case body that did not end in
+> `break`, `return` or `fail` fell through into the next case body, and stacked
+> empty labels (`case 3:` `case 4:`) shared the following body.
 
 ### 9.5 Loop Statements
 
@@ -2727,6 +2732,8 @@ IfStmt          ::= 'if' [ '(' ] Expr [ ')' ] Statement
 
 SwitchStmt      ::= 'switch' [ '(' ] Expr [ ')' ] '{' 
                     CaseClause* [ DefaultClause ] '}'
+
+CaseClause      ::= 'case' Expr ( ',' Expr )* ':' Statement+
 
 WhileStmt       ::= 'while' [ '(' ] Expr [ ')' ] Statement
 

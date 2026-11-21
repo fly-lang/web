@@ -117,7 +117,8 @@ self-host only.
    integer overflow. *(Done in 0.15, in every build: null reference, division by
    zero and integer overflow; wrapping is explicit with `math.wrapAdd` and its
    siblings.)*
-6. **`switch` without implicit fall-through.**
+6. **`switch` without implicit fall-through.** *(Done in 0.15: `case 3, 4:` lists
+   several values, an empty case is an error.)*
 7. **Deterministic release of resources**, replacing the "remember to call
    `free()`" convention. *(In 0.15: `delete`, `new unique`, `new shared` and
    `weak h`; a plain `new` will require `delete` from the next release branch.)*

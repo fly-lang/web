@@ -125,8 +125,9 @@ distinguish overloads.
 
 ### Warnings
 
-The self-hosted compiler emits **no language warnings**: there is no report for
-an unused variable or import, a shadowed name or a `switch` fall-through.
+From 0.15.0 the self-hosted compiler reports unused variables (`unused-variable`)
+and shadowed names (`shadow`), see the CLI reference; there is no warning yet for
+an unused import. Up to 0.14.x it emitted no language warning.
 
 Two command-line options are accepted but have no effect yet: `--ftime-report`
 and `--mthread-model`. In 0.14.6 they are ignored silently; from 0.14.7 the
@@ -180,17 +181,19 @@ An unhandled error is reported once, when `main` returns, and becomes the exit
 code. Nothing forces a caller to look at it earlier. When the result of a call
 matters, wrap the call in `handle { }` and test `error` before using the value.
 
-### `switch` falls through
+### `switch` and fall-through
 
-A `case` body that does not end in `break` continues into the next label,
-including `default`:
+From 0.15.0 a `case` body never continues into the next label: the switch ends
+with the body. Several values share a body by being listed, `case 1, 2:`, and a
+case with no statements is a compile-time error. Up to 0.14.x a body that did
+not end in `break` continued into the next label, `default` included:
 
 ```fly
 switch a {
     case 1: io.printLn("one")
     default: io.printLn("d")
 }
-// with a == 1 this prints "one" and then "d"
+// with a == 1: "one" from 0.15.0; "one" and then "d" up to 0.14.x
 ```
 
 ### Operator precedence

@@ -125,15 +125,15 @@ void main() {
     switch total {
         case 1:
             io.printLn("one")
-            break
         default:
             io.printLn("default")
     }
 }
 ```
 
-> **`switch` falls through, as in C.** A `case` body that does not end in
-> `break` continues into the next one. Always write the `break`.
+> **`switch` does not fall through** (from 0.15): a `case` body never continues
+> into the next one, so no `break` is needed; list several values in one case
+> with `case 1, 2:`. Up to 0.14 it fell through, as in C.
 
 Two more things differ from C and are worth knowing early:
 

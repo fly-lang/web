@@ -226,7 +226,7 @@ with and without the flag.
 | `--ftime-report` | no effect yet (a warning says so; silent in 0.14.6) — use `--print-stats` |
 | `-w`, `--no-warning` | report no warning (the compiler's and the driver's "no effect yet" notes) |
 | `--warnings-as-errors` | a warning fails the build like an error (from 0.15.0) |
-| `--no-warn=<name>` | switch off one warning, by the name shown after its message: `unused-variable`, `shadow`, `header-private` (repeatable; from 0.15.0) |
+| `--no-warn=<name>` | switch off one warning, by the name shown after its message: `unused-variable`, `unused-import`, `shadow`, `lossy-conversion`, `non-exhaustive-switch`, `header-private` (repeatable; from 0.15.0) |
 | `--version` | print the version |
 | `--help` | full usage |
 
@@ -245,6 +245,9 @@ main.fly:5:13: warning: 'total' shadows the local variable of the same name decl
 |---|---|
 | `unused-variable` | a local variable that no name ever refers to, at the end of its block. Not reported for a name starting with `_` (unused on purpose: `bool _ok = table.insert(x)`) nor for a `new unique` owner or `new shared` holder, whose scope alone gives it a job |
 | `shadow` | a local variable that hides a local variable or a parameter of an enclosing scope |
+| `unused-import` | an `import` none of whose names the file writes: the prefix of `import fly.str` (`str.`), the symbol of `import fly.data.List`, any name of `import fly.str.*`. Checked on the source text, so it can only miss a case, never report a used import |
+| `lossy-conversion` | an integer converted implicitly to a floating type that cannot hold all its digits: `int`, `uint`, `long`, `ulong` into `float` (24-bit mantissa); `long`, `ulong` into `double` (53). Not for a literal, nor with an explicit cast |
+| `non-exhaustive-switch` | a `switch` over an enum, with no `default`, that does not handle every value of the enum; the message lists the values it misses |
 | `header-private` | a private declaration shipped as readable source in a `.fly.h` because a generic template uses it |
 
 Warnings are about the code being compiled: none is reported inside a shipped

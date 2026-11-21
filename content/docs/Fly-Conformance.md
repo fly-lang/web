@@ -131,9 +131,10 @@ distinguish overloads.
 
 ### Warnings
 
-From 0.15.0 the self-hosted compiler reports unused variables (`unused-variable`)
-and shadowed names (`shadow`), see the CLI reference; there is no warning yet for
-an unused import. Up to 0.14.x it emitted no language warning.
+From 0.15.0 the self-hosted compiler reports unused variables and imports,
+shadowed names, integer-to-float conversions that may round, and a `switch` over
+an enum that misses values (see the CLI reference). Up to 0.14.x it emitted no
+language warning.
 
 Two command-line options are accepted but have no effect yet: `--ftime-report`
 and `--mthread-model`. In 0.14.6 they are ignored silently; from 0.14.7 the

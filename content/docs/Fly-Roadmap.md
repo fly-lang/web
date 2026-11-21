@@ -106,8 +106,8 @@ self-host only.
 2. **Warnings.** Unused variables and imports, shadowing, unreachable code,
    lossy conversions, non-exhaustive `switch` over an enum. *(In 0.15: the
    warning machinery — `--warnings-as-errors`, `--no-warn=<name>` — with
-   `unused-variable` and `shadow`; code after a `return` is already an error.
-   Still to come: unused imports, lossy conversions, non-exhaustive `switch`.)*
+   `unused-variable`, `shadow`, `unused-import`, `lossy-conversion` and
+   `non-exhaustive-switch`; code after a `return` is already an error.)*
 3. **Conversions.** Widening is implicit; narrowing needs an explicit cast.
    *(Done in 0.15: also for call arguments, signed into unsigned, and
    signed/unsigned comparisons.)*

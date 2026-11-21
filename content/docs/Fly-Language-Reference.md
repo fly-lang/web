@@ -1458,6 +1458,21 @@ p / q           // division
 r % s           // modulo
 ```
 
+Integer `/` truncates toward zero and `%` takes the sign of the dividend
+(`-17 / 5` is `-3`, `-17 % 5` is `-2`). From 0.15.0 both are **checked in every
+build**:
+
+- a zero divisor stops the program with
+  `error 134: division by zero at main.fly:2:5` and exit code 134;
+- the minimum value of a signed type divided by `-1` (`-2147483648 / -1`, whose
+  result does not fit) stops it with `error 134: integer overflow: the minimum
+  value divided by -1 at …`;
+- `%` by `-1` is always `0`, the minimum value included.
+
+The compound forms `/=` and `%=` are checked the same way. A constant divisor
+(`x / 2`) costs nothing: the check is resolved at compile time. Floating-point
+division follows IEEE 754 instead: `1.0 / 0.0` is infinity, not a trap.
+
 #### 8.3.2 Comparison Operators
 
 ```fly

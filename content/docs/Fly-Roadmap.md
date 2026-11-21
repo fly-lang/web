@@ -111,7 +111,8 @@ self-host only.
    in 0.15: the null trap.)*
 5. **Diagnosed traps.** Division by zero and a null dereference stop the
    program with a message and a source position, not a bare crash; integer
-   overflow traps in debug builds.
+   overflow traps in debug builds. *(In 0.15: null reference, division by
+   zero and minimum / -1, in every build.)*
 6. **`switch` without implicit fall-through.**
 7. **Deterministic release of resources**, replacing the "remember to call
    `free()`" convention. *(In 0.15: `delete`, `new unique`, `new shared` and

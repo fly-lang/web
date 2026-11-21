@@ -138,8 +138,8 @@ void main() {
 Two more things differ from C and are worth knowing early:
 
 - Bitwise and shift operators bind **looser** than comparisons, and `&&` and
-  `||` share one precedence level. Parenthesize whenever you mix them:
-  `(a & mask) == 0`, `(x && y) || z`.
+  `||` share one precedence level. Mixing them without parentheses is a compile
+  error (from 0.15), so write the grouping: `(a & mask) == 0`, `(x && y) || z`.
 - String literals keep escapes **raw**: `"\n"` is a backslash followed by `n`.
   Use `io.printLn` to end a line.
 

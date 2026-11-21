@@ -195,13 +195,17 @@ switch a {
 
 ### Operator precedence
 
-Precedence differs from C in two places, and neither is diagnosed:
+Precedence differs from C in two places:
 
 - Bitwise (`& | ^`) and shift (`<< >>`) operators bind **looser** than
   comparisons: `a & b == c` means `a & (b == c)`.
-- `&&` and `||` share **one** level and associate left to right.
+- `&&` and `||` share **one** level, with the bitwise and shift operators, and
+  associate left to right.
 
-Parenthesize every expression that mixes these operators.
+From 0.15.0 both are **diagnosed**: two different operators of that level
+without parentheses (`a || b && c`), or a comparison as the operand of a bitwise
+or shift operator (`flags & mask == 0`), is a compile-time error. Up to 0.14.x
+neither was, and the expression silently took the Fly reading.
 
 ### String literals
 

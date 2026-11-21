@@ -3069,7 +3069,16 @@ Fly uses a **flat** precedence scheme with only six binary levels. From highest 
 6. **Ternary**: `?:`
 7. **Assignment** (right-associative): `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`
 
-> ⚠️ **Differs from C/C++/Java.** Bitwise (`&` `|` `^`) and shift (`<<` `>>`) operators sit at the *same, looser* level as the logical operators — below the comparison operators. As a result, `a & b == c` parses as `a & (b == c)`, and `a | b && c` groups left-to-right within the single logical/bitwise level. **Use explicit parentheses** when mixing bitwise/shift with comparisons or logical operators.
+> ⚠️ **Differs from C/C++/Java.** Bitwise (`&` `|` `^`) and shift (`<<` `>>`) operators sit at the *same, looser* level as the logical operators — below the comparison operators. Read the C way, `a & b == c` would be `(a & b) == c`; in Fly it is `a & (b == c)`.
+>
+> **From 0.15.0 the ambiguous forms are compile-time errors**, so the reading is always written out:
+>
+> - two **different** operators of level 5 chained without parentheses — `a || b && c`, `x << 2 | y`, `a & b | c` — are rejected: write `(a || b) && c` or `a || (b && c)`. The same operator repeated (`a && b && c`, `m & n & 7`) is fine;
+> - a **comparison as the operand of a bitwise or shift operator** — `flags & mask == 0`, `a == b & c` — is rejected: write `(flags & mask) == 0`. Comparisons joined by `&&` or `||` (`a == b && c < d`) mean the same in every language and stay legal.
+>
+> ```
+> main.fly:4:14: error: '&' binds looser than the comparison '==' in Fly ('a & b == c' means 'a & (b == c)'): add parentheses
+> ```
 
 ---
 

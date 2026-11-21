@@ -123,6 +123,7 @@ self-host only.
    `weak h`; a plain `new` will require `delete` from the next release branch.)*
 8. **Operator precedence**: mixing bitwise, shift and comparison operators — or
    `&&` with `||` — without parentheses becomes an error instead of a surprise.
+   *(Done in 0.15.)*
 9. **Strings**: escape sequences in ordinary literals, explicit raw literals,
    and a UTF-8 model with distinct byte and code-point APIs.
 10. **Generics**: generic methods, explicit type arguments, and internal calls

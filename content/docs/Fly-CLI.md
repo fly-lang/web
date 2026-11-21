@@ -169,7 +169,7 @@ A selector that matches no suite or namespace is an error.
 | `--mthread-model <m>` | `posix` (default) or `single` — validated, not yet applied by the backend (a warning says so; silent in 0.14.6) |
 | `-static` / `-pie` | link-mode flags (ELF/Linux targets; ignored by the Windows linker) |
 | `--debug-symbols` | emit DWARF: functions, files, source lines, parameters and locals (from 0.14.8; ignored with a warning in 0.14.7, silently in 0.14.6) |
-| `--debug-prefix-map=OLD=NEW` | write `NEW` instead of the directory prefix `OLD` in the DWARF file names (repeatable; the last match wins; `/` and `\` compare equal). Keeps the build machine's paths out of a debug build (from 0.14.8) |
+| `--debug-prefix-map=OLD=NEW` | write `NEW` instead of the directory prefix `OLD` in the DWARF file names and, from 0.15.0, in the source positions of run-time trap messages (repeatable; the last match wins; `/` and `\` compare equal). Keeps the build machine's paths out of the object (from 0.14.8) |
 | `--trace-calls` | instrument every function entry/exit with [`fly.log`](@/docs/Fly-API.md) trace hooks (see below) |
 
 ### `--trace-calls`: function-call tracing

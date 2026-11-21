@@ -317,6 +317,26 @@ Writes quotient into `out_q` and remainder into `out_r`.
 
 ---
 
+### Wrapping arithmetic
+
+From 0.15.0 an integer `+`, `-` or `*` whose result does not fit its type stops the
+program (see the Language Reference §8.3.1). Code that **wants** two's-complement
+wrapping — hashes, checksums, pseudo-random generators — asks for it with these
+functions: the result is the exact one reduced modulo 2^bits.
+
+```fly
+public int   wrapAdd(const int a, const int b)        // also wrapSub, wrapMul
+public uint  wrapAddU(const uint a, const uint b)     // also wrapSubU, wrapMulU
+public long  wrapAddL(const long a, const long b)     // also wrapSubL, wrapMulL
+public ulong wrapAddUL(const ulong a, const ulong b)  // also wrapSubUL, wrapMulUL
+```
+
+```fly
+int r = math.wrapAdd(2147483647, 1)           // -2147483648
+h = math.wrapMulL(h ^ c, 1099511628211)       // FNV-1a step
+```
+
+---
 ### Trigonometry
 
 ```fly

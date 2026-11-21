@@ -142,7 +142,7 @@ class).
 |---|---|
 | Array index out of range | **Checked.** The program stops with `error 2989` and a non-zero exit code. |
 | Local variable without initializer | Defined: it holds the zero value of its type. |
-| Signed integer overflow | Not checked. Wraps: `2147483647 + 1` is `-2147483648`. |
+| Integer overflow of `+`, `-`, `*`, `++`, `--`, unary `-` (signed and unsigned) | **Checked from 0.15.0, in every build:** `error 134: integer overflow in '+' at main.fly:2:5`. Wrapping is explicit: `math.wrapAdd` and its siblings. Not checked: `pointer` arithmetic, shifts, bitwise operators, casts. Up to 0.14.x: wraps silently. |
 | Integer division or remainder by zero (`/`, `%`, `/=`, `%=`) | **Checked from 0.15.0, in every build:** the program stops with `error 134: division by zero at main.fly:2:5` and exit code 134. Up to 0.14.x: abnormal termination, with no message. |
 | Signed minimum value divided by `-1` (`-2147483648 / -1`) | **Checked from 0.15.0:** `error 134: integer overflow: the minimum value divided by -1 at …`. `%` by `-1` is `0`. |
 | Floating-point division by zero | IEEE 754: infinity or NaN, no trap. |

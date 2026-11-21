@@ -1473,6 +1473,17 @@ The compound forms `/=` and `%=` are checked the same way. A constant divisor
 (`x / 2`) costs nothing: the check is resolved at compile time. Floating-point
 division follows IEEE 754 instead: `1.0 / 0.0` is infinity, not a trap.
 
+`+`, `-` and `*` on integers are **checked in every build** from 0.15.0 too, like
+`++`, `--` and unary `-`: a result that does not fit its type stops the program
+with `error 134: integer overflow in '+' at main.fly:2:5`. That covers signed and
+unsigned types alike (`uint` `3 - 5` stops), and a compound assignment computed in
+a wider type must still fit its variable (`short s = 32000; s += 1000` stops with
+`the result does not fit in 'short'`). Not checked: `pointer` arithmetic (address
+offsets wrap by design), shifts and bitwise operators, explicit casts (`(byte)300`
+is `44`), and constant expressions, which are computed at compile time. When the
+wrapping result is the point — a hash, a checksum, a random generator — ask for
+it: `math.wrapAdd(a, b)` and its siblings in `fly.math`.
+
 #### 8.3.2 Comparison Operators
 
 ```fly

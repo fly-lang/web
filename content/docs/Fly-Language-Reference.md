@@ -267,6 +267,44 @@ string name = "Fly"
 
 > `void` is written as the return type of functions that do not produce a value: `void main() { … }`. A return type is **mandatory** on every function and method (see [Section 5.1](#5-1-function-declaration)).
 
+#### 3.1.4 Numeric Conversions
+
+A number converts **implicitly** only where no value can be lost: into a type
+that holds every value of the source type. Everything else needs an explicit
+cast, `(T)expr`, which truncates (integers) or rounds toward zero (float to int).
+
+| Conversion | Implicit? |
+|---|---|
+| widening: `int → long`, `int → double`, `float → double`, `byte → int` | yes |
+| unsigned into a **wider** signed type: `uint → long`, `byte → short` | yes |
+| narrowing: `long → int`, `int → byte`, `double → float`, `double → int` | no — cast |
+| **signed into unsigned**, any width: `int → uint`, `int → ulong`, `long → ulong` (a negative value has no unsigned counterpart) | no — cast (from 0.15.0) |
+| any integer into `pointer` (address arithmetic: a negative offset wraps) | yes |
+
+The rule is the same wherever a value is stored: a declaration, an assignment,
+a field, a `return`, and — from 0.15.0 — every **argument** of a call, which is
+stored into its parameter. A variable passed to a non-`const` (out) parameter is
+checked the other way round, since the callee writes the parameter back into it.
+
+A **literal** needs no cast when its value fits the target: `byte b = 200`,
+`uint u = 5`, `take(4096)` for a `ulong` parameter. `uint u = -1` is an error.
+
+**Comparing signed with unsigned.** `int` and `uint` are compared in `uint`,
+where `-1` reads as `4294967295`; from 0.15.0 such a comparison is an error
+that asks for a cast. It stays legal when the signed type holds every value of
+the unsigned one (`aLong < aUint`, `anInt > aByte`), or when the signed side is
+a non-negative literal (`u > 0`).
+
+```fly
+long big = 5000000000
+int n = big            // error: may not fit
+int m = (int)big       // explicit
+int k = -1
+ulong size = k         // error: a negative int has no ulong value
+ulong ok = (ulong)len  // explicit, once len is known to be >= 0
+if k < aUint { }       // error: compared in uint
+if k < (int)aUint { }  // explicit
+```
 ### 3.2 Array Types
 
 Arrays can be declared with or without explicit size.

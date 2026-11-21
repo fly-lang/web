@@ -89,9 +89,15 @@ Container sizes are `pointer`, which is wider than `int`:
 int n = (int)list.size()
 ```
 
-Two conversions remain implicit on every compiler: any value may be assigned to
-a `bool`, and a negative literal may be assigned to an unsigned type
-(`uint u = -1`).
+From 0.15.0 the same rule covers every **argument** of a call (`take(aLong)` for
+an `int` parameter is an error), a **signed value into an unsigned type** needs
+a cast at any width (`uint u = anInt`, `ulong n = anInt`, and `uint u = -1`),
+and comparing a signed with an unsigned integer is an error unless the signed
+type holds every unsigned value (see the Language Reference §3.1.4). Up to 0.14.x
+an argument narrowed silently and a negative value became a huge unsigned one.
+
+One conversion remains implicit on every compiler: any value may be assigned to
+a `bool`.
 
 **`const` protects the variable, not the object.** Assigning to a `const`
 local or parameter, or applying `++`/`--` to it, is an error from the next

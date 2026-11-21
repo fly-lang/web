@@ -109,6 +109,8 @@ self-host only.
    `unused-variable` and `shadow`; code after a `return` is already an error.
    Still to come: unused imports, lossy conversions, non-exhaustive `switch`.)*
 3. **Conversions.** Widening is implicit; narrowing needs an explicit cast.
+   *(Done in 0.15: also for call arguments, signed into unsigned, and
+   signed/unsigned comparisons.)*
 4. **Null safety.** No new syntax: any class reference may be null, and every
    use of a null one stops the program with a diagnostic, in every build. *(Done
    in 0.15: the null trap.)*

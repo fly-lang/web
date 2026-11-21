@@ -115,16 +115,44 @@ false       // boolean false
 ```fly
 'a'         // character
 'Z'         // uppercase character
-'\n'        // newline escape
 ```
+
+> Character literals are reserved syntax: the 0.15 compiler does not accept them
+> in expressions yet. Use a one-character string, or the byte value.
 
 #### 2.3.4 String Literals
 
 ```fly
 "Hello, World!"
-"Fly Language"
-""          // empty string
+""                    // empty string
+"tab\there\n"         // escape sequences (from 0.15.0)
+"caf\u{E9} \x41"      // a code point as UTF-8, a byte
+"""C:\Users\fly"""    // raw: backslashes stay as written
+"""first line
+second line"""        // raw literals may span lines
 ```
+
+From 0.15.0 a backslash in an ordinary string literal starts an **escape
+sequence**:
+
+| Escape | Byte(s) |
+|---|---|
+| `\n` `\t` `\r` `\0` | newline (10), tab (9), carriage return (13), NUL (0) |
+| `\` `\"` `\'` | backslash, double quote, apostrophe |
+| `\xHH` | the byte with hex value `HH` (exactly two hex digits) |
+| `\u{H…}` | the code point `H…` (1 to 6 hex digits, up to `10FFFF`, not a surrogate), written as UTF-8 |
+
+Any other sequence (`\q`, `\x4`, `\u41`) is a compile-time error. A **raw
+literal** between three double quotes, `"""…"""`, has no escapes: everything up
+to the closing `"""` is its text, backslashes, quotes and newlines included.
+`fly fmt` leaves the lines of a raw literal untouched.
+
+Strings are sequences of **bytes** (`str.len`, `str.byteAt`, `str.substring`
+count bytes); text is UTF-8, read by code point with `str.runeAt`,
+`str.runeLen`, `str.runeCount` and `str.fromRune` (see the API reference).
+
+> Up to 0.14.x every literal was raw: `"\n"` was the two characters `\` and
+> `n`, and a line break had to be written with `io.printLn` or a byte.
 
 #### 2.3.5 Null Literal
 

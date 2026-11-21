@@ -140,8 +140,9 @@ Two more things differ from C and are worth knowing early:
 - Bitwise and shift operators bind **looser** than comparisons, and `&&` and
   `||` share one precedence level. Mixing them without parentheses is a compile
   error (from 0.15), so write the grouping: `(a & mask) == 0`, `(x && y) || z`.
-- String literals keep escapes **raw**: `"\n"` is a backslash followed by `n`.
-  Use `io.printLn` to end a line.
+- String literals decode escapes as in C (`"\n"`, `"\t"`, `"\u{E9}"`, from 0.15);
+  `"""C:\dir"""` is a raw literal, which keeps backslashes as written. Up to
+  0.14 every literal was raw.
 
 ---
 

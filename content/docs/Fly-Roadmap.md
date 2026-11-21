@@ -128,7 +128,8 @@ self-host only.
    `&&` with `||` — without parentheses becomes an error instead of a surprise.
    *(Done in 0.15.)*
 9. **Strings**: escape sequences in ordinary literals, explicit raw literals,
-   and a UTF-8 model with distinct byte and code-point APIs.
+   and a UTF-8 model with distinct byte and code-point APIs. *(Done in 0.15:
+   C escapes plus `\xHH` and `\u{…}`, raw `"""…"""`, `str.rune*`.)*
 10. **Generics**: generic methods, explicit type arguments, and internal calls
     inside generic classes.
 11. **Privileged namespaces** instead of an `unsafe` keyword: `fly.llvm` and

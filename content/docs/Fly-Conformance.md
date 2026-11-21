@@ -219,8 +219,11 @@ neither was, and the expression silently took the Fly reading.
 
 ### String literals
 
-Escape sequences in a string literal are **not translated**: `"\n"` is the two
-characters `\` and `n`. Use `io.printLn` or `io.writeNL` to emit a line break.
+From 0.15.0 an ordinary string literal decodes escape sequences (`\n`, `\t`,
+`\\`, `\xHH`, `\u{H…}`; an unknown one is a compile-time error), and `"""…"""`
+is a raw literal that keeps backslashes and newlines as written (Language
+Reference §2.3.4). Up to 0.14.x escapes were **not translated**: `"\n"` was the
+two characters `\` and `n`.
 
 ---
 

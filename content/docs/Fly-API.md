@@ -170,6 +170,34 @@ string s = str.fromBytes(buf, n)
 
 ---
 
+### UTF-8
+
+A string is a sequence of **bytes**: `len`, `byteAt` and `substring` count bytes.
+Text is UTF-8, and these functions read it by **code point** ("rune"), from
+0.15.0. A byte that does not start a valid sequence — a stray continuation byte,
+an overlong form, a surrogate, a value past `10FFFF`, a truncated sequence — is
+read as one rune, U+FFFD, of length 1, so a loop that advances by `runeLen` visits
+every byte exactly once.
+
+```fly
+public int    runeLen(const string s, const int at)    // bytes of the rune at byte `at` (1-4; 0 past the end)
+public int    runeAt(const string s, const int at)     // its code point (U+FFFD if invalid; -1 past the end)
+public int    runeCount(const string s)                // number of runes
+public bool   isUtf8(const string s)                   // every byte part of a valid sequence?
+public string fromRune(const int r)                    // UTF-8 encoding of a code point
+```
+
+```fly
+string s = "caf\u{E9}"            // 5 bytes, 4 runes
+int i = 0
+while i < str.len(s) {
+    int r = str.runeAt(s, i)       // 99, 97, 102, 233
+    i = i + str.runeLen(s, i)
+}
+```
+
+---
+
 ### Transform
 
 #### `toUpper`
@@ -1186,7 +1214,7 @@ Flushes anything pending, releases the buffer and closes the inner writer. Alway
 ```fly
 public void writeNL(Writer w)
 ```
-Writes a single newline byte (`0x0A`) to `w`. String literals keep escapes raw — `"\n"` is two characters — so a line terminator must be written with this function.
+Writes a single newline byte (`0x0A`) to `w`. From 0.15.0 a string literal can hold it too (`"\n"`); up to 0.14.x literals were raw and this function was the only way.
 
 ---
 

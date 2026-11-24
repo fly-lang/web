@@ -244,8 +244,10 @@ links the seed as `build/stage1/bin/fly0`: the seed then picks up
 ## Releases
 
 `release.yml` runs on a push to `main`. It calls the Linux and Windows build
-workflows without debug symbols, takes the version from
-`compiler/lib/basic/Version.fly` — the single source of truth — and publishes
+workflows without debug symbols, takes the version from the root
+`Manifest.fly` — the single source of truth since 0.15.2 (before, it was
+`compiler/lib/basic/Version.fly`; the compiler now reads it through the
+generated `fly.meta.package` module) — and publishes
 `fly-<version>-linux-x86_64.tar.gz` and `fly-<version>-win-x64.zip`.
 
 ---

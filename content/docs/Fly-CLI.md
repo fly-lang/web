@@ -318,14 +318,86 @@ with **positional** arguments, and trailing arguments may be omitted.
 | `registry` | `string` | default registry alias |
 | `authors` | `string[]` | |
 | `linkLibs` | `string[]` | native libraries to link (`-lname`) |
-| `targets` | `Target[]` | `new Target(name, path, lib)` — `lib` is `""` for an executable, else `"static"`, `"dynamic"` or `"both"` |
+| `targets` | `Target[]` | `new Target(name, path, lib)` — `lib` is `""` for an executable, else `"static"`, `"dynamic"` or `"both"`; or the named form below |
+| `profiles` | `Profile[]` | build profiles, named form (from 0.15.2) |
 | `dependencies`, `devDependencies` | `Dependency[]` | see below |
 
-> The `fly.meta` schema also declares `profiles`, `repositories`, `test`,
-> `workspace` and `hooks`. The current reader **does not consume them yet**:
-> declaring them is accepted but has no effect. In particular `--release` uses
-> the built-in profile — `-O3`, no debug info, assertions off — and the default
-> profile is `-O0` with debug info and assertions on.
+> The `fly.meta` schema also declares `repositories`, `test`, `workspace` and
+> `hooks`. The current reader **does not consume them yet**: declaring them is
+> accepted but has no effect.
+
+#### Targets and profiles, named form (0.15.2)
+
+A target or a profile can also be a **struct literal** with named fields, which
+is how a target says more than a name, a path and a library kind:
+
+```fly
+Profile[] profiles = {
+    { name = "dist", optLevel = 0, debugInfo = false, warningsAsErrors = true }
+}
+
+Target[] targets = {
+    { name = "std", lib = "static", artifact = "fly_std_lib", srcDirs = { "std/lib" }, libDirs = { "@out" } },
+    { name = "runtime", os = "linux", lib = "static", artifact = "fly_runtime_lib",
+      files = { "runtime/lib/RuntimeLinux.fly" } },
+    { name = "fly-lsp", srcDirs = { "tools/lsp", "compiler/lib" }, entry = "tools/lsp/lib/FlyLsp.fly",
+      libDirs = { "@out" }, flags = { "--runtime-lib-dir", "@out" } }
+}
+```
+
+| Target field | Type | Meaning |
+|---|---|---|
+| `name`, `path`, `lib` | `string` | as in the positional form (`path` is ignored when `srcDirs` or `files` is set) |
+| `srcDirs` | `string[]` | source roots (`--src-dir`); the first is where `main()` is discovered, the others resolve imports |
+| `files` | `string[]` | compile exactly these files, copied into a directory of their own (for example one per-platform source out of several in the same directory) |
+| `entry` | `string` | the file declaring `main()` (`--entry`), when the tree has more than one |
+| `os` | `string` | `"linux"`, `"windows"` or `"macos"`: the target is built only on that host (`skipped` elsewhere) |
+| `artifact` | `string` | the exact output name: a static library becomes `<artifact>.a` (`.lib` on Windows) with no `lib` prefix, and its `.fly.h` headers land next to it |
+| `libDirs` | `string[]` | package directories (`-L`): their headers resolve imports and their archives are linked |
+| `linkLibs` | `string[]` | native libraries for this target only |
+| `flags` | `string[]` | further compiler arguments, one per element, passed as they are |
+
+In `libDirs`, `flags` and a profile's `debugPrefixMap`, **`@out`** stands for the
+output directory: targets are built in the order they are listed, so a later
+target finds the libraries an earlier one put there.
+
+| Profile field | Type | Meaning |
+|---|---|---|
+| `name` | `string` | the profile (`fly build --profile <name>`; `--release` is `release`) |
+| `optLevel` | `int` | `-O<n>` |
+| `debugInfo` | `bool` | `--debug-symbols` |
+| `warningsAsErrors` | `bool` | `--warnings-as-errors` |
+| `debugPrefixMap` | `string` | `OLD=NEW` for `--debug-prefix-map` |
+| `assertions`, `lto`, `strip` | `bool` | recorded, not applied yet |
+
+A field left out keeps the built-in value of that profile name: `release` is
+`-O3` with no debug info and assertions off, any other name `-O0` with debug
+info and assertions on. Without a declared profile the built-in one applies.
+
+#### A program reads its own manifest: `fly.meta.package`
+
+Every executable `fly build` builds gets a generated module, `fly.meta.package`,
+with the manifest's `name()`, `version()` and `description()` — the equivalent
+of Cargo's `CARGO_PKG_VERSION`:
+
+```fly
+import fly.meta.package
+import fly.os.io
+
+void main() {
+    io.printLn(package.version())   // the version Manifest.fly declares
+}
+```
+
+Libraries do not get one (two libraries would define it twice).
+
+#### Fly builds itself with `fly build`
+
+The Fly repository has its own `Manifest.fly`: `fly build --profile dist` builds
+runtime, TLS archives, standard library, compiler, `fly-lsp` and `fly-registry`
+into `target/dist` (the CI checks it at every build, `test_fly_build`). Since
+0.15.2 that `Manifest.fly` is the only place the version is written:
+`fly --version` reads it through `fly.meta.package`.
 
 A `Dependency` is `new Dependency(name, version, registry, git, tag, branch,
 rev, path)` and the fields that matter depend on the kind:
@@ -406,8 +478,9 @@ Output goes to `target/<profile>` (plus `/<triple>` when cross-compiling), and
 `target/test` for test binaries.
 
 Each target gets a **fingerprint** under `<outdir>/.fly/<key>.fp`: a hash of
-its sources, its flags, the lockfile and the compiler's own identity — content
-hashes only, never mtimes. A target whose fingerprint is unchanged is skipped;
+its sources (every source root, staged files and the package module included),
+its flags, the package's name and version, the lockfile and the compiler's own
+identity — content hashes only, never mtimes. A target whose fingerprint is unchanged is skipped;
 `--force` rebuilds regardless. Because debug and release have separate output
 directories, their fingerprints cannot collide.
 

@@ -57,16 +57,21 @@ Fly reserves the following keywords:
 
 ```
 abstract    as          bool        break       byte
-case        class       const       continue
-default     double      else        elsif       enum
-error       fail        false       final       float
-for         handle      if          import      in
-int         interface   long        namespace   new
-null        private     protected   public      return
-short       static      string      struct      suite
-switch      test        true        uint        ulong
-unset       ushort      void        while
+case        class       complex     const       continue
+default     delete      double      else        elsif
+enum        error       fail        false       final
+float       for         handle      if          import
+in          int         interface   long        namespace
+new         null        pointer     private     protected
+public      return      short       static      string
+struct      suite       switch      test        true
+uint        ulong       ushort      void        while
 ```
+
+`complex` is reserved but has no meaning yet: it cannot be used as a name, and the
+compiler accepts it nowhere else. `unset`, reserved up to v0.15.2, is not a keyword
+from 0.16.0: a variable without an initializer holds the zero value of its type (see
+[Section 4.2](#4-2-variable-initialization)), an enum its first constant.
 
 > **`return`** carries the value a function hands back (`return expr`, or `return a, b` when several return types are declared). The value travels through a hidden output parameter the compiler adds to the signature, never through a copy out of the callee's frame. See [Section 5.4](#5-4-return-values).
 
@@ -163,14 +168,6 @@ and the API reference).
 
 ```fly
 null        // null value for reference types
-```
-
-#### 2.3.6 Unset Literal
-
-`unset` is a special literal denoting the absence of a value (an uninitialized / "no value yet" state), distinct from `null`.
-
-```fly
-unset       // unset value
 ```
 
 ### 2.4 Operators and Punctuators
@@ -840,24 +837,29 @@ Interfaces define contracts for classes. An interface can only extend another in
 **Syntax:**
 ```
 Interface ::= [ Modifiers ] 'interface' Identifier [ ':' Identifier ] '{' InterfaceMember* '}'
+InterfaceMember ::= ReturnType Identifier '(' [ ParamList ] ')'
 ```
+
+An interface method declares its return type like any function (`void` included)
+and has no body; a class that implements the interface defines every method with
+the same signature.
 
 **Examples:**
 ```fly
 // Simple interface
 interface Drawable {
-    draw()
+    void draw()
 }
 
 // Public interface
 public interface Serializable {
-    serialize(const string path)
-    deserialize(const string data)
+    void serialize(const string path)
+    bool deserialize(const string data)
 }
 
 // Interface extending another interface
 interface Resizable : Drawable {
-    resize(const int width, const int height)
+    void resize(const int width, const int height)
 }
 ```
 
@@ -1416,6 +1418,13 @@ void setColor(const Color c) {
     // use color
 }
 ```
+
+Every constant has a **`.value`** — its position in the declaration, from `0`
+(`Color.RED.value` is 0, `Color.BLUE.value` is 2) — and a **`.name`**, the declared
+identifier (`"RED"`); both work on a constant and on a variable. An enum variable
+declared **without an initializer holds the first constant**: after `Color c`,
+`c == Color.RED` is true. Up to v0.15.2 values started at 1 and an uninitialized
+enum variable equalled none of the constants.
 
 ---
 
@@ -2303,14 +2312,21 @@ Suite ::= [ Modifiers ] 'suite' Identifier '{' SuiteMember* '}'
 
 ```fly
 public suite MathTests {
-    void additions() {
-        case "adds positives":
+
+    void additionsTest() {
+        case "adds positives": {
             assert.assertEqI(add(2, 3), 5, 1)
-        case "adds negatives":
+        }
+        case "adds negatives": {
             assert.assertEqI(add(-2, -3), -5, 2)
+        }
     }
 }
 ```
+
+A method whose name ends in `Test` is a test method and runs automatically;
+`setup()` and `teardown()` run once before and after them; any other method is a
+helper. See the [Testing](@/docs/Fly-Testing.md) guide.
 
 #### 9.8.3 `case` Label (inside a suite method)
 
@@ -2321,7 +2337,7 @@ Inside a suite test-method body, a standalone `case "label": …` statement name
 SuiteCase ::= 'case' StringLiteral ':' Statement
 ```
 
-> The testing framework is available in the compiler but is not yet exercised by the standard library's own tests, which currently use a plain `void main()` plus the `fly.assert` helpers. Treat the exact runner behaviour as still evolving.
+> The standard library, the runtime, the compiler and the tools are tested this way: every `*Suite.fly` under `std/test`, `compiler/test` and `tools/*/test` is a `suite` run by `fly --suite` in the bootstrap's test stages.
 
 ---
 
@@ -2896,8 +2912,8 @@ ArrayValue      ::= '{' [ Expr ( ',' Expr )* ] '}'
 
 StructValue     ::= '{' [ Identifier '=' Value ( ',' Identifier '=' Value )* ] '}'
 
-Literal         ::= NumericLiteral | CharLiteral | StringLiteral
-                  | 'true' | 'false' | 'null' | 'unset'
+Literal         ::= NumericLiteral | StringLiteral
+                  | 'true' | 'false' | 'null'
 
 AssignOp        ::= '=' | '+=' | '-=' | '*=' | '/=' | '%=' 
                   | '&=' | '|=' | '^=' | '<<=' | '>>='
@@ -3003,7 +3019,7 @@ public struct Point3D : Point {
 
 // Interface declaration (interface can extend only interface)
 public interface Drawable {
-    draw()
+    void draw()
 }
 
 // Class implementing an interface
@@ -3137,16 +3153,15 @@ fields, methods, functions, classes) — enforced from 0.15.0:
 
 ```
 abstract    as          bool        break       byte
-case        class       const       continue
+case        class       complex     const       continue
 default     delete      double      else        elsif
-enum
-error       fail        false       final       float
-for         handle      if          import      in
-int         interface   long        namespace   new
-null        private     protected   public      return
-short       static      string      struct      suite
-switch      test        true        uint        ulong
-unset       ushort      void        while
+enum        error       fail        false       final
+float       for         handle      if          import
+in          int         interface   long        namespace
+new         null        pointer     private     protected
+public      return      short       static      string
+struct      suite       switch      test        true
+uint        ulong       ushort      void        while
 ```
 
 > `this` is **not** a reserved keyword (see [Section 2.1](#2-1-keywords)); `delete` is one from 0.15.0. Neither is `out`, which is now an ordinary identifier — the standard library still uses it as a parameter name for C-ABI output parameters. The ownership qualifiers `unique`, `shared` and `weak` are contextual: they mean something only after `new` (`unique`, `shared`) or in front of a holder (`weak h`), and remain usable as names.

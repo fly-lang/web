@@ -254,13 +254,12 @@ void func() {
 - `VAL_NULL` - Null literal
 - `VAL_DEFAULT` - Default value placeholder (zero/null initialization)
 - `VAL_ENUM` - Enum entry reference value
-- `VAL_UNSET` - Unset value (index 0 for uninitialized enum slots)
 
 **Common Fields**:
 - **`ValueKind`**: Identifies concrete value type
 
 **Predicates**:
-- `isBool()`, `isNumber()`, `isString()`, `isArray()`, `isStruct()`, `isNull()`, `isDefault()`, `isUnset()`
+- `isBool()`, `isNumber()`, `isString()`, `isArray()`, `isStruct()`, `isNull()`, `isDefault()`
 
 #### ASTBoolValue
 **Purpose**: Boolean literal values.
@@ -365,11 +364,6 @@ Test x = { a = 3, b = 1 }
 MyClass obj = null
 string str = null
 ```
-
-#### ASTUnsetValue
-**Purpose**: Represents the unset/uninitialized state for enum variables (index 0). Emitted when an enum variable is declared without an initializer.
-
-**Kind**: `VAL_UNSET`
 
 ### 3.4 Expressions
 

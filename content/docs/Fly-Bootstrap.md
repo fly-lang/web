@@ -13,7 +13,7 @@ starting compiler is the **seed**, and the process that goes from the seed to
 the released toolchain is the **staged bootstrap**.
 
 This page describes the bootstrap as it is implemented in `ci/linux/*.sh` and
-`ci/windows/*.ps1` of the `release/0.14.X` branch. The scripts are the source of
+`ci/windows/*.ps1` of the `release/0.16.X` branch. The scripts are the source of
 truth; the two sets mirror each other step for step. The POSIX scripts serve
 both Linux x86_64 and macOS arm64 (from 0.14.9): what differs between the two
 systems is set once in `ci/linux/platform.sh`.
@@ -120,11 +120,22 @@ into `target/<profile>`. After each target the script copies the result into
 4. **std again** — the `fly` just linked runs `fly build --target std` itself
    and replaces the std in `build/stage1/lib`. The seed's build only served to
    link that compiler.
+5. **LLVM pieces** — the same `fly` runs the copy targets of `Manifest.fly`
+   with `--out-dir build/stage1`: on Linux always the compiler-rt builtins and,
+   with `FLY_BUNDLE_LLVM=1`, the LLVM shared library, the linker and `lldb`
+   (`llvm-windows` on Windows), laid out as stage 2 lays them out. The seed
+   knows no copy targets.
 
 Up to 0.15 the stage drove the seed with one hand-written compiler command per
-artifact and linked the compiler in a script; the profile in `Manifest.fly`
-now carries the options, and the stage keeps only the layout and the bundled
-LLVM pieces. Stage 2 is `fly build` all the way: see below.
+artifact and linked the compiler in a script; those scripts are gone in 0.16.
+The profile in `Manifest.fly` now carries the options, and the stage keeps only
+the layout. Stage 2 is `fly build` all the way: see below.
+
+The compiler reads its version from the `fly.meta.package` module that
+`fly build` generates from `Manifest.fly`. Stage 1 copies the one the seed
+wrote for the compiler to `build/stage1/.fly/gen/fly`, where stage 2 keeps its
+own, and the compiler suites compile the compiler sources with the copy that
+belongs to the stage under test.
 
 Only then do the suites run, and they are compiled and executed by the `fly`
 that stage 1 just linked — never by the seed. `FLY_STAGE1_TESTS=0` skips them
@@ -245,10 +256,11 @@ Useful switches, as environment variables:
 | `FLY_BUNDLE_LLVM=1` | self-contained stage: LLVM, `ld.lld` and `lldb` copied next to `fly` (what CI and releases use) |
 | `FLY_STAGE1_TESTS=0` | skip the stage 1 suites |
 | `FLY_DEBUG_SYMBOLS=1` | DWARF in every stage: the seed emits it at stage 1, the self-host from stage 2 |
-| `STAGE=1\|2` | select the stage for an individual `build_*` / `test_*` script |
+| `STAGE=1\|2` | select the stage for an individual `test_*` script |
 | `FLY=<path>` | test another compiler binary with a `test_*` script |
 
-Each `build_*` and `test_*` script can be run on its own with `STAGE` set.
+Each `test_*` script can be run on its own with `STAGE` set. There is no
+per-artifact build script: a single target is `fly build --target <name>`.
 
 ### Layout
 
@@ -256,8 +268,8 @@ Each `build_*` and `test_*` script can be run on its own with `STAGE` set.
 build/
   llvm/            fork LLVM (stage 0)
   stage0/          the seed: bin/fly + lib/
-  stage1/          bin/fly0 (the seed, hard-linked), bin/fly, lib/
-  stage2/          bin/, lib/   ← the release; obj/ (the objects stage 3 compares)
+  stage1/          bin/fly0 (the seed, hard-linked), bin/fly, lib/, .fly/gen/fly/package.fly
+  stage2/          bin/, lib/   ← the release; obj/ (the objects stage 3 compares), .fly/ (build state)
   stage3/          the compiler again, built by stage 2
   test/            suite binaries and probe output
 target/

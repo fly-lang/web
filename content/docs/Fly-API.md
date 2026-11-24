@@ -2957,9 +2957,8 @@ There are **no Request/Response objects**: every accessor takes the raw message
 and re-scans it. That keeps the whole parse/serialize surface pure string-in,
 string-out — testable without a socket.
 
-> **CRLF trap:** Fly string literals keep escapes raw, so `"\r\n"` is four
-> characters, not a line terminator. Build message text with the functions here
-> rather than by hand.
+> HTTP lines end in CRLF (`"\r\n"`), not a bare LF. The functions here write the
+> terminators for you, so build message text with them rather than by hand.
 
 ### Parsing a request
 

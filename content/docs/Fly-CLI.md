@@ -132,6 +132,7 @@ shipped artifact.
 | `--mingw-sysroot <dir>` | mingw/UCRT sysroot for Windows linking (default: `<exe>/mingw`) |
 | `--llvm-lib-dir <dir>` | dir holding `LLVM-20.lib` for programs using the LLVM-C API (default: `<exe>/llvm/lib`) |
 | `--link-lib <name>` | link a native library (`-lname`) |
+| `--rpath <dir>` | a run-time library search path of the executable, repeatable; `$ORIGIN` is the executable's directory (`@loader_path` on macOS). Windows has none: a DLL is found next to the executable |
 | `--tls` | link the **real** TLS backend (OpenSSL on Linux, Schannel on Windows) instead of the no-op stub |
 
 `--tls` is opt-in for a reason: linking the real backend makes the program
@@ -356,9 +357,13 @@ Target[] targets = {
 | `libDirs` | `string[]` | package directories (`-L`): their headers resolve imports and their archives are linked |
 | `linkLibs` | `string[]` | native libraries for this target only |
 | `flags` | `string[]` | further compiler arguments, one per element, passed as they are |
+| `dir` | `string` | the subdirectory of the output directory the artifact lands in (a library's headers too), e.g. `"bin"` or `"lib"` for an installable layout |
+| `copy` | `string[]` | files or directories copied into the target's directory: a file under its own name (a symbolic link is followed), a directory as a whole tree, `dir/prefix*suffix` for the matching files — possibly none, which is how an optional file is listed. A target with only `copy` compiles nothing; a copy is skipped when it already has the source's size and is not older |
+| `rpaths` | `string[]` | where the executable finds its shared libraries at run time (`--rpath`), e.g. `"$ORIGIN/../lib"` |
 
-In `libDirs`, `flags` and a profile's `debugPrefixMap`, **`@out`** stands for the
-output directory: targets are built in the order they are listed, so a later
+In `libDirs`, `flags`, `copy`, `rpaths` and a profile's `debugPrefixMap`,
+**`@out`** stands for the output directory (`@out/lib` for a library with
+`dir = "lib"`): targets are built in the order they are listed, so a later
 target finds the libraries an earlier one put there.
 
 | Profile field | Type | Meaning |
@@ -395,9 +400,15 @@ Libraries do not get one (two libraries would define it twice).
 
 The Fly repository has its own `Manifest.fly`: `fly build --profile dist` builds
 runtime, TLS archives, standard library, compiler, `fly-lsp` and `fly-registry`
-into `target/dist` (the CI checks it at every build, `test_fly_build`). Since
-0.15.2 that `Manifest.fly` is the only place the version is written:
-`fly --version` reads it through `fly.meta.package`.
+into `target/dist`, laid out as a release: `bin/` with the executables, the
+linker, the debugger and (on Windows) the mingw sysroot, `lib/` with the
+archives, their headers and the LLVM shared libraries, copied from the LLVM the
+bootstrap downloads. The executables find `lib/` through `$ORIGIN/../lib`, so
+`target/dist` is a toolchain of its own: the CI checks at every build
+(`test_fly_build`) that its `fly` starts and compiles a program with nothing on
+`PATH` or in the loader path and no option. Since 0.15.2 that `Manifest.fly` is
+the only place the version is written: `fly --version` reads it through
+`fly.meta.package`.
 
 A `Dependency` is `new Dependency(name, version, registry, git, tag, branch,
 rev, path)` and the fields that matter depend on the kind:

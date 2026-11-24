@@ -148,7 +148,9 @@ class).
 
 | Operation | Behaviour |
 |---|---|
-| Array index out of range | **Checked.** The program stops with `error 2989` and a non-zero exit code. |
+| Array index out of range | **Checked.** A failure with code 2989, which `handle` can intercept; uncaught, the program stops with `error 2989: index out of range at main.fly:4:5` (the message and position from 0.16; before, `error 2989` alone) and exit code 2989 (173 as a POSIX shell sees it). |
+| Access through a `pointer` that points nowhere (`fly.mem` reads and writes) | Not checked: `pointer` is the unchecked part of the language. **From 0.16** the program prints `fatal error: invalid memory access at address 0x…` before it ends; the exit code stays the system's (`0xC0000005` on Windows, 139 for SIGSEGV on Linux and macOS), and a debugger, a core file or a crash dump see the fault as before. Up to 0.15.x: no message. |
+| Stack overflow (recursion without end) | Not checked. **From 0.16** the program prints `fatal error: stack overflow` before it ends, with the system's exit code (`0xC00000FD` on Windows, 139 on Linux and macOS). The main thread only: on Linux and macOS a fault within 64 MB below `main`'s frame is reported as a stack overflow, any other one as an invalid memory access. Up to 0.15.x: no message. |
 | Local variable without initializer | Defined: it holds the zero value of its type. |
 | Integer overflow of `+`, `-`, `*`, `++`, `--`, unary `-` (signed and unsigned) | **Checked from 0.15.0, in every build:** `error 134: integer overflow in '+' at main.fly:2:5`. Wrapping is explicit: `math.wrapAdd` and its siblings. Not checked: `pointer` arithmetic, shifts, bitwise operators, casts. Up to 0.14.x: wraps silently. |
 | Integer division or remainder by zero (`/`, `%`, `/=`, `%=`) | **Checked from 0.15.0, in every build:** the program stops with `error 134: division by zero at main.fly:2:5` and exit code 134. Up to 0.14.x: abnormal termination, with no message. |

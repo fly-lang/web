@@ -1455,7 +1455,7 @@ int y = k[x - 5]    // the index is an ordinary expression
 
 **Both forms are bounds-checked at run time**, and on both sides: the index is compared against the array's `size` field and must satisfy `0 <= i < size`. A negative index is caught as surely as one past the end — the check is signed precisely so it can be.
 
-An out-of-range access **fails** with the dedicated error code `2989` (`0x0BAD`), which behaves like any other `fail`: it propagates to the caller, sets the exit code of `main`, and can be intercepted with `handle`.
+An out-of-range access **fails** with the dedicated error code `2989` (`0x0BAD`), which behaves like any other `fail`: it propagates to the caller, sets the exit code of `main`, and can be intercepted with `handle`. Its message says where: uncaught, the program prints `error 2989: index out of range at main.fly:4:5`.
 
 > **Reading the code from a shell.** `main` returns 2989 on every platform, but POSIX passes only the low 8 bits of a process status through `wait()`, so a Unix shell reports `173`. Windows preserves the full value. Intercepting with `handle` — below — is unaffected and is the portable way to inspect the code.
 

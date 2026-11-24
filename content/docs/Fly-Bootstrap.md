@@ -81,11 +81,11 @@ stage 1   seed fly build    runtime → std → compiler+driver  ──link─�
               │             then stage1 fly rebuilds the std
               │             then: test_runtime, test_std, test_compiler   (run by stage1 fly)
               │
-stage 2   stage1 fly        runtime, std, compiler+driver     ──link──▶  build/stage2/bin/fly
-          compiles          tools: fly-lsp, fly-registry
+stage 2   stage1 fly build  runtime, std, compiler+driver, tools  ──▶  build/stage2/{bin,lib}
+          (profile dist)    + the LLVM pieces: the release, laid out
                             then: every suite + ABI, semantic, leak, debugger guards
               │
-stage 3   stage2 fly        compiler+driver object, compared byte for byte with stage 2's
+stage 3   stage2 fly build  the compiler object again, compared byte for byte with stage 2's
 ```
 
 ### Stage 0 — provisioning
@@ -124,7 +124,7 @@ into `target/<profile>`. After each target the script copies the result into
 Up to 0.15 the stage drove the seed with one hand-written compiler command per
 artifact and linked the compiler in a script; the profile in `Manifest.fly`
 now carries the options, and the stage keeps only the layout and the bundled
-LLVM pieces. Stage 2 still uses the per-artifact scripts.
+LLVM pieces. Stage 2 is `fly build` all the way: see below.
 
 Only then do the suites run, and they are compiled and executed by the `fly`
 that stage 1 just linked — never by the seed. `FLY_STAGE1_TESTS=0` skips them
@@ -132,14 +132,29 @@ for a fast local build.
 
 ### Stage 2 — the self-host builds what ships
 
-`STAGE=2`. `build/stage1/bin/fly` recompiles the runtime, the std and the
-compiler, links `build/stage2/bin/fly`, and then builds the tools with that
-compiler. `build/stage2/{bin,lib}` is exactly what a release packages.
+`STAGE=2`. From 0.16 the stage is one command, run by the stage 1 `fly`:
+
+```sh
+build/stage1/bin/fly build --profile dist --out-dir build/stage2 --keep-objects
+```
+
+It builds every target of `Manifest.fly` — runtime, TLS archives, standard
+library, compiler, `fly-lsp`, `fly-registry` — and copies the LLVM pieces stage
+0 downloaded (the LLVM shared library, `ld.lld`, `lldb`, the compiler-rt
+builtins, on Windows the mingw sysroot), laid out as `bin/` and `lib/`.
+`build/stage2/{bin,lib}` is exactly what a release packages. The profile is
+`dist-debug` when the build embeds DWARF (CI on every push), `dist` for a
+release; its prefix map writes the repository, the `lib/` of the compiling
+`fly` and the output directory as `.`, `lib` and `out`, so nothing that ships
+holds a path of the build machine. The executables' objects are kept
+(`--keep-objects`) and set aside in `build/stage2/obj` for stage 3. The
+guards follow (below).
 
 ### Stage 3 — the fixpoint
 
-`build/stage2/bin/fly` compiles the compiler once more, and the object must be
-byte-identical to the one stage 2 produced. If it differs, the compiler's
+`build/stage2/bin/fly` builds the compiler target once more, with the same
+profile, into `build/stage3` (whose `lib/` starts as a copy of stage 2's), and
+the object must be byte-identical to the one stage 2 produced. If it differs, the compiler's
 output depends on which compiler built it: a defect no suite can see, because a
 suite runs a single compiler. CI runs it on every build.
 
@@ -242,11 +257,11 @@ build/
   llvm/            fork LLVM (stage 0)
   stage0/          the seed: bin/fly + lib/
   stage1/          bin/fly0 (the seed, hard-linked), bin/fly, lib/
-  stage2/          bin/, lib/   ← the release
+  stage2/          bin/, lib/   ← the release; obj/ (the objects stage 3 compares)
+  stage3/          the compiler again, built by stage 2
   test/            suite binaries and probe output
 target/
   stage1/          what `fly build` produced at stage 1 (stage1-debug/ with DWARF)
-  dist/            the toolchain `fly build --profile dist` builds at stage 2 (test_fly_build)
 ```
 
 A `fly` binary finds its libraries at `<exe>/../lib`. That is why stage 1 hard

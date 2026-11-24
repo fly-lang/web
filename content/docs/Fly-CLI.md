@@ -132,6 +132,7 @@ shipped artifact.
 | `--mingw-sysroot <dir>` | mingw/UCRT sysroot for Windows linking (default: `<exe>/mingw`) |
 | `--llvm-lib-dir <dir>` | dir holding `LLVM-20.lib` for programs using the LLVM-C API (default: `<exe>/llvm/lib`) |
 | `--link-lib <name>` | link a native library (`-lname`) |
+| `--keep-object` | keep the object of a linked build (`<output>.o`) next to the output instead of deleting it |
 | `--rpath <dir>` | a run-time library search path of the executable, repeatable; `$ORIGIN` is the executable's directory (`@loader_path` on macOS). Windows has none: a DLL is found next to the executable |
 | `--tls` | link the **real** TLS backend (OpenSSL on Linux, Schannel on Windows) instead of the no-op stub |
 
@@ -364,7 +365,10 @@ Target[] targets = {
 In `libDirs`, `flags`, `copy`, `rpaths` and a profile's `debugPrefixMap`,
 **`@out`** stands for the output directory (`@out/lib` for a library with
 `dir = "lib"`): targets are built in the order they are listed, so a later
-target finds the libraries an earlier one put there.
+target finds the libraries an earlier one put there. **`@root`** is the package
+root (the directory `fly build` runs in) and **`@fly`** the installation of the
+`fly` that compiles (the directory above its `bin/`, so `@fly/lib` is where it
+reads the standard library's headers).
 
 | Profile field | Type | Meaning |
 |---|---|---|
@@ -372,7 +376,7 @@ target finds the libraries an earlier one put there.
 | `optLevel` | `int` | `-O<n>` |
 | `debugInfo` | `bool` | `--debug-symbols` |
 | `warningsAsErrors` | `bool` | `--warnings-as-errors` |
-| `debugPrefixMap` | `string` | `OLD=NEW` for `--debug-prefix-map` |
+| `debugPrefixMap` | `string` | `OLD=NEW` for `--debug-prefix-map`, or several pairs separated by `;` (the last one that matches a path wins), e.g. `"@root=.;@fly/lib=lib;@out=out"`: the objects then hold no path of the machine that built them |
 | `assertions`, `lto`, `strip` | `bool` | recorded, not applied yet |
 
 A field left out keeps the built-in value of that profile name: `release` is
@@ -399,14 +403,16 @@ Libraries do not get one (two libraries would define it twice).
 #### Fly builds itself with `fly build`
 
 The Fly repository has its own `Manifest.fly`: `fly build --profile dist` builds
-runtime, TLS archives, standard library, compiler, `fly-lsp` and `fly-registry`
-into `target/dist`, laid out as a release: `bin/` with the executables, the
+runtime, TLS archives, standard library, compiler, `fly-lsp` and `fly-registry`,
+laid out as a release: `bin/` with the executables, the
 linker, the debugger and (on Windows) the mingw sysroot, `lib/` with the
 archives, their headers and the LLVM shared libraries, copied from the LLVM the
 bootstrap downloads. The executables find `lib/` through `$ORIGIN/../lib`, so
-`target/dist` is a toolchain of its own: the CI checks at every build
-(`test_fly_build`) that its `fly` starts and compiles a program with nothing on
-`PATH` or in the loader path and no option. Since 0.15.2 that `Manifest.fly` is
+the result is a toolchain of its own. From 0.16 that is how Fly is built: stage 2
+of the bootstrap is `fly build --profile dist --out-dir build/stage2` and stage 3
+the compiler once more with the result, compared byte for byte; the CI checks at
+every build (`test_fly_build`) that the stage-2 `fly` starts and compiles a
+program with nothing on `PATH` or in the loader path and no option. Since 0.15.2 that `Manifest.fly` is
 the only place the version is written: `fly --version` reads it through
 `fly.meta.package`.
 
@@ -428,7 +434,7 @@ Run from the directory holding the manifest.
 | Command | Meaning |
 |---|---|
 | `fly init [--name N] [--version V]` | scaffold `Manifest.fly` + `src/main.fly` |
-| `fly build [--target N]` | build every target, or one |
+| `fly build [--target N] [--out-dir D] [--keep-objects]` | build every target, or one; `--out-dir` writes the output to `D` instead of `target/<profile>`, `--keep-objects` leaves each executable's object (`<name>.o`) next to it |
 | `fly run [--bin N]` | build, then run the (named) executable target |
 | `fly test` | build and run the project's suites (the `*Suite.fly` files) |
 | `fly clean` | remove the profile's output directory |

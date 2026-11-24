@@ -344,17 +344,17 @@ ArrayType ::= Type '[' [ Expression ] ']'
 
 **Examples:**
 ```fly
-// Dynamic array (size unspecified)
-byte[] dynamicArray
-int[] numbers
+// Dynamic array: the initializer gives the size
+byte[] dynamicArray = {}
+int[] numbers = {1, 2, 3}
 
 // Fixed-size array
 byte[10] fixedBuffer
 int[5] coordinates
 
 // Multi-dimensional arrays
-int[][] matrix
-byte[][][] cube
+int[][] matrix = {}
+byte[][][] cube = {}
 ```
 
 A declaration must give either a size or an initializer — `int[] xs` alone is an error, because there is nothing to say how large the array is.
@@ -488,7 +488,7 @@ int add(const int a, const int b) {
 
 // Multiple return types — one return, values in declaration order
 int,int minMax(const int a, const int b) {
-    if (a < b) {
+    if a < b {
         return a, b
     } else {
         return b, a
@@ -515,8 +515,8 @@ void process(const int x, const float y, const bool flag) {
 
 // Parameters without const are writable (e.g. output parameters)
 void clamp(const int value, const int lo, const int hi, int result) {
-    if (value < lo) { result = lo }
-    elsif (value > hi) { result = hi }
+    if value < lo { result = lo }
+    elsif value > hi { result = hi }
     else { result = value }
 }
 
@@ -632,7 +632,7 @@ A `return` with the wrong number of values is a compile error, as is a value in 
 
 ```fly
 void process(const int x) {
-    if (x < 0) {
+    if x < 0 {
         return   // exit early — no value
     }
     // continue processing
@@ -738,7 +738,7 @@ void main() {
         riskyOperation()
     }
     
-    if (error) {
+    if error {
         // Error was caught and handled
         // Continue with fallback logic
     }
@@ -937,7 +937,10 @@ The `new` keyword allocates a new instance. Where the memory comes from — and 
 A `new` on a `struct` allocates the data on the **stack** (via LLVM `alloca`). It is freed automatically when the enclosing scope exits — nothing to release manually.
 
 ```fly
-struct Point { int x; int y }
+struct Point {
+    int x
+    int y
+}
 
 void process() {
     Point p = new Point()   // ← stack alloca
@@ -1409,7 +1412,7 @@ void processColor() {
     setColor(Color.GREEN)
     
     // Compare
-    if (c == Color.RED) {
+    if c == Color.RED {
         // handle red
     }
 }
@@ -1637,7 +1640,7 @@ Fly clearly distinguishes between the **assignment operator** `=` and the **equa
 x = 5
 
 // Equality comparison: compares x with 5, evaluates to boolean
-if (x == 5) {
+if x == 5 {
     // x is equal to 5
 }
 
@@ -1660,12 +1663,12 @@ Under the hood, the parser creates different AST structures:
 **Common Mistake:**
 ```fly
 // WRONG: Using = instead of == in condition
-if (x = 5) {        // This assigns 5 to x, then evaluates the result
+if x = 5 {        // This assigns 5 to x, then evaluates the result
     // ...
 }
 
 // CORRECT: Using == for comparison
-if (x == 5) {       // This compares x with 5
+if x == 5 {       // This compares x with 5
     // ...
 }
 ```
@@ -1758,50 +1761,50 @@ Block ::= '{' Statement* '}'
 
 **Syntax:**
 ```
-IfStmt ::= 'if' [ '(' ] Expression [ ')' ] Statement
-           ( 'elsif' [ '(' ] Expression [ ')' ] Statement )*
+IfStmt ::= 'if' Expression Statement
+           ( 'elsif' Expression Statement )*
            [ 'else' Statement ]
 ```
+
+The condition is written **without parentheses around it**: `if (x > 0) {` is an
+error (the compiler suggests `if x > 0 {`). Parentheses inside it group as usual —
+`if (a + b) * 2 > c {` is fine. The same holds for `elsif`, `while`, `switch`, `for`
+and for-in.
 
 **Examples:**
 ```fly
 // Simple if
-if (condition) {
-    // code
-}
-
-// If without parentheses
 if condition {
     // code
 }
 
 // If-else
-if (x > 0) {
+if x > 0 {
     positive = true
 } else {
     positive = false
 }
 
 // If-elsif-else
-if (a == 1) {
+if a == 1 {
     b = 0
-} elsif (a == 2) {
+} elsif a == 2 {
     b = 1
-} elsif (a == 3) {
+} elsif a == 3 {
     b = 2
 } else {
     b = -1
 }
 
 // Inline if (without braces)
-if (condition) doSomething()
+if condition doSomething()
 ```
 
 ### 9.4 Switch Statements
 
 **Syntax:**
 ```
-SwitchStmt  ::= 'switch' [ '(' ] Expression [ ')' ] '{' CaseClause* [ DefaultClause ] '}'
+SwitchStmt  ::= 'switch' Expression '{' CaseClause* [ DefaultClause ] '}'
 CaseClause  ::= 'case' Expression ( ',' Expression )* ':' Statement+
 DefaultClause ::= 'default' ':' Statement*
 ```
@@ -1810,13 +1813,13 @@ DefaultClause ::= 'default' ':' Statement*
 ```fly
 switch value {
     case 1:
-        // code for case 1
+        result = "one"
     case 2:
-        // code for case 2
+        result = "two"
     case 3, 4:
-        // code for case 3 and 4
+        result = "three or four"
     default:
-        // default code
+        result = "other"
 }
 
 switch value {
@@ -1850,17 +1853,12 @@ quietly turn into a case that does nothing. Case bodies may be braced:
 
 **Syntax:**
 ```
-WhileStmt ::= 'while' [ '(' ] Expression [ ')' ] Statement
+WhileStmt ::= 'while' Expression Statement
 ```
 
 **Examples:**
 ```fly
-// While with parentheses
-while (count < 10) {
-    count++
-}
-
-// While without parentheses
+// While
 while count < 10 {
     count++
 }
@@ -1868,7 +1866,7 @@ while count < 10 {
 // Infinite loop
 while true {
     // loop body
-    if (shouldBreak) break
+    if shouldBreak break
 }
 
 // Inline while
@@ -1895,7 +1893,7 @@ for int i = 0, int j = 10; i < j; i++, j-- {
     // loop body
 }
 
-// For loop without parentheses
+// Over an array
 for int i = 0; i < length; i++ {
     process(array[i])
 }
@@ -1907,7 +1905,7 @@ Fly also provides a **for-in** loop that iterates a loop variable over the eleme
 
 **Syntax:**
 ```
-ForInStmt ::= 'for' [ '(' ] Identifier 'in' Expression [ ')' ] Statement
+ForInStmt ::= 'for' Identifier 'in' Expression Statement
 ```
 
 **Examples:**
@@ -1915,11 +1913,6 @@ ForInStmt ::= 'for' [ '(' ] Identifier 'in' Expression [ ')' ] Statement
 // Iterate over the elements of a list
 for item in items {
     process(item)
-}
-
-// Parentheses are optional
-for (line in lines) {
-    print(line)
 }
 ```
 
@@ -1947,7 +1940,7 @@ return n * n
 return a / b, a % b
 
 // Early exit from a void function
-if (done) {
+if done {
     return
 }
 ```
@@ -1962,12 +1955,12 @@ BreakStmt ::= 'break'
 **Examples:**
 ```fly
 while true {
-    if (condition) {
+    if condition {
         break  // exit loop
     }
 }
 
-switch (value) {
+switch value {
     case 1:
         doSomething()
         break  // exit switch
@@ -1984,7 +1977,7 @@ ContinueStmt ::= 'continue'
 **Examples:**
 ```fly
 for int i = 0; i < 10; i++ {
-    if (i % 2 == 0) {
+    if i % 2 == 0 {
         continue  // skip even numbers
     }
     process(i)
@@ -2014,7 +2007,7 @@ From Fly code you declare an error variable and test it with `if`:
 ```fly
 error err           // declare
 // …
-if (error) { /* error occurred */ }
+if error { /* error occurred */ }
 ```
 
 #### 9.7.2 Fail Statement
@@ -2049,11 +2042,11 @@ Any code after `fail` within the same basic block is unreachable.
 
 ```fly
 void validate(const int age) {
-    if (age < 0) {
+    if age < 0 {
         fail 400, "age must be non-negative"
         // unreachable
     }
-    if (age > 150) {
+    if age > 150 {
         fail 1001
     }
     // continues here if no fail
@@ -2124,7 +2117,7 @@ void main() {
     handle {
         riskyOperation()
     }
-    if (error) {
+    if error {
         // failure recorded — take the fallback path
         return
     }
@@ -2150,12 +2143,12 @@ void process() {
         handle {
             deepOp()      // a failure here sets the INNER window
         }
-        if (error) {
+        if error {
             fail          // re-raise to the outer handle
         }
         followupOp()
     }
-    if (error) {
+    if error {
         // handle the top-level failure
     }
 }
@@ -2171,7 +2164,7 @@ void process() {
 **Example 1: Propagation without handle**
 ```fly
 void openFile(const string path) {
-    if (path == "") {
+    if path == "" {
         fail 400, "empty path"
     }
 }
@@ -2186,7 +2179,7 @@ void main() {
 **Example 2: Intercepting with handle**
 ```fly
 void openFile(const string path) {
-    if (path == "") { fail 400, "empty path" }
+    if path == "" { fail 400, "empty path" }
 }
 
 void main() {
@@ -2194,7 +2187,7 @@ void main() {
         openFile("")       // fails: the handle body stops here
         openFile("/tmp")   // NOT called
     }
-    if (error) {
+    if error {
         // the 400 failure was recorded and consumed here
     }
     openFile("/tmp")       // runs: the error did not get past the handle
@@ -2213,12 +2206,12 @@ void main() {
 ```fly
 void main() {
     handle {
-        if (someCondition) {
+        if someCondition {
             fail 500    // jumps directly to safe block
         }
         neverReached()  // skipped when fail fires above
     }
-    if (error) { /* the failure (code 500) was recorded */ }
+    if error { /* the failure (code 500) was recorded */ }
 }
 ```
 
@@ -2232,7 +2225,7 @@ void outer() {
     handle {
         inner()
     }
-    if (error) {
+    if error {
         fail    // re-raise; outer's caller sees the error
     }
 }
@@ -2414,10 +2407,8 @@ import fly.data.List    // 'List' class is in scope
 import fly.data.Stack   // 'Stack' class is in scope
 
 void main() {
-    List  l = new List()    // no 'data.' prefix needed
-    Stack s = new Stack()
-    l.free()
-    s.free()
+    List<int>  l = new List<int>()    // no 'data.' prefix needed
+    Stack<int> s = new Stack<int>()
 }
 ```
 
@@ -2431,10 +2422,8 @@ There is no coupling between the filename and the class name. The import path na
 import fly.data.*       // List, Stack, Queue, Deque, Map, Set, Tree all in scope
 
 void main() {
-    List l = new List()
-    Map  m = new Map()
-    l.free()
-    m.free()
+    List<int>        l = new List<int>()
+    Map<string, int> m = new Map<string, int>()
 }
 ```
 
@@ -2459,7 +2448,7 @@ void main() {
 
 #### 10.2.4 Alias import
 
-Binds the imported namespace or symbol under a different local name. Cannot be combined with wildcard (`.*`).
+Binds the imported namespace or symbol under a different local name. Cannot be combined with wildcard (`.*`). An aliased class or function is in scope under the alias only (`import geom.Circle as C` … `C c = new C()`); up to 0.15 the alias of a class or function import was ignored.
 
 ```fly
 import fly.str as s     // 's' is in scope
@@ -2467,8 +2456,7 @@ import fly.data.List as L
 
 void main() {
     int n = s.len("hello")
-    L myList = new L()
-    myList.free()
+    L<int> myList = new L<int>()
 }
 ```
 
@@ -2495,20 +2483,23 @@ import geom.Circle
 void main() {
     Circle c = new Circle()
     c.radius = 5
-    // c is a heap-allocated class instance (see §6.6)
 }
 ```
 
 ```fly
 // File: main.fly — namespace import
 import geom
+import geom.Circle
 
 void main() {
-    geom.Circle c = new geom.Circle()
-    int a = geom.area(5)
-    // c is a heap-allocated class instance (see §6.6)
+    int a = geom.area(5)    // functions: through the prefix
+    Circle c = new Circle() // types: through a class import
 }
 ```
+
+The namespace prefix is for calls only: a type is never written with it
+(`geom.Circle c` is an error). A type comes into scope through a class import,
+a wildcard import or an alias import.
 
 ```fly
 // File: main.fly — wildcard import
@@ -2517,7 +2508,6 @@ import geom.*
 void main() {
     Circle c = new Circle()
     int a = area(5)      // function in scope too
-    // c is a heap-allocated class instance (see §6.6)
 }
 ```
 
@@ -2620,10 +2610,11 @@ class Counter {
     }
 }
 
-// Usage
-Counter c = new Counter()
-c.increment()
-int total = Counter.getTotal()   // total = 1
+void main() {
+    Counter c = new Counter()
+    c.increment()
+    int total = Counter.getTotal()   // total = 1
+}
 ```
 
 ### 11.4 Combining Modifiers
@@ -2831,21 +2822,21 @@ Statement       ::= Block
 
 Block           ::= '{' Statement* '}'
 
-IfStmt          ::= 'if' [ '(' ] Expr [ ')' ] Statement 
-                    ( 'elsif' [ '(' ] Expr [ ')' ] Statement )* 
+IfStmt          ::= 'if' Expr Statement
+                    ( 'elsif' Expr Statement )*
                     [ 'else' Statement ]
 
-SwitchStmt      ::= 'switch' [ '(' ] Expr [ ')' ] '{' 
+SwitchStmt      ::= 'switch' Expr '{'
                     CaseClause* [ DefaultClause ] '}'
 
 CaseClause      ::= 'case' Expr ( ',' Expr )* ':' Statement+
 
-WhileStmt       ::= 'while' [ '(' ] Expr [ ')' ] Statement
+WhileStmt       ::= 'while' Expr Statement
 
-ForStmt         ::= 'for' [ '(' ] VarDecl ( ',' VarDecl )* ';' Expr ';' 
-                    Expr ( ',' Expr )* [ ')' ] Statement
+ForStmt         ::= 'for' VarDecl ( ',' VarDecl )* ';' Expr ';'
+                    Expr ( ',' Expr )* Statement
 
-ForInStmt       ::= 'for' [ '(' ] Identifier 'in' Expr [ ')' ] Statement
+ForInStmt       ::= 'for' Identifier 'in' Expr Statement
 
 ReturnStmt      ::= 'return' [ Expr { ',' Expr } ]   (* one value per declared
                        return type; the first must start on the keyword's line *)
@@ -2966,7 +2957,7 @@ public class Application {
             this.calculateResult()
         }
         
-        if (error) {
+        if error {
             // Error occurred
             this.currentStatus = Status.STOPPED
         }
@@ -2974,10 +2965,10 @@ public class Application {
     
     // Private helper method that may fail
     private void calculateResult() {
-        if (this.value < 0) {
+        if this.value < 0 {
             fail "Invalid value"     // Fail with string message
         }
-        if (this.value > 1000) {
+        if this.value > 1000 {
             fail 999                 // Fail with error code
         }
     }
@@ -2985,12 +2976,12 @@ public class Application {
     // Method demonstrating void error handling
     public void validate() {
         error validationErr handle {
-            if (this.name == "") {
+            if this.name == "" {
                 fail "Name cannot be empty"
             }
         }
         
-        if (validationErr) {
+        if validationErr {
             this.currentStatus = Status.STOPPED
         }
     }
@@ -3046,18 +3037,18 @@ void main() {
     Status status = Status.RUNNING
     
     // Control flow with error handling
-    if (status == Status.RUNNING) {
+    if status == Status.RUNNING {
         error processErr handle {
             app.process()
         }
         
-        if (processErr) {
+        if processErr {
             // Handle error gracefully
             status = Status.STOPPED
         } else {
             handleResult()
         }
-    } elsif (status == Status.PAUSED) {
+    } elsif status == Status.PAUSED {
         // Handle paused state
     } else {
         // Handle other states
@@ -3071,12 +3062,12 @@ void main() {
     
     // While loop
     int count = 0
-    while (count < 10) {
+    while count < 10 {
         count++
     }
     
     // Switch statement
-    switch (count) {
+    switch count {
         case 10:
             // count is 10
             break
@@ -3092,7 +3083,7 @@ void main() {
     // Error handling with structure
     error distErr handle {
         int dist = p.x * p.x + p.y * p.y
-        if (dist > 1000) {
+        if dist > 1000 {
             fail "Distance too large"
         }
     }
@@ -3105,7 +3096,7 @@ private void handleResult() {
 
 // Function with const parameter
 private void processNumber(const int num) {
-    if (num % 2 == 0) {
+    if num % 2 == 0 {
         // even number
     } else {
         // odd number
@@ -3233,7 +3224,7 @@ handle operation()              // Catch and ignore
 handle {
     riskyOperation()
 }
-if (error) {
+if error {
     // Handle error
 }
 
@@ -3241,7 +3232,7 @@ if (error) {
 handle {
     computation()
 }
-if (error) {
+if error {
     fallbackOperation()
 }
 ```
@@ -3292,7 +3283,7 @@ void main() {
     handle {
         riskyOperation()
     }
-    if (error) {
+    if error {
         // Handle gracefully
     }
 }

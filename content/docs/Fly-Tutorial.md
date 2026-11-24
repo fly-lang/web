@@ -154,7 +154,9 @@ standard style:
 ```fly
 import fly.str
 
-int n = str.len("hello")
+void main() {
+    int n = str.len("hello")
+}
 ```
 
 **Class import** — brings one class, struct or enum into scope by name:
@@ -162,7 +164,9 @@ int n = str.len("hello")
 ```fly
 import fly.data.List
 
-List<int> l = new List<int>()
+void main() {
+    List<int> l = new List<int>()
+}
 ```
 
 **Wildcard import** — every public symbol of a namespace, used bare:
@@ -170,7 +174,9 @@ List<int> l = new List<int>()
 ```fly
 import fly.data.*
 
-Stack<int> st = new Stack<int>()
+void main() {
+    Stack<int> st = new Stack<int>()
+}
 ```
 
 **Alias import** — a local name of your choice:
@@ -178,7 +184,9 @@ Stack<int> st = new Stack<int>()
 ```fly
 import fly.str as s
 
-string t = s.convert(42)
+void main() {
+    string t = s.convert(42)
+}
 ```
 
 The path follows the **namespace** declared at the top of a source file

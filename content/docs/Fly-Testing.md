@@ -180,7 +180,7 @@ void recoveryTest() {
         handle {
             mightFail()          // a caught failure stays inside the handle
         }
-        if (error) { useFallback() }
+        if error { useFallback() }
         assertTrue(ok(), 1)      // an UNCAUGHT failure here fails the case
     }
 }

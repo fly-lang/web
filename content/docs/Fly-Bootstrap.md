@@ -64,6 +64,7 @@ one was needed:
 | 0.13.18 | `return expr` replaces the implicit `out` variable; every path must return; NRVO |
 | 0.13.19 | macOS arm64 (the language of 0.13.18) — the last C++ seed |
 | 0.14.9 | first self-host seed (`release/0.15.X`): stage 1 runs the same commands as stage 2 |
+| 0.15.2 | `release/0.16.X`: stage 1 is `fly build` on the repository's `Manifest.fly` |
 
 `stage0` checks the installed seed with `--version` and replaces it when it does
 not match the pin; the swap is atomic, so a failed download never leaves a
@@ -74,9 +75,9 @@ machine without a seed.
 ## The stages
 
 ```text
-stage 0   download          seed fly (0.14.9 on 0.15.x)  +  LLVM 20.1.8
+stage 0   download          seed fly (0.15.2 on 0.16.x)  +  LLVM 20.1.8
               │
-stage 1   seed compiles     runtime → std → compiler+driver  ──link──▶  build/stage1/bin/fly
+stage 1   seed fly build    runtime → std → compiler+driver  ──link──▶  build/stage1/bin/fly
               │             then stage1 fly rebuilds the std
               │             then: test_runtime, test_std, test_compiler   (run by stage1 fly)
               │
@@ -99,21 +100,31 @@ Downloads two things into `build/`, and needs no system package manager:
 
 ### Stage 1 — the seed builds the self-host
 
-`STAGE=1`. The seed compiles, in order:
+`STAGE=1`. From 0.16 the seed builds the tree the way any Fly project is
+built: `fly build` on the repository's own `Manifest.fly`, one target at a
+time, with the profile `stage1` (`stage1-debug` when the build embeds DWARF)
+into `target/<profile>`. After each target the script copies the result into
+`build/stage1`, where the next target finds its headers:
 
-1. **runtime** — `runtime/lib/Runtime<Platform>.fly` into `fly_runtime_lib`,
-   plus the TLS stub and the real TLS backend as separate archives.
-2. **std** — the whole `std/lib` directory with `--lib`: one archive and one
-   `.fly.h` header per public module.
-3. **compiler** — `--src-dir compiler` discovers `Driver.fly` (the only
-   `main()`) and pulls the entire compiler through its imports into **one**
-   object. The build is monolithic on purpose: as a separate static archive, the
+1. **runtime** — target `runtime-<os>`: `runtime/lib/Runtime<Platform>.fly`
+   into `fly_runtime_lib`, then `tls-stub` and the real TLS backend
+   (`tls-schannel` or `tls-openssl-<os>`) as separate archives.
+2. **std** — target `std`: the whole `std/lib` directory as one library and
+   one `.fly.h` header per public module.
+3. **compiler** — target `fly`: the entry `Driver.fly` (the only `main()`)
+   pulls the entire compiler through its imports into **one** object, which
+   `fly build` links with std, runtime and LLVM into `build/stage1/bin/fly`.
+   The build is monolithic on purpose: as a separate static archive, the
    compiler's generic instantiations were de-duplicated by the linker against
    the driver's, which corrupted memory.
-4. **link** — `ld.lld` links the object with std, runtime and LLVM into
-   `build/stage1/bin/fly`.
-5. **std again** — the `fly` just linked rebuilds the std in `build/stage1/lib`
-   (`FLY_STD_BUILDER=self`). The seed's build only served to link that compiler.
+4. **std again** — the `fly` just linked runs `fly build --target std` itself
+   and replaces the std in `build/stage1/lib`. The seed's build only served to
+   link that compiler.
+
+Up to 0.15 the stage drove the seed with one hand-written compiler command per
+artifact and linked the compiler in a script; the profile in `Manifest.fly`
+now carries the options, and the stage keeps only the layout and the bundled
+LLVM pieces. Stage 2 still uses the per-artifact scripts.
 
 Only then do the suites run, and they are compiled and executed by the `fly`
 that stage 1 just linked — never by the seed. `FLY_STAGE1_TESTS=0` skips them
@@ -230,9 +241,12 @@ Each `build_*` and `test_*` script can be run on its own with `STAGE` set.
 build/
   llvm/            fork LLVM (stage 0)
   stage0/          the seed: bin/fly + lib/
-  stage1/          bin/fly0 (the seed, hard-linked), bin/fly, lib/, driver/
+  stage1/          bin/fly0 (the seed, hard-linked), bin/fly, lib/
   stage2/          bin/, lib/   ← the release
   test/            suite binaries and probe output
+target/
+  stage1/          what `fly build` produced at stage 1 (stage1-debug/ with DWARF)
+  dist/            the toolchain `fly build --profile dist` builds at stage 2 (test_fly_build)
 ```
 
 A `fly` binary finds its libraries at `<exe>/../lib`. That is why stage 1 hard

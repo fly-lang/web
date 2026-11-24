@@ -1984,7 +1984,9 @@ for int i = 0; i < 10; i++ {
 
 ### 9.7 Error Handling Statements
 
-Fly error handling is built on two keywords — `fail` and `handle` — and a built-in `error` type. The mechanism is **not** exception-based stack unwinding. Instead, every function receives a hidden first parameter: a pointer to an `error` struct. When `fail` fires, it writes into that struct and either jumps past the surrounding `handle` block (if one exists in the same function) or returns immediately. The error value propagates upward through the call stack only when no caller intercepts it with `handle`.
+Fly error handling is built on two keywords — `fail` and `handle` — and a built-in `error` type. The mechanism is **not** exception-based stack unwinding. Instead, every function receives a hidden first parameter: a pointer to an `error` struct. When `fail` fires, it writes into that struct and either jumps past the surrounding `handle` block (if one exists in the same function) or returns immediately.
+
+**A failure cannot be ignored** (since 0.15.1). After every call to a Fly function the caller checks the struct: if the callee failed, the caller stops right there and takes the same exit its own `fail` would take — out of the enclosing `handle`, or a return to *its* caller. So the error travels up the call stack, one frame at a time, until a `handle` stops it; an error nobody handles ends the program from `main`.
 
 #### 9.7.1 The Error Type
 
@@ -2051,22 +2053,32 @@ void validate(const int age) {
 
 #### 9.7.3 Automatic Error Propagation
 
-Every function (except `main`) has a hidden first parameter: a pointer to the caller's error struct. When a function fails **without** a `handle` in its own body, it writes to that pointer and returns void. The caller's code continues from where the call returned — the error data is already in the shared struct.
+Every function (except `main`) has a hidden first parameter: a pointer to the caller's error struct. When a function fails **without** a `handle` in its own body, it writes to that pointer and returns. Right after the call, the caller tests the struct's code; when it is set, the caller stops too:
+
+- inside a `handle` block, it jumps past the block (the handle consumes the error);
+- inside a suite `case`, it ends the case (reported as that case's failure);
+- otherwise it frees its locals and returns, leaving the error for its own caller.
 
 ```fly
 void fetchData() {
-    fail 503, "service unavailable"   // writes error, returns void
+    fail 503, "service unavailable"   // writes the error, returns
+}
+
+void load() {
+    fetchData()   // failed: load returns here, the error goes on up
+    parse()       // NOT reached
 }
 
 void main() {
-    fetchData()   // error is written to main's error struct
-    // execution continues here, but error struct is now populated
+    load()        // failed: main stops here
     // main() prints "error 503: service unavailable" to stderr
-    // and returns exit code 503
+    // and exits with code 503
 }
 ```
 
-Because propagation is not stack unwinding, a failing callee does NOT unwind the caller — the next line after the call still executes. Use a `handle` block to intercept failures before they reach the caller.
+Nothing has to be written for this: no annotation on the function, no marker at the call. The check is a load and a branch after the call, and costs nothing else on the success path. Calls into C (the `fly.bridge` bridge) and the runtime intrinsics take no error pointer and are not checked.
+
+> **Before 0.15.1** a failing callee returned and the caller went on with the next statement, so an error could be silently ignored. Code that relied on that now stops at the call; to go on after a failure on purpose, put the call in a `handle`.
 
 #### 9.7.4 Handle Statement
 
@@ -2086,7 +2098,7 @@ The compiler emits two LLVM basic blocks for each `handle`:
 - **`handle`** — the guarded code
 - **`safe`** — the continuation (code after the handle)
 
-When `fail` fires **directly inside the handle body** (same function), execution jumps to `safe`, skipping the rest of the handle body. When `fail` fires **in a callee**, the callee returns void and the handle body continues at the next statement.
+When `fail` fires **directly inside the handle body** (same function), execution jumps to `safe`, skipping the rest of the handle body. When `fail` fires **in a callee** (at any depth), the callee returns, and the call inside the handle body jumps to `safe` the same way: the rest of the body is skipped.
 
 On exit the handle **consumes** the error: the failure never propagates to
 the caller, and the implicit `error` variable — automatically in scope after
@@ -2156,9 +2168,9 @@ void openFile(const string path) {
 }
 
 void main() {
-    openFile("")       // writes error 400 to main's struct, returns
-    openFile("/tmp")   // STILL CALLED — propagation is not unwinding
-    // main returns exit code 400
+    openFile("")       // fails with 400: main stops here
+    openFile("/tmp")   // NOT called
+    // main prints "error 400: empty path" and exits with code 400
 }
 ```
 
@@ -2170,12 +2182,21 @@ void openFile(const string path) {
 
 void main() {
     handle {
-        openFile("")       // fails and writes the error; handle body continues
-        openFile("/tmp")   // STILL CALLED (callee fail ≠ jump in caller)
+        openFile("")       // fails: the handle body stops here
+        openFile("/tmp")   // NOT called
     }
     if (error) {
         // the 400 failure was recorded and consumed here
     }
+    openFile("/tmp")       // runs: the error did not get past the handle
+}
+```
+
+**Example 2b: Going on after a failure, on purpose**
+```fly
+void main() {
+    handle { openFile("") }      // a failure here is expected and dropped
+    handle { openFile("/tmp") }  // runs whatever happened above
 }
 ```
 
@@ -2240,10 +2261,10 @@ So the process exit code equals the error code of the last unhandled failure —
 | Signal error | `fail` | `throw` |
 | Intercept | `handle { }` | `try { } catch { }` |
 | Payload | int, string, or object (comma-separated, up to one each) | typed exception object |
-| Stack unwinding | **No** — failing callee just returns; caller continues | **Yes** — stack frames are unwound |
-| Callee fail bypasses rest of caller? | **No** (unless fail is direct in handle block) | **Yes** |
-| Error propagation | via hidden pointer parameter; must re-`fail` manually | automatic until caught |
-| Overhead | zero-cost on success; single function return on failure | unwinder overhead |
+| Stack unwinding | **No** — each frame returns normally (locals freed), one after the other | **Yes** — stack frames are unwound by the runtime |
+| Callee fail bypasses rest of caller? | **Yes** (since 0.15.1) | **Yes** |
+| Error propagation | automatic through the hidden pointer parameter, until a `handle` | automatic until caught |
+| Overhead | one load + branch after each call; ordinary returns on failure | zero-cost on success; unwinder on failure |
 
 ---
 

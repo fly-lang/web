@@ -286,10 +286,10 @@ What happens to the recorded error depends on the context:
   statement, prints `<label> ... FAIL(<code>): <message>`, and moves on to the
   next case.
 - **In a plain `main()`-based test**: the error propagates to `main()`, which
-  prints `error <code>: <message>` to stderr and exits with `<code>`. Note that
-  `fail` is not stack unwinding — execution continues after a failed assert, so
-  a later failing assert overwrites the recorded error (the reported failure is
-  the LAST one).
+  prints `error <code>: <message>` to stderr and exits with `<code>`. From
+  0.15.1 a failure cannot be ignored: the test stops at the first failing
+  assert, so the reported failure is the FIRST one (up to 0.15.0 execution went
+  on and the last failing assert won).
 
 | Function | Signature | Exits with `code` when |
 |---|---|---|

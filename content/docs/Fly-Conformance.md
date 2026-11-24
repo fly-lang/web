@@ -163,9 +163,10 @@ class).
 
 ### Errors that are not handled
 
-A `fail` in a called function does **not** interrupt the caller. The call
-returns, the caller continues with the next statement, and the value it received
-is the zero value of the return type.
+**From 0.15.1 a failure cannot be ignored.** When a called function fails, the
+caller stops right after the call and returns too, and so on up the stack, until
+a `handle` stops the error; an error that nobody handles ends the program from
+`main`, which prints it and exits with its code.
 
 ```fly
 int load() {
@@ -174,19 +175,22 @@ int load() {
 }
 
 void main() {
-    int v = load()            // v is 0; execution continues
-    io.printLn("continued")   // printed
-}                             // the process then exits with code 7
+    int v = load()            // load failed: main stops here
+    io.printLn("continued")   // NOT printed
+}                             // the process exits with code 7
 ```
 
 ```text
-continued
 error 7: bad
 ```
 
-An unhandled error is reported once, when `main` returns, and becomes the exit
-code. Nothing forces a caller to look at it earlier. When the result of a call
-matters, wrap the call in `handle { }` and test `error` before using the value.
+To go on after a failure on purpose, put the call in `handle { }` and test
+`error`. Inside a `handle` the rest of the block is skipped too, from the
+failing call on.
+
+Up to 0.15.0 the call returned, the caller continued with the next statement,
+and the value it received was the zero value of the return type: the program
+above printed `continued` before reporting `error 7: bad`.
 
 ### `switch` and fall-through
 

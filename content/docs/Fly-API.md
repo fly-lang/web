@@ -67,6 +67,23 @@ Returns the decimal string representation of a 64-bit `long`. `convert` takes an
 string s = str.convertL(5000000000)   // s = "5000000000"
 ```
 
+#### `convertD`
+```fly
+public string convertD(const double v)
+```
+The **shortest** decimal text that reads back (`toDouble`) as exactly `v`.
+Positional while the decimal exponent is between -4 and 15, otherwise scientific
+with a signed exponent of at least two digits; a whole number keeps a `.0`.
+Non-finite values are `inf`, `-inf`, `nan`.
+
+```fly
+str.convertD(0.1)          // "0.1"
+str.convertD(1.0)          // "1.0"
+str.convertD(0.1 + 0.2)    // "0.30000000000000004"
+str.convertD(10000000000000000.0)  // "1e+16"
+str.convertD(0.000015)     // "1.5e-05"
+```
+
 ---
 
 ### Query
@@ -241,8 +258,22 @@ int port = str.toInt("8080", e)       // 8080, e = 0
 int bad = str.toInt("80a", e)         // 0, e = 1
 ```
 
-> Floating-point parsing and formatting (`toDouble`, a `double` → `string`
-> conversion) are not in the standard library yet.
+```fly
+public double toDouble(const string s, int errOut)
+```
+
+The decimal number `s` spells: an optional sign, digits with an optional
+fraction (`1.5`, `.5`, `5.`) and an optional exponent (`1e-3`, `2E+8`), nothing
+else (no blanks, no `inf` or `nan`). The result is the nearest `double`,
+correctly rounded. `errOut`: `0` ok, `1` not a number, `2` beyond the range of a
+`double` (about `1.8e308`); on an error the result is `0.0`. A value nearer to
+zero than the smallest `double` reads as `0.0`.
+
+```fly
+int e = 0
+double d = str.toDouble("2.5e-1", e)  // 0.25, e = 0
+d = str.toDouble("1e999", e)          // 0.0, e = 2
+```
 
 ---
 
@@ -2331,9 +2362,8 @@ object member, `309` malformed `\u`, `310` unpaired surrogate). The returned
 handle is never `0`: on error it is a partially-built tree the caller must
 still free.
 
-> Numbers keep their **raw source text** — std has no string→double conversion
-> yet — so `asNumber` always returns `0.0`. Read numbers with `asInt`, or
-> `asString` for the literal.
+> Numbers keep their **raw source text**: `asNumber` converts it to a `double`
+> (`str.toDouble`), `asInt` reads the integral part, `asString` the literal.
 
 ### Reading
 
@@ -2370,7 +2400,8 @@ public double asNumber(const pointer v)
 ```
 `asString` also returns a **number's raw literal text**. `asInt` takes the
 integral part of that literal (a leading `-` is honoured, a fraction or exponent
-ignored). Each returns the zero value for any other kind.
+ignored). `asNumber` is the literal's value as the nearest `double` (from 0.15.1;
+before, always `0.0`). Each returns the zero value for any other kind.
 
 #### `size` · `at`
 ```fly
@@ -2400,18 +2431,20 @@ Releases a value and everything below it. Safe on a null handle.
 
 ### Building
 
-#### `newNull` · `newBool` · `newInt` · `newNumber` · `newString` · `newArray` · `newObject`
+#### `newNull` · `newBool` · `newInt` · `newDouble` · `newNumber` · `newString` · `newArray` · `newObject`
 ```fly
 public pointer newNull()
 public pointer newBool(const bool b)
 public pointer newInt(const int n)
+public pointer newDouble(const double d)
 public pointer newNumber(const string literal)
 public pointer newString(const string s)
 public pointer newArray()
 public pointer newObject()
 ```
-`newNumber` takes the literal text verbatim (std has no double→string
-formatter). `newString` stores the value **raw**; escaping happens at write
+`newDouble` writes `d` as the shortest text that reads back as it
+(`str.convertD`); `inf` and `nan` have no JSON spelling and become `null`.
+`newNumber` takes the literal text verbatim. `newString` stores the value **raw**; escaping happens at write
 time.
 
 #### `add`

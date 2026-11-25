@@ -1100,7 +1100,7 @@ void main() {
   references. The object is destroyed with its last holder; the header is freed when
   the last weak reference has gone too.
 
-> **Transition.** A local initialized directly with `new` (`C x = new C()`) is still released automatically at the end of its scope when it has not escaped (passed to a call or assigned elsewhere) — only the object, not what its `free()` would release. `delete x` before the end of the scope makes that automatic release a no-op. In a later release a plain `new` will require `delete`, and automatic release will belong to `new unique`. Up to 0.14.x there was no `delete`: classes exposed `free()` and the caller invoked it.
+> **A plain `new` requires `delete`.** From 0.16.0 an object created with a plain `new` belongs to the program until a `delete` releases it: leaving the scope of the variable that holds it releases nothing, and an object that is never deleted leaks. Automatic release belongs to `new unique` (at the end of the owner's scope) and `new shared` (with the last holder). In 0.15.x a local initialized directly with `new` that had not escaped (passed to a call or assigned elsewhere) was still released at the end of its scope — only the object, not what its `free()` would release. Up to 0.14.x there was no `delete`: classes exposed `free()` and the caller invoked it.
 
 #### Strings: managed automatically
 
@@ -1221,7 +1221,7 @@ String **literals** inside an array literal are unaffected: they are stored as p
 
 | Form | Who frees the object | Copy `C y = x` |
 |------|----------------------|----------------|
-| `new C()` | `delete x` (transition: automatic at scope end if it did not escape) | an alias, nothing counted |
+| `new C()` | `delete x` — nothing else; never deleted, it leaks | an alias, nothing counted |
 | `new unique C()` | the owner, at the end of its scope (or `delete`) | a **move**: `x` is left null |
 | `new shared C()` | the last holder | one more holder |
 | `weak h` | never — it only observes a shared object | a holder (promotion) |

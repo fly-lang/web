@@ -159,7 +159,7 @@ class).
 | Method call or field access on a class or interface reference that is `null` or was never assigned | **Checked from 0.15.0, in every build** (release included): the program stops with `error 134: null reference: calling 'size' on a null 'Box' at main.fly:16:5` (or `accessing field 'v' of …`) and exit code 134. Calls through `this` are not checked: the caller already did. Up to 0.14.x: segmentation fault, with no message. |
 | Use of an object after `delete x` | **Checked from 0.15.0** through the same variable: `delete` sets it to `null`, so a later use stops on the null-reference trap. Another variable that still points at the object is not checked. |
 | Use of an object after calling its `free()` directly | Not checked. |
-| A class instance that is never deleted | Leaks, unless it is a local created with `new` that has not escaped: that one is released at the end of its scope (transitional, see the Language Reference §6.6). There is no garbage collector. |
+| A class instance created with a plain `new` that is never deleted | Leaks: from 0.16.0 leaving the scope of its variable releases nothing (see the Language Reference §6.6). In 0.15.x a local created with `new` that had not escaped was released at the end of its scope. Objects created with `new unique` or `new shared` are released by their owner or their last holder. There is no garbage collector. |
 | A `string` | Released automatically at scope exit and on reassignment. |
 | A `struct` | Stack storage, released at scope exit. |
 

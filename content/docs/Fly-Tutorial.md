@@ -320,7 +320,7 @@ void main() {
     Rect r = new Rect(3, 4)
     Shape s = r
     io.printLn(str.convert(s.area()))   // 12
-    r.free()
+    delete r
 }
 ```
 
@@ -346,14 +346,15 @@ void main() {
 
 ## Memory management
 
-Fly has no garbage collector and no `delete` operator. Three rules cover
-everything:
+Fly has no garbage collector. Who releases a value depends on how it was made:
 
 | Value | Where it lives | Who releases it |
 |---|---|---|
 | `struct` | stack | the compiler, at scope exit |
-| `string` | heap buffer | the compiler: at scope exit and on reassignment |
-| `class` | heap | **you**, by calling the class's `free()` method |
+| `string`, array | heap buffer | the compiler: at scope exit and on reassignment |
+| `new C()` | heap | **you**, with `delete x` |
+| `new unique C()` | heap | its owner, at the end of the owner's scope |
+| `new shared C()` | heap | its last holder |
 
 ```fly
 import fly.data.List
@@ -362,14 +363,19 @@ void main() {
     List<int> l = new List<int>()
     l.add(1)
     l.add(2)
-    l.free()        // releases the list's buffer
-}
+    delete l        // calls l.free(), releases the object, sets l to null
+
+    List<int> u = new unique List<int>()
+    u.add(3)
+}                   // ← u released here, with its free()
 ```
 
-`free()` is a convention, not a keyword: a class that owns resources declares an
-ordinary `void free()` method and its user calls it. Every container in the
-standard library follows it. Forgetting the call leaks; using the object
-afterwards is not detected.
+`delete x` calls the class's `free()` when it declares one — that is where a
+class releases what it owns, such as a container's buffer — then releases the
+object and sets `x` to `null`. A plain `new` that is never deleted leaks: leaving
+the scope releases nothing. A `unique` owner moves on assignment (`C v = u`
+leaves `u` null); `shared` objects are counted. Using a reference after `delete`
+stops on the null-reference check.
 
 ---
 
@@ -428,14 +434,14 @@ void main() {
     for name in names {
         io.printLn(name)
     }
-    names.free()
+    delete names
 
     Map<string, int> ages = new Map<string, int>()
     ages.put("ada", 36)
     if ages.has("ada") {
         io.printLn(str.convert(ages.get("ada")))
     }
-    ages.free()
+    delete ages
 }
 ```
 

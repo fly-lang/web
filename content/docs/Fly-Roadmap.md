@@ -110,8 +110,9 @@ Done:
   position; an index out of range fails with its position; an access through a
   raw pointer that points nowhere and a stack overflow print what happened
   before the system ends the program.
-- **Deterministic release**: `delete`, `new unique` (one owner), `new shared`
-  (reference counted) and `weak` references.
+- **Deterministic release**: a plain `new` requires `delete`; automatic release
+  belongs to `new unique` (one owner) and `new shared` (reference counted), with
+  `weak` references to break cycles.
 - **Warnings** (`unused-variable`, `unused-import`, `shadow`, `lossy-conversion`,
   `non-exhaustive-switch`) with `--warnings-as-errors`; the tree builds with it.
 - **Conversions**: narrowing and signed-to-unsigned need a cast, also for
@@ -128,8 +129,7 @@ Done:
   bootstrap stages are `fly build` on the repository's own manifest — the
   result is a self-contained toolchain.
 
-To do: finish the `new`/`delete` transition (a plain `new` requires `delete`),
-decide `protected`, no implicit conversion to `bool`, constant overflow as a
+To do: decide `protected`, no implicit conversion to `bool`, constant overflow as a
 compile-time error, and the remaining clean-ups — see the
 [milestone](https://github.com/fly-lang/fly/milestone/11).
 

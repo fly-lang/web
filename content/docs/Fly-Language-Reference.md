@@ -2063,6 +2063,16 @@ fail 1, "oops", new Ctx()   // code = 1,   str = "oops", obj = Ctx instance
 
 Any code after `fail` within the same basic block is unreachable.
 
+The operands are evaluated first, all of them, and only then written to the
+error: a message may be any string expression, a call included
+(`fail 400, str.concat("bad field: ", name)`). The error keeps its own copy of
+the message, so a temporary message is moved into it.
+
+> **0.15.1 and 0.15.2** wrote the code before evaluating the message: when the
+> message came from a call (a `+` with a `str.convert(...)` in it included, like
+> the `fly.assert` messages), the check after that call saw the code already set
+> and the message was lost — `error 1` instead of `error 1: …`. Fixed in 0.16.
+
 ```fly
 void validate(const int age) {
     if age < 0 {
@@ -2131,6 +2141,12 @@ any handle, no declaration needed — holds the outcome. It reads as a boolean:
 `true` when the guarded block recorded a failure, `false` otherwise. Each
 `handle` opens a fresh window: a later handle that stays clean resets `error`
 to `false`.
+
+The handle consumes the **whole** failure: its code, its message (freed) and its
+object (dropped from the error; the object itself is not deleted). A later
+failure starts empty — up to 0.15.2 a handled failure's message stayed behind,
+and a later `fail` without a message, or with one built by a call, was reported
+with the old text.
 
 **Forms:**
 

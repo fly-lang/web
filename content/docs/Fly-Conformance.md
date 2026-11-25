@@ -195,6 +195,12 @@ Up to 0.15.0 the call returned, the caller continued with the next statement,
 and the value it received was the zero value of the return type: the program
 above printed `continued` before reporting `error 7: bad`.
 
+The report names the failure that ended the program. From 0.16 a message built
+by an expression (`fail 1, str.concat(what, ": x")`) is reported, and a `handle`
+consumes the message along with the code; in 0.15.1 and 0.15.2 such a message was
+lost (`error 1`); and up to 0.15.2 a message consumed by an earlier `handle`
+reappeared in a later failure that had none of its own.
+
 ### `switch` and fall-through
 
 From 0.15.0 a `case` body never continues into the next label: the switch ends

@@ -160,6 +160,7 @@ class).
 | Use of an object after `delete x` | **Checked from 0.15.0** through the same variable: `delete` sets it to `null`, so a later use stops on the null-reference trap. Another variable that still points at the object is not checked. |
 | Use of an object after calling its `free()` directly | Not checked. |
 | A class instance created with a plain `new` that is never deleted | Leaks: from 0.16.0 leaving the scope of its variable releases nothing (see the Language Reference §6.6). In 0.15.x a local created with `new` that had not escaped was released at the end of its scope. Objects created with `new unique` or `new shared` are released by their owner or their last holder. There is no garbage collector. |
+| An object deleted, or released by its owner or last holder, through a base class or interface reference | Defined **from 0.16.0**: destroyed as the class it was created with — that class's `free()` and every owning, holding and weak field it has, bases' fields included. In 0.15.x only the fields of the reference's type were released: those of the subclass leaked, and a `free()` declared only by the subclass did not run. |
 | A `string` | Released automatically at scope exit and on reassignment. |
 | A `struct` | Stack storage, released at scope exit. |
 

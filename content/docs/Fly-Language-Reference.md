@@ -955,7 +955,7 @@ A `new` on a `class` allocates on the **heap** (`malloc(sizeof(T))`). From 0.15.
 
 1. does nothing when `x` is `null`;
 2. calls the class's `free()` method, when it declares one with no parameters (its own or inherited) — that is where a class releases what it owns, such as a buffer;
-3. releases the object itself;
+3. releases the object's owning, holding and weak fields (see below), then the object itself. Steps 2 and 3 follow the class the object was created with, not the type of `x` (from 0.16.0);
 4. sets `x` to `null`, so a second `delete x` is harmless and a later use of `x` stops on the null-reference trap instead of reading freed memory.
 
 The target must be a variable, a parameter or a field holding a class or interface reference; it cannot be `this`, a `struct` or a `const` variable.
@@ -1028,10 +1028,33 @@ void main() {
 
 `new unique` must initialize a declaration or be assigned to an owner, and an owner
 moves only into another owner, a new declaration or a return — never into a plain
-variable: those are compile-time errors. Deleting an object through a base or
-interface type deletes only the owning fields that type declares (a subclass's own
-owning fields then leak; nothing is freed twice). A
+variable: those are compile-time errors. A
 `struct` cannot be `new unique` (it is already a value on the stack).
+
+**Destruction follows the real class.** An object is destroyed as the class it was
+created with, whatever the type of the reference that lets it go: `delete` through a
+base class or an interface, the end of a `new unique` owner's scope and the last
+`new shared` holder all run the `free()` of the object's own class (its own or the one
+it inherits) and release every owning, holding and weak field that class has, bases'
+fields included. A base class's `free()` is not called on top of a subclass's:
+an override that needs it calls `super.free()`.
+
+```fly
+public class Shape {
+}
+
+public class Poly : Shape {
+    Res points
+    public Poly() {
+        this.points = new unique Res()   // a field only Poly declares
+    }
+}
+
+void main() {
+    Shape s = new Poly()
+    delete s   // ← Poly.free() (if any), then s.points, then the Poly
+}
+```
 
 #### `new shared`: counted references
 

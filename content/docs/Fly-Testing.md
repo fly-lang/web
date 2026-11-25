@@ -196,10 +196,17 @@ suite <Name>
   <firstTest>
     <case label> ... ok
     <case label> ... FAIL(<code>): <message>
+    <case label> ... ok
+      warning: 2 objects not deleted (32 B)
   <secondTest>
     ...
 suite <Name>: <N> cases, <P> passed, <F> failed
 ```
+
+A case that leaves class objects alive gets a `warning:` line under its result
+(from 0.16.0): a warning only, the case still passes. At the end the suite's
+`main` prints the end-of-program report by class, on stderr, like any program
+(Language Reference §6.6).
 
 Flow: `setup()` → each test-method (each `case` reported individually) →
 `teardown()` → summary. Rules:

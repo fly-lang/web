@@ -1287,7 +1287,7 @@ Drains the internal buffer into the inner writer.
 ```fly
 public void bufWriterClose(BufWriter w)
 ```
-Flushes anything pending, releases the buffer and closes the inner writer. Always close a `BufWriter` this way: bytes still buffered when it is dropped are lost.
+Flushes anything pending, releases the buffer and closes the inner writer. From 0.16.0 a `BufWriter` that is deleted — or released at the end of `main` because nobody deleted it — still holding bytes does the same (its `free()` closes it); up to 0.15.x those bytes were lost.
 
 #### `writeNL`
 ```fly
@@ -1311,7 +1311,7 @@ public void bufFree(Buf b)
 ```
 Releases a `Buf`'s memory and empties it, so a second call is harmless. Every `Buf` returned by `readAll`, `readExact`, `peek` or `fs.read` owns its bytes.
 
-A `Reader`, `Writer`, `BufReader` or `BufWriter` **object** cannot be released from Fly: there is no way to free a class handle. `close` (or `bufClose` / `bufWriterClose`) gives back the internal buffer and the descriptor, which is everything but the handle itself.
+`close` (or `bufClose` / `bufWriterClose`) gives back the internal buffer and the descriptor; the `Reader`, `Writer`, `BufReader` or `BufWriter` **object** itself goes with `delete` (from 0.15.0), and one never deleted is reported and released at the end of `main` (from 0.16.0).
 
 #### `readLine`
 ```fly

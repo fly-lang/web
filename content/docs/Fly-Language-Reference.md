@@ -951,12 +951,14 @@ void process() {
 
 #### Class: heap-allocated, released with `delete`
 
-A `new` on a `class` allocates on the **heap** (`malloc(sizeof(T))`). From 0.15.0 the object is released with **`delete x`**, which:
+A `new` on a `class` allocates on the **heap** — from 0.16.0 the runtime's own **object heap**, which knows every live object (see [Objects never deleted](#objects-never-deleted-the-report-at-the-end-of-main) below); up to 0.15.x the system `malloc`. From 0.15.0 the object is released with **`delete x`**, which:
 
 1. does nothing when `x` is `null`;
 2. calls the class's `free()` method, when it declares one with no parameters (its own or inherited) — that is where a class releases what it owns, such as a buffer;
 3. releases the object's owning, holding and weak fields (see below), then the object itself. Steps 2 and 3 follow the class the object was created with, not the type of `x` (from 0.16.0);
 4. sets `x` to `null`, so a second `delete x` is harmless and a later use of `x` stops on the null-reference trap instead of reading freed memory.
+
+Deleting through **another** reference an object that is already gone — `Node b = a`, `delete a`, `delete b` — stops the program (from 0.16.0): `error 134: double delete of a 'Node' at main.fly:4:5`, exit code 134. The object heap no longer counts the object as live, so the second `delete` is caught before it runs anything.
 
 The target must be a variable, a parameter or a field holding a class or interface reference; it cannot be `this`, a `struct` or a `const` variable.
 
@@ -1233,7 +1235,7 @@ String **literals** inside an array literal are unaffected: they are stored as p
 | Expression | Memory | Reclaimed by |
 |---|---|---|
 | `struct S = new S()` | stack (alloca) | automatic at scope exit |
-| `class C = new C()` | heap (malloc) | `delete x` (calls `free()`, releases, sets `x` to null) |
+| `class C = new C()` | heap (the object heap) | `delete x` (calls `free()`, releases, sets `x` to null); never deleted, it is reported and released at the end of `main` |
 | `string s = …` (non-const, initialized) | heap | automatic at scope exit; reassignment frees the old buffer |
 | `const string s = …` | static/null | nothing to free |
 | `int[] xs = …` / `int[3] xs` | heap, `[refcount \| elements]` | reference counted: released at scope exit, freed when the last owner goes |
@@ -1244,10 +1246,38 @@ String **literals** inside an array literal are unaffected: they are stored as p
 
 | Form | Who frees the object | Copy `C y = x` |
 |------|----------------------|----------------|
-| `new C()` | `delete x` — nothing else; never deleted, it leaks | an alias, nothing counted |
+| `new C()` | `delete x` — nothing else; never deleted, it is reported at the end of `main` | an alias, nothing counted |
 | `new unique C()` | the owner, at the end of its scope (or `delete`) | a **move**: `x` is left null |
 | `new shared C()` | the last holder | one more holder |
 | `weak h` | never — it only observes a shared object | a holder (promotion) |
+
+#### Objects never deleted: the report at the end of `main`
+
+From 0.16.0 every class object — `new`, `new unique`, `new shared` — lives in the runtime's **object heap**, which knows the live ones. When `main` ends, the program reports on **stderr** the objects it never deleted, by class, most first, and then releases them. The exit code does not change. A program that deletes everything prints nothing.
+
+```fly
+namespace app
+
+class Node {
+    int v
+}
+
+void main() {
+    Node a = new Node()
+    Node b = new Node()
+}
+```
+
+```
+warning: 2 objects not deleted (32 B)
+  app.Node x2, 32 B
+```
+
+- The count includes what a leaked object owns or holds. A generic class is named with its type arguments (`fly.data.List<string>`); a class compiled by an earlier release (a package built with 0.15.x) has no type information and is counted as `(a class built by an earlier compiler)`.
+- **Release.** Each leaked object is then released as `delete` would: its `free()` runs and its owning and holding fields go with it. An object is released before the objects it owns or holds, so a `free()` still finds them; objects that hold each other (a `new shared` cycle) are released once each. A `BufWriter` nobody closed writes out its buffered bytes.
+- **When.** When `main` returns or ends with an unhandled `fail`, and also when the program ends through `fly.os.env.exit`. Not after a run-time trap (`error 134`, `error 2989`…) or a crash: a broken program is not walked.
+- **Test suites.** A suite's generated `main` reports at its end like any program, and each `case` that leaves objects alive gets a line under its result — a warning, the case still passes (see the Testing page).
+- **Not covered.** Strings and arrays (released automatically), raw `fly.mem` blocks, structs (stack). The Fly toolchain itself (compiler, `fly-lsp`, `fly-registry`) does not delete its syntax trees yet and turns the report off for itself.
 
 ### 6.7 Generics
 
@@ -2054,6 +2084,8 @@ fail 404, "not found"       // code = 404, str = "not found"
 fail 1, "oops", new Ctx()   // code = 1,   str = "oops", obj = Ctx instance
 ```
 
+The error **owns** its object: when a `handle` consumes the failure, or `main` reports it, the object is deleted (from 0.16.0; up to 0.15.x it was only dropped from the error, and leaked).
+
 **Behavior of `fail`:**
 
 | Context | What happens |
@@ -2143,7 +2175,7 @@ any handle, no declaration needed — holds the outcome. It reads as a boolean:
 to `false`.
 
 The handle consumes the **whole** failure: its code, its message (freed) and its
-object (dropped from the error; the object itself is not deleted). A later
+object (deleted from 0.16.0: the error owns it; up to 0.15.x it was only dropped). A later
 failure starts empty — up to 0.15.2 a handled failure's message stayed behind,
 and a later `fail` without a message, or with one built by a call, was reported
 with the old text.
@@ -2294,6 +2326,8 @@ ret i32 load(error.code)
 ```
 
 So the process exit code equals the error code of the last unhandled failure — `0` means clean exit. See [Section 5.5](#5-5-the-main-function) for the full behaviour table.
+
+After the error is printed, its message and object are released, and the end-of-`main` report lists the objects the program never deleted (from 0.16.0, [§6.6](#objects-never-deleted-the-report-at-the-end-of-main)).
 
 #### 9.7.7 Key Differences from try-catch
 

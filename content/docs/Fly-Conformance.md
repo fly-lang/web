@@ -112,8 +112,19 @@ k = 2                // error from 0.14.7 — 0.14.6 stores 2
 ```
 
 **`private` is per class.** A `private` field can be read and written, and a
-`private` method called, only from the class that declares it. `protected` is
-parsed but not yet checked.
+`private` method called, only from the class that declares it.
+
+**`protected` is per class hierarchy, from 0.16.0.** A `protected` field or
+method (constructors included) is reachable from the class that declares it and
+from every class derived from it, through any receiver; anywhere else it is an
+error (`'v' is protected in 'Base': it can be accessed only from 'Base' and the
+classes derived from it`). `protected` may be written only on the methods and
+attributes of a class: on a function, a variable, a type or a member of an
+interface, struct or suite it is an error. From 0.16.0 both `private` and
+`protected` are also checked on **static** members (`A.count`, `A.make()`), on
+`super.v`, and on `new` with a non-public constructor. Up to 0.15.x `protected`
+was parsed and ignored (every access compiled), and a `private` static member
+could be reached from outside its class.
 
 **Redeclaration versus shadowing.** Declaring a name twice in the same scope is
 an error; declaring it again in a nested block shadows the outer variable and

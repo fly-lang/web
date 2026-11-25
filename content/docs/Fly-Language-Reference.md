@@ -544,10 +544,11 @@ private void privateHelper() {}
 
 // Public function (exported)
 public void publicAPI() {}
-
-// Protected function (for inheritance)
-protected void protectedMethod() {}
 ```
+
+`protected` is not a visibility for functions: it applies only to the methods
+and attributes of a class (see [11.1](#11-1-visibility-modifiers)), and on a
+function it is an error.
 
 ### 5.4 Return Values
 
@@ -2619,7 +2620,7 @@ Control the accessibility of declarations.
 | Modifier    | Scope                                          | Applies To                    |
 |-------------|------------------------------------------------|-------------------------------|
 | `private`   | Only within the same file/class                | Functions, classes, members   |
-| `protected` | Within the class and derived classes           | Class members                 |
+| `protected` | Within the class and every class derived from it | Methods and attributes of a class |
 | `public`    | Accessible from anywhere                       | Functions, classes, members   |
 | (default)   | Package-private (same namespace)               | Functions, classes            |
 
@@ -2642,6 +2643,42 @@ public class PublicAPI {
 void packageFunction() {}
 class DefaultClass {}
 ```
+
+**Member access, checked by the compiler.** A `private` member (field, method,
+constructor, static or not) is reachable only from the methods of the class that
+declares it. A `protected` member is reachable from the methods of that class and
+of every class derived from it, directly or not. The rule looks only at *where*
+the code is, never at the receiver: inside a subclass, `this.v`, `super.v`, `o.v`
+on another instance of the subclass and `b.v` on a plain `Base` are all allowed.
+A `protected` constructor can be called with `super(...)` and with `new` from a
+subclass only.
+
+```fly
+class Base {
+    protected int v
+    protected Base(const int v) {
+        this.v = v
+    }
+}
+
+class Derived : Base {
+    public Derived() {
+        super(1)
+    }
+    public int twice(const Base other) {
+        return this.v + other.v     // ok: Derived derives from Base
+    }
+}
+
+void main() {
+    Derived d = new unique Derived()
+    int x = d.v                     // error: 'v' is protected in 'Base'
+}
+```
+
+`protected` is written only on the methods and attributes of a class. On a
+function, a parameter or local variable, a type, or a member of an interface,
+struct or suite it is an error: none of them has subclasses to open a member to.
 
 ### 11.2 Constant Modifier
 

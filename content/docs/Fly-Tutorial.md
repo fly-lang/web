@@ -324,7 +324,8 @@ void main() {
 }
 ```
 
-Member visibility is `public`, `private` or `protected`; `static` makes a member
+Member visibility is `public`, `private` (the class only) or `protected` (the
+class and the classes derived from it); `static` makes a member
 class-level; `abstract` and `final` control inheritance.
 
 ---

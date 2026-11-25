@@ -128,8 +128,11 @@ Done:
   every program can read its own manifest (`fly.meta.package`), and all three
   bootstrap stages are `fly build` on the repository's own manifest — the
   result is a self-contained toolchain.
+- **`protected` is checked**: a protected member is reachable from its class and
+  every class derived from it, and is written only on class methods and
+  attributes; `private` and `protected` also guard static members.
 
-To do: decide `protected`, no implicit conversion to `bool`, constant overflow as a
+To do: no implicit conversion to `bool`, constant overflow as a
 compile-time error, and the remaining clean-ups — see the
 [milestone](https://github.com/fly-lang/fly/milestone/11).
 

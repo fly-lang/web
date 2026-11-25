@@ -34,12 +34,14 @@ it; the `area:*` labels say which part of the toolchain it touches.
 
 | Phase | Status | Milestone | Epic |
 |---|---|---|---|
-| 0 — Truth | done (v0.14.9) | [Phase 0](https://github.com/fly-lang/fly/milestone/9?closed=1) | [#229](https://github.com/fly-lang/fly/issues/229) |
-| 1 — Sound bootstrap | done (v0.14.9 – v0.15.2) | [Phase 1](https://github.com/fly-lang/fly/milestone/10?closed=1) | [#230](https://github.com/fly-lang/fly/issues/230) |
-| 2 — Safe language | in progress, closes with 0.16.0 | [Phase 2](https://github.com/fly-lang/fly/milestone/11) | [#231](https://github.com/fly-lang/fly/issues/231) |
-| 2b — Power | planned | [Phase 2b](https://github.com/fly-lang/fly/milestone/12) | [#232](https://github.com/fly-lang/fly/issues/232) |
-| 3 — Coherent std | planned, alongside phase 2 | [Phase 3](https://github.com/fly-lang/fly/milestone/13) | [#233](https://github.com/fly-lang/fly/issues/233) |
-| 4 — Ecosystem and 1.0 | planned | [Phase 4](https://github.com/fly-lang/fly/milestone/14) | [#234](https://github.com/fly-lang/fly/issues/234) |
+| 0 — Foundations | done (v0.13.19) | [Phase 0](https://github.com/fly-lang/fly/milestone/15?closed=1) | [#241](https://github.com/fly-lang/fly/issues/241) |
+| 1 — Bootstrapping | done (v0.14.9) | [Phase 1](https://github.com/fly-lang/fly/milestone/7?closed=1) | [#242](https://github.com/fly-lang/fly/issues/242) |
+| 2 — Truth | done (v0.14.9) | [Phase 2](https://github.com/fly-lang/fly/milestone/9?closed=1) | [#229](https://github.com/fly-lang/fly/issues/229) |
+| 3 — Sound bootstrap | done (v0.14.9 – v0.15.2) | [Phase 3](https://github.com/fly-lang/fly/milestone/10?closed=1) | [#230](https://github.com/fly-lang/fly/issues/230) |
+| 4 — Safe language | in progress, closes with 0.16.0 | [Phase 4](https://github.com/fly-lang/fly/milestone/11) | [#231](https://github.com/fly-lang/fly/issues/231) |
+| 4b — Power | planned | [Phase 4b](https://github.com/fly-lang/fly/milestone/12) | [#232](https://github.com/fly-lang/fly/issues/232) |
+| 5 — Coherent std | planned, alongside phase 4 | [Phase 5](https://github.com/fly-lang/fly/milestone/13) | [#233](https://github.com/fly-lang/fly/issues/233) |
+| 6 — Ecosystem and 1.0 | planned | [Phase 6](https://github.com/fly-lang/fly/milestone/14) | [#234](https://github.com/fly-lang/fly/issues/234) |
 
 Releases: [v0.13.19](https://github.com/fly-lang/fly/releases/tag/v0.13.19) (the
 last C++ seed), [v0.14.9](https://github.com/fly-lang/fly/releases/tag/v0.14.9),
@@ -62,7 +64,38 @@ into the self-host only.
 
 ---
 
-## Phase 0 — Truth
+## Phase 0 — Foundations
+
+*A language and a compiler for it.* **Done — shipped in v0.13.19.**
+
+From 2021 the language takes shape in the C++ reference compiler, built on LLVM:
+
+- **Syntax**: namespaces and imports, functions, braces for blocks, `//` and
+  `/* */` comments, no statement terminator, the operators, `if`/`else`,
+  `switch`, `while` and `for` loops.
+- **Types**: a static, strong type system; booleans, integers of every width,
+  `float` and `double`, strings and arrays; classes with methods, structs as
+  value types.
+- **Errors and debugging**: diagnostics instead of internal asserts, DWARF debug
+  symbols.
+- **The first standard library**: raw memory, `List`, `Map` and `Queue`, math,
+  threads and synchronisation — the modules the compiler needed to be
+  rewritten in Fly. They first ship, compiled by the self-host, in v0.14.9.
+
+Some ideas of the time did not stay: namespace-level variables were built and
+later removed, and variadic functions were left out. Each issue of this phase
+records what was really done and where the code lives today.
+
+## Phase 1 — Bootstrapping
+
+*Fly written in Fly.* **Done — shipped in v0.14.9.**
+
+The compiler, the runtime and the standard library are rewritten in Fly, with
+the LLVM C API bound directly from Fly. A staged bootstrap builds them: the C++
+compiler, frozen at v0.13.19, compiles the self-host, which then rebuilds
+itself; making that chain sound on every platform is the work of phase 3.
+
+## Phase 2 — Truth
 
 *The compiler does what the documentation says.* **Done — shipped in v0.14.9.**
 
@@ -79,7 +112,7 @@ into the self-host only.
   SHA-256 before use, a failed stage 2 is fatal, releases publish `SHA256SUMS`.
 - **Documentation** realigned with the compiler.
 
-## Phase 1 — A sound bootstrap
+## Phase 3 — A sound bootstrap
 
 *Everything that ships is built by Fly, and the build proves it.* **Done —
 shipped in v0.14.9, v0.15.0 and v0.15.2.**
@@ -96,7 +129,7 @@ shipped in v0.14.9, v0.15.0 and v0.15.2.**
   **macOS arm64** as a supported platform.
 - The seed becomes the previous self-host release.
 
-## Phase 2 — A safe language
+## Phase 4 — A safe language
 
 *A program that compiles does not fail silently.* **In progress — closes with
 0.16.0.**
@@ -139,7 +172,7 @@ compile-time error, and the remaining clean-ups — see the
 **Exit:** no undefined or unchecked behaviour is reachable from user code except
 through `fly.mem`.
 
-## Phase 2b — Power
+## Phase 4b — Power
 
 *Expressive power, once safety holds.* **Planned.** Every item the compiler's
 own sources want to use goes through a new seed release line.
@@ -165,9 +198,9 @@ own sources want to use goes through a new seed release line.
 Left out on purpose, for simplicity: operator overloading, reflection, multiple
 inheritance, macros.
 
-## Phase 3 — A coherent standard library
+## Phase 5 — A coherent standard library
 
-*One model, applied everywhere.* **Planned, alongside phase 2.** The library is
+*One model, applied everywhere.* **Planned, alongside phase 4.** The library is
 already broad — sockets, TLS on two back ends, HTTP, JSON, gzip and tar in pure
 Fly, SHA-256. What it lacks is uniformity.
 
@@ -192,7 +225,7 @@ Fly, SHA-256. What it lacks is uniformity.
 
 **Exit:** no public function reports failure by a sentinel or a silent default.
 
-## Phase 4 — Ecosystem and 1.0
+## Phase 6 — Ecosystem and 1.0
 
 **Planned.**
 

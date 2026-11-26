@@ -893,7 +893,7 @@ All other methods require a return type (`void` for methods that return nothing)
 
 **`const` fields** are read-only. A `static const` field takes its value from its initializer and is never assigned. An instance `const` field without an initializer is set once, by a constructor of the class that declares it, on its own object (`this.v = …`, `v = …`, or as a receiver of a multi-assignment, `a, v = f()`). Every other write is an error: another method, another object (`o.v = …`), a subclass constructor (`super.v = …`), a field that has an initializer, `+=`, `++`/`--` and `delete`. The error is the same as for a `const` local: `cannot assign to 'v': it is declared 'const'`.
 
-**Field initializers.** A field may be declared with an initializer (`int count = 4`). An **instance** field's initializer runs when the object is created: after the object is zeroed and before any constructor, for every field that has one, inherited fields first and then the class's own, in declaration order, whether or not the constructor calls `super(...)`. So a constructor already sees the initialized values. An initializer may read `this` and the fields declared before it. If it fails (a call that `fail`s), the `new` fails. A **`static`** field's initializer must be a constant: a literal, an enum entry, a `static const` field, or the operators and casts over them (`static const int B = A * 2 + 1`, `static const byte W = (byte)300`). It becomes the field's initial value, and no code runs for it before `main`. Any other value is a compile error (`static field 'n' needs a constant initializer`): assign it in code. Initializers are checked like a declaration's (`int f = "abc"` is an error). All of this is from 0.16.0. Up to 0.15.x an initializer was ignored and the field started at its zero value.
+**Field initializers.** A field may be declared with an initializer (`int count = 4`). An **instance** field's initializer runs when the object is created: after the object is zeroed and before any constructor, for every field that has one, inherited fields first and then the class's own, in declaration order, whether or not the constructor calls `super(...)`. So a constructor already sees the initialized values. An initializer may read `this` and the fields declared before it. If it fails (a call that `fail`s), the `new` fails and releases the object (see [A `new` that fails](#class-heap-allocated-released-with-delete)). A **`static`** field's initializer must be a constant: a literal, an enum entry, a `static const` field, or the operators and casts over them (`static const int B = A * 2 + 1`, `static const byte W = (byte)300`). It becomes the field's initial value, and no code runs for it before `main`. Any other value is a compile error (`static field 'n' needs a constant initializer`): assign it in code. Initializers are checked like a declaration's (`int f = "abc"` is an error). All of this is from 0.16.0. Up to 0.15.x an initializer was ignored and the field started at its zero value.
 
 **Examples:**
 ```fly
@@ -983,6 +983,8 @@ A `new` on a `class` allocates on the **heap** — from 0.16.0 the runtime's own
 Deleting through **another** reference an object that is already gone — `Node b = a`, `delete a`, `delete b` — stops the program (from 0.16.0): `error 134: double delete of a 'Node' at main.fly:4:5`, exit code 134. The object heap no longer counts the object as live, so the second `delete` is caught before it runs anything.
 
 The target must be a variable, a parameter or a field holding a class or interface reference; it cannot be `this`, a `struct` or a `const` variable.
+
+**A `new` that fails.** When a field initializer, a constructor argument or the constructor itself fails, the object is only half built. From 0.16.0 the `new` releases it before the failure goes on: the owning, holding and weak fields already set (those the constructor never reached are still `null`), then its memory — for `new`, `new unique` and `new shared` alike. The class's `free()` does **not** run: the object was never built. Nothing is left for the report at the end of `main`. Up to 0.15.x the object was left behind. A constructor cannot hand `this` to the error (`fail 1, this` is a compile error, see [Fail Statement](#9-7-2-fail-statement)); when a method it calls does, the object travels in the error instead, and the `handle` that consumes the failure deletes it.
 
 ```fly
 import fly.data.List
@@ -2106,7 +2108,7 @@ fail 404, "not found"       // code = 404, str = "not found"
 fail 1, "oops", new Ctx()   // code = 1,   str = "oops", obj = Ctx instance
 ```
 
-The error **owns** its object: when a `handle` consumes the failure, or `main` reports it, the object is deleted (from 0.16.0; up to 0.15.x it was only dropped from the error, and leaked).
+The error **owns** its object: when a `handle` consumes the failure, or `main` reports it, the object is deleted (from 0.16.0; up to 0.15.x it was only dropped from the error, and leaked). In a constructor the object cannot be `this` (from 0.16.0): `'this' cannot be the object of a fail in a constructor`, because a constructor that fails releases the object it was building.
 
 **Behavior of `fail`:**
 

@@ -19,3 +19,13 @@ releases_api = "https://api.github.com/repos/fly-lang/fly/releases"
 bluesky      = "https://bsky.app/profile/flylang.org"
 matrix       = "https://matrix.to/#/#flylang:matrix.org"
 email        = "dev@flylang.org"
+
+# Versioned documentation. content/docs/ is the current documentation (it
+# tracks the branch under development); each published release has a frozen
+# copy in content/docs/<version>/, made with scripts/snapshot-docs.sh.
+[extra.docs]
+current        = "0.16"            # what content/docs/ describes
+current_status = "in development"  # shown next to `current`; "" once released
+current_branch = "release/0.16.X"
+latest         = "0.15.2"          # newest published release
+versions       = ["0.15.2", "0.15.0", "0.14.9", "0.13.19"]  # snapshots, newest first

@@ -1,18 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Documentation{% endblock %}
+{#- This template renders every docs version's index: docs/_index.md (the
+    current documentation) and docs/<version>/_index.md (a release snapshot). -#}
+
+{% block title %}{% set dv = section.extra.version or "" %}Documentation{% if dv != "" %} — Fly {{ dv }}{% endif %}{% endblock %}
 
 {% block content %}
+{%- set docs = config.extra.docs %}
+{%- set dv = section.extra.version or "" %}
 
 <section class="page-hero">
   <div class="wrap">
     <h1>Documentation</h1>
     <p class="page-hero-sub">Learn the language and explore the compiler internals.</p>
+    <div class="docs-hero-version">
+      {{<docs_version_picker docs={config.extra.docs} dv={dv} fname={""} />}}
+    </div>
   </div>
 </section>
 
 <section class="page-body">
   <div class="wrap">
+    {{<docs_version_banner docs={config.extra.docs} dv={dv} fname={""} note={section.extra.note or ""} />}}
+
     <div class="docs-index-grid">
 
       {% for page in section.pages %}
@@ -27,6 +37,26 @@
       </a>
       {% endfor %}
 
+    </div>
+
+    <div class="docs-all-versions">
+      <h2>All versions</h2>
+      <p>Each release keeps the documentation published with it.
+        Downloads and build instructions for every version are on the
+        <a href="/install/">Install</a> page.</p>
+      <ul>
+        <li>
+          <a href="/docs/"{% if dv == "" %} class="active"{% endif %}>{{ docs.current }}{% if docs.current_status != "" %} ({{ docs.current_status }}){% endif %}</a>
+          <span class="docs-version-meta">branch <code>{{ docs.current_branch }}</code></span>
+        </li>
+        {% for v in docs.versions %}
+        {% set vs = get_section(path="docs/" ~ v ~ "/_index.md") %}
+        <li>
+          <a href="{{ vs.permalink }}"{% if dv == v %} class="active"{% endif %}>{{ v }}{% if v == docs.latest %} (latest release){% endif %}</a>
+          <span class="docs-version-meta">tag <code>v{{ v }}</code></span>
+        </li>
+        {% endfor %}
+      </ul>
     </div>
   </div>
 </section>

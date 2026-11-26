@@ -1,12 +1,24 @@
 {% extends "base.html" %}
 
+{#- The Install page: downloads for any published release (assets from the
+    GitHub releases API, see static/js/install.js) and the build-from-source
+    instructions of every version, one page per version in content/install/
+    (each page itself only redirects here, see install-version.html). The version picker switches
+    both; ?version=<x> selects one from a link. -#}
+
 {% block title %}Install{% endblock %}
 
 {% block extra_head %}
-<script>window.FLY_RELEASES_API = "{{ config.extra.releases_api | safe }}";</script>
+<script>
+  window.FLY_RELEASES_API = "{{ config.extra.releases_api | safe }}";
+  window.FLY_REPO = "{{ config.extra.github_repo | safe }}";
+  window.FLY_LATEST = "{{ config.extra.docs.latest }}";
+</script>
 {% endblock %}
 
 {% block content %}
+{%- set docs = config.extra.docs %}
+{%- set releases = [p for p in section.pages if p.extra.ref is starting_with(pat="v")] %}
 
 <section class="page-hero">
   <div class="wrap">
@@ -18,14 +30,29 @@
   <div class="wrap wrap-narrow">
 
     <div class="install-card">
-      <h2>Latest Release</h2>
-      <p id="js-version" class="install-version">Loading…</p>
+      <div class="install-version-pick">
+        <label for="js-release">Version</label>
+        <select id="js-release" class="docs-version-select">
+          {%- for p in releases %}
+          <option value="{{ p.extra.version }}"{% if p.extra.version == docs.latest %} selected{% endif %}>
+            {{- p.extra.version }}{% if p.extra.version == docs.latest %} (latest release){% endif -%}
+          </option>
+          {%- endfor %}
+        </select>
+      </div>
+      <p id="js-version" class="install-version">Fly {{ docs.latest }}</p>
       <div class="install-detect">
         <p>Download for your platform:</p>
         <div class="install-btns" id="js-detect-btns">
           <span class="spinner"></span>
         </div>
       </div>
+      <p class="install-links">
+        <a id="js-release-notes" href="{{ config.extra.github_repo }}/releases/tag/v{{ docs.latest }}">Release notes</a>
+        <a id="js-sums" href="{{ config.extra.github_repo }}/releases/download/v{{ docs.latest }}/SHA256SUMS">SHA256SUMS</a>
+        <a id="js-docs" href="/docs/{{ docs.latest }}/" data-versions="{{ docs.versions | join(sep=" ") }}">Documentation for this version</a>
+        <a href="{{ config.extra.github_repo }}/releases">All releases on GitHub</a>
+      </p>
     </div>
 
     <h2>All Platforms</h2>
@@ -43,7 +70,46 @@
       </tbody>
     </table>
 
-    {{ page.content | safe }}
+    {{ section.content | safe }}
+
+    <h2 id="build-from-source">Build from Source</h2>
+    <p>Each version builds from its own git tag, with the toolchain of its time.
+      Pick the version to see its instructions.</p>
+    <div class="install-version-pick">
+      <label for="js-build">Version</label>
+      <select id="js-build" class="docs-version-select">
+        {%- for p in section.pages %}
+        <option value="{{ p.extra.version }}"{% if p.extra.version == docs.latest %} selected{% endif %}>
+          {{- p.extra.version }}
+          {%- if p.extra.version == docs.latest %} (latest release)
+          {%- elif not p.extra.ref is starting_with(pat="v") %} ({{ docs.current_status }}, {{ p.extra.ref }})
+          {%- endif -%}
+        </option>
+        {%- endfor %}
+      </select>
+    </div>
+
+    {%- for p in section.pages %}
+    {%- set is_release = p.extra.ref is starting_with(pat="v") %}
+    {%- set has_docs = p.extra.version in docs.versions %}
+    <section class="build-block" data-version="{{ p.extra.version }}" id="build-{{ p.extra.version }}"
+      {%- if p.extra.version != docs.latest %} hidden{% endif %}>
+      <h3>Build Fly {{ p.extra.version }}{% if not is_release %} ({{ docs.current_status }}){% endif %}</h3>
+      <p class="build-meta">
+        {%- if is_release %}
+        Tag <a href="{{ config.extra.github_repo }}/tree/{{ p.extra.ref }}"><code>{{ p.extra.ref }}</code></a>
+        on <code>{{ p.extra.branch }}</code>, released {{ p.extra.date }}
+        {%- else %}
+        Branch <a href="{{ config.extra.github_repo }}/tree/{{ p.extra.ref }}"><code>{{ p.extra.ref }}</code></a>, not released yet
+        {%- endif %}
+        {%- if p.extra.seed != "" %} · seed Fly {{ p.extra.seed }}{% endif %}
+        {%- if has_docs %} · <a href="/docs/{{ p.extra.version }}/fly-bootstrap/">how this version builds itself</a>
+        {%- elif not is_release %} · <a href="/docs/fly-bootstrap/">how this version builds itself</a>
+        {%- endif %}
+      </p>
+      {{ p.content | safe }}
+    </section>
+    {%- endfor %}
 
   </div>
 </section>

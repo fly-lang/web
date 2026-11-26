@@ -1,0 +1,50 @@
+{#- Components for the versioned documentation (config.extra.docs).
+
+    A docs version is a section: docs/_index.md is the current documentation,
+    docs/<version>/_index.md a frozen release (scripts/snapshot-docs.sh).
+    `dv` is the version shown ("" = the current documentation) and `fname` the
+    page's file name, e.g. "Fly-CLI.md" ("" on a docs index): every link leads
+    to the same page in the other version, or to that version's index when the
+    page does not exist there. -#}
+
+{% component docs_version_picker(docs, dv: string, fname: string) %}
+{%- set paths = ["docs/_index.md", ...["docs/" ~ v ~ "/_index.md" for v in docs.versions]] -%}
+{%- set keys = ["", ...docs.versions] -%}
+<div class="docs-version">
+  <label for="docs-version-select" class="docs-nav-heading">Version</label>
+  <select id="docs-version-select" class="docs-version-select"
+          onchange="if (this.value) window.location.href = this.value;">
+    {%- for p in paths %}
+    {%- set s = get_section(path=p) %}
+    {%- set k = keys[loop.index0] %}
+    {%- set hit = [q.permalink for q in s.pages if q.relative_path | split(pat="/") | last == fname] %}
+    <option value="{{ hit | first or s.permalink }}"{% if k == dv %} selected{% endif %}>
+      {%- if k == "" %}{{ docs.current }}{% if docs.current_status != "" %} ({{ docs.current_status }}){% endif %}
+      {%- elif k == docs.latest %}{{ k }} (latest release)
+      {%- else %}{{ k }}{% endif -%}
+    </option>
+    {%- endfor %}
+  </select>
+</div>
+{% endcomponent docs_version_picker %}
+
+{% component docs_version_banner(docs, dv: string, fname: string, note: string) %}
+{%- set ls = get_section(path="docs/" ~ docs.latest ~ "/_index.md") -%}
+{%- set hit = [q.permalink for q in ls.pages if q.relative_path | split(pat="/") | last == fname] -%}
+{%- set latest_url = hit | first or ls.permalink -%}
+{%- if dv == "" and docs.current_status != "" %}
+<div class="docs-banner docs-banner-dev" role="note">
+  This is the documentation of <strong>Fly {{ docs.current }}</strong>, {{ docs.current_status }}
+  on <code>{{ docs.current_branch }}</code>: it may describe features no release has yet.
+  The latest release is <a href="{{ latest_url }}">Fly {{ docs.latest }}</a>.
+</div>
+{%- elif dv != "" and dv != docs.latest %}
+<div class="docs-banner docs-banner-old" role="note">
+  This is the documentation of <strong>Fly {{ dv }}</strong>, an older release.
+  The latest release is <a href="{{ latest_url }}">Fly {{ docs.latest }}</a>.
+</div>
+{%- endif %}
+{%- if note != "" %}
+<p class="docs-banner-note">{{ note }}</p>
+{%- endif %}
+{% endcomponent docs_version_banner %}

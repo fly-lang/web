@@ -960,3 +960,104 @@ footer {
 
   hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
 }
+
+// ── Versioned docs ────────────────────────────────────────────────────────────
+.docs-version {
+  margin-bottom: 1.5rem;
+
+  label { display: block; }
+}
+
+.docs-version-select {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+
+  &:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+}
+
+// the picker in the dark docs index hero
+.docs-hero-version {
+  margin-top: 1.25rem;
+  max-width: 280px;
+
+  .docs-version { margin-bottom: 0; }
+  .docs-nav-heading { color: rgba(255,255,255,0.7); }
+}
+
+.docs-banner {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  background: var(--bg-alt);
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  margin: 0 0 1.5rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+
+  code { font-size: 0.85em; }
+}
+
+.docs-content .docs-banner { margin-top: 2rem; }
+
+.docs-banner-old { border-left-color: var(--red); }
+
+.docs-banner-note {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin: -0.75rem 0 1.5rem;
+}
+
+.docs-all-versions {
+  margin-top: 3rem;
+
+  h2 { font-size: 1.3rem; font-weight: 700; color: var(--blue); margin-bottom: 0.5rem; }
+  p { color: var(--muted); font-size: 0.95rem; margin-bottom: 1rem; }
+  ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+  li {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  a { font-weight: 700; &.active { color: var(--navy); } }
+}
+
+.docs-version-meta { font-size: 0.78rem; color: var(--muted); }
+
+// ── Install: version picker and per-version build instructions ───────────────
+.install-version-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+
+  label { font-weight: 700; color: var(--navy); }
+  .docs-version-select { width: auto; min-width: 220px; }
+}
+
+.install-links {
+  font-size: 0.9rem;
+  margin: 1rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+}
+
+.build-block[hidden] { display: none; }
+
+.build-meta {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin-bottom: 1.25rem;
+}

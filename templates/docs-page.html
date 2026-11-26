@@ -1,22 +1,42 @@
 {% extends "base.html" %}
 
-{% block title %}{{ page.title }}{% endblock %}
+{#- A docs page of any version: its own section (the last ancestor) gives the
+    sidebar and the version; config.extra.docs lists the versions. -#}
+
+{% block title %}{% set ds = get_section(path=page.ancestors | last) %}{% set dv = ds.extra.version or "" %}{{ page.title }}{% if dv != "" %} — Fly {{ dv }}{% endif %}{% endblock %}
 {% block description %}{{ page.description | default(value=config.description) }}{% endblock %}
 
+{% block extra_head %}
+{%- set ds = get_section(path=page.ancestors | last) %}
+{%- set dv = ds.extra.version or "" %}
+{%- set fname = page.relative_path | split(pat="/") | last %}
+{%- if dv != "" %}
+{%- set root = get_section(path="docs/_index.md") %}
+{%- set cur = [q.permalink for q in root.pages if q.relative_path == "docs/" ~ fname] %}
+{%- if cur | length > 0 %}
+<link rel="canonical" href="{{ cur | first }}">
+{%- endif %}
+{%- endif %}
+{% endblock %}
+
 {% block content %}
+{%- set docs_section = get_section(path=page.ancestors | last) %}
+{%- set dv = docs_section.extra.version or "" %}
+{%- set fname = page.relative_path | split(pat="/") | last %}
 
 <div class="docs-layout">
 
   <aside class="docs-sidebar">
+    {{<docs_version_picker docs={config.extra.docs} dv={dv} fname={fname} />}}
+
     <nav class="docs-nav">
       <p class="docs-nav-heading">Documentation</p>
       <ul>
-        {# Generated from the docs section (ordered by `weight`), so a new page
-           shows up here without touching this template. #}
-        {% set docs_section = get_section(path="docs/_index.md") %}
+        {# Generated from this version's docs section (ordered by `weight`), so a
+           new page shows up here without touching this template. #}
         {% for doc in docs_section.pages %}
         <li><a href="{{ doc.permalink | safe }}"
-          {% if doc.slug == page.slug %}class="active"{% endif %}>
+          {% if doc.relative_path == page.relative_path %}class="active"{% endif %}>
           {{ doc.title }}
         </a></li>
         {% endfor %}
@@ -47,6 +67,7 @@
   </aside>
 
   <article class="docs-content">
+    {{<docs_version_banner docs={config.extra.docs} dv={dv} fname={fname} note={docs_section.extra.note or ""} />}}
     {{ page.content | safe }}
   </article>
 

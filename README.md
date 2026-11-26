@@ -40,7 +40,7 @@ This repository contains the source of [flylang.org](https://flylang.org), built
 
 | Layer | Tool |
 |-------|------|
-| Static site generator | [Zola](https://www.getzola.org/) 0.23+ |
+| Static site generator | [Zola](https://www.getzola.org/) 0.23.6 (Tera 2 templates) |
 | Styles | SCSS (compiled by Zola) |
 | Hosting | [Cloudflare Pages](https://pages.cloudflare.com/) |
 | CI/CD | GitHub Actions |
@@ -98,45 +98,87 @@ Output is written to the `public/` directory.
 
 ```
 web/
-├── config.toml          # Zola configuration
-├── content/             # Markdown pages
-│   ├── _index.md        # Home
-│   ├── install.md       # Install page
-│   ├── documentation.md
+├── config.toml               # Zola configuration; [extra.docs] lists the doc versions
+├── content/                  # Markdown pages
+│   ├── _index.md             # Home
+│   ├── docs/                 # Documentation (the canonical language spec)
+│   │   ├── _index.md
+│   │   ├── Fly-*.md          # Current docs: the version in development
+│   │   └── <version>/        # Frozen docs of each release (0.15.2, 0.15.0, …)
+│   ├── install/              # Install page
+│   │   ├── _index.md         # Notes shown on the page
+│   │   ├── <version>.md      # Build-from-source instructions of each release
+│   │   └── dev.md            # … and of the branch in development
 │   ├── community.md
 │   ├── code-of-conduct.md
 │   ├── privacy-policy.md
 │   └── licenses.md
-├── templates/           # Tera HTML templates
-│   ├── base.html        # Shared layout (nav + footer)
-│   ├── index.html       # Home page
-│   ├── page.html        # Generic page
-│   └── install.html     # Install page (dynamic releases)
+├── templates/                # Tera 2 HTML templates
+│   ├── base.html             # Shared layout (nav + footer)
+│   ├── index.html            # Home page
+│   ├── page.html             # Generic page
+│   ├── docs.html             # Docs index of a version
+│   ├── docs-page.html        # A docs page (sidebar + version picker)
+│   ├── docs-components.html  # Version picker and banners
+│   ├── install.html          # Install page (downloads + build instructions)
+│   └── install-version.html  # /install/<version>/ → redirect to the install page
+├── scripts/
+│   └── snapshot-docs.sh      # Freezes the docs of a release into content/docs/<version>/
 ├── sass/
-│   └── main.scss        # All styles
-├── static/              # Copied as-is to public/
+│   └── main.scss             # All styles
+├── static/                   # Copied as-is to public/
 │   ├── img/
 │   ├── fonts/
 │   └── js/
-│       └── install.js   # Fetches latest release from GitHub API
+│       └── install.js        # Release downloads from the GitHub API, version switching
 └── .github/
     └── workflows/
-        └── deploy.yml   # Build Zola → deploy su Cloudflare Pages
+        └── deploy.yml        # Zola build → deploy to Cloudflare Pages
 ```
+
+## Versions
+
+The site documents every published release of Fly, not only the latest.
+
+- **Docs** — `/docs/` is the current documentation, which tracks the version in
+  development (`extra.docs.current` in `config.toml`). Each release has a frozen copy
+  at `/docs/<version>/`. A picker on every docs page opens the same page in another
+  version, and a banner on the development and older docs points to the latest release.
+- **Install** — downloads default to the latest release (`extra.docs.latest`); a picker
+  (or `?version=<x>` in the URL) shows the packages of any other release, read from the
+  GitHub releases API. The build-from-source instructions follow the chosen version,
+  because each one builds from its own tag with the toolchain of its time.
+  `/install/<version>/` links straight to them.
+
+### Adding a release
+
+When a new Fly version is tagged:
+
+1. Freeze its docs — from the tag, or from the working tree if the docs are up to date:
+   ```bash
+   scripts/snapshot-docs.sh 0.16.0 v0.16.0
+   ```
+   The script copies `content/docs/Fly-*.md` into `content/docs/0.16.0/` and rewrites
+   the internal links so the snapshot only links to itself.
+2. In `config.toml`, add the version at the front of `extra.docs.versions` and set
+   `extra.docs.latest`; move `extra.docs.current` on to the next version in development.
+3. Add `content/install/<version>.md` with its build instructions (`git clone --branch
+   v<version>`), copying the previous release's page, and update `dev.md` for the new
+   development branch.
 
 ## Deployment
 
-Deployments sono automatici tramite GitHub Actions:
+Deployments are automatic, through GitHub Actions:
 
-- **Push su `main`** → build + deploy in produzione su [flylang.org](https://flylang.org)
-- **Pull request** → build + preview deploy con URL univoco
+- **Push to `main`** → build + production deploy to [flylang.org](https://flylang.org)
+- **Pull request** → build + preview deploy with a unique URL
 
-### Secret richiesti su GitHub
+### Required GitHub secrets
 
-| Secret | Dove trovarlo |
-|--------|---------------|
+| Secret | Where to find it |
+|--------|------------------|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare → sidebar destra della home |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare → right sidebar of the dashboard home |
 
 ## Contact
 

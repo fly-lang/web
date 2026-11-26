@@ -874,6 +874,8 @@ Classes can contain fields (attributes) and methods.
 
 All other methods require a return type (`void` for methods that return nothing).
 
+**`const` fields** are read-only. A `static const` field takes its value from its initializer and is never assigned. An instance `const` field without an initializer is set once, by a constructor of the class that declares it, on its own object (`this.v = …` or `v = …`). Every other write is an error: another method, another object (`o.v = …`), a subclass constructor (`super.v = …`), a field that has an initializer, `+=`, `++`/`--` and `delete`. The error is the same as for a `const` local: `cannot assign to 'v': it is declared 'const'`.
+
 **Examples:**
 ```fly
 public class Person {

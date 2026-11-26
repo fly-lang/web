@@ -53,7 +53,7 @@ Status values:
 | A variable cannot be declared twice in one scope | **Not enforced** | Enforced | Enforced |
 | `string + int` is a type error | **Not enforced** | Enforced | Enforced |
 | A `const` local or parameter cannot be assigned, incremented or decremented | **Not enforced** | Enforced | Not enforced |
-| A `const` field can be assigned only by a constructor of its class | **Not enforced** | Enforced | Not enforced |
+| A `const` field can be assigned only by a constructor of its class (from 0.16.0 also static, bare-name, `super.v` and `delete` writes; see below) | **Not enforced** | Enforced | Not enforced |
 | Two functions of one file cannot share an identical signature | **Not enforced** | Enforced | Not enforced |
 | No statement may follow a `return` in the same block | **Internal error** | Enforced | Not enforced |
 
@@ -104,7 +104,14 @@ local or parameter, or applying `++`/`--` to it, is an error from the next
 release. Writing a *field* through a `const` reference (`p.x = 1`) is allowed:
 `const` does not make the object immutable. A field that is itself declared
 `const` is the exception: it is assigned by a constructor of its class and is
-read-only everywhere else.
+read-only everywhere else. From 0.16.0 that rule covers every way of writing the
+field. A `static const` field is set by its initializer alone: `K.A = 2`,
+`K.A += 1`, `A++` inside the class and a write in a constructor are errors. An
+instance `const` field is set once, by a constructor of the class that declares
+it, on its own object (`this.v = …` or the bare `v = …`), and only when the
+declaration has no initializer. Writing it on another object (`o.v = …`), from a
+subclass constructor (`super.v = …`), over an initializer, or with `delete` is an
+error. Up to 0.15.x only `obj.v = …` outside a constructor was rejected.
 
 ```fly
 const int k = 1
@@ -139,6 +146,7 @@ distinguish overloads.
 | Program | Result |
 |---|---|
 | A build of more than one source file (`fly --suite` over a tree, `--lib`, a module pulled in by an import) | **0.14.6:** a semantic error outside the first input file is reported with the name, line and column of the first file. Compile the single suite (`--suite=<Name>`) to get the right position. **Fixed in 0.14.7.** |
+| A field declared with an initializer (`int f = 6`, `static int count = 11`, `static const int A = 1`) | **Up to 0.16 (seed included):** the initializer is checked but not emitted, so the field starts at its zero value (`0`, `false`, `""`, `null`). Assign the value in a constructor, or in a static method for a static field; a `static const` or initialized `const` field cannot hold any other value until this is fixed. |
 
 ### Warnings
 

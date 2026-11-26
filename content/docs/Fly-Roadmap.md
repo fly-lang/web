@@ -164,6 +164,8 @@ Done:
 - **`protected` is checked**: a protected member is reachable from its class and
   every class derived from it, and is written only on class methods and
   attributes; `private` and `protected` also guard static members.
+- **`const` fields are read-only**: a `static const` keeps its initializer, an
+  instance `const` is set once by its own class's constructor.
 
 To do: no implicit conversion to `bool`, constant overflow as a
 compile-time error, and the remaining clean-ups — see the

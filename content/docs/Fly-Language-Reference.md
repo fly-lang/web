@@ -71,7 +71,8 @@ uint        ulong       ushort      void        while
 `complex` is reserved but has no meaning yet: it cannot be used as a name, and the
 compiler accepts it nowhere else. `unset`, reserved up to v0.15.2, is not a keyword
 from 0.16.0: a variable without an initializer holds the zero value of its type (see
-[Section 4.2](#4-2-variable-initialization)), an enum its first constant.
+[Section 4.2](#4-2-variable-initialization)), an enum its first constant, a struct the
+initializers of its fields ([Section 6.2](#6-2-structure-declaration)).
 
 > **`return`** carries the value a function hands back (`return expr`, or `return a, b` when several return types are declared). The value travels through a hidden output parameter the compiler adds to the signature, never through a copy out of the callee's frame. See [Section 5.4](#5-4-return-values).
 
@@ -447,6 +448,8 @@ byte[3] buffer = {1, 2, 3}
 #### 4.2.4 Struct Literal Initialization
 
 A brace literal that contains `field = value` pairs builds a **struct value**. Plain comma-separated values (without `=`) build an array value (see above); the two forms are distinguished by the presence of `field =`.
+
+A field the literal does not give takes its initializer (`int x = 4` in the struct, see [Section 6.2](#6-2-structure-declaration)), or its zero value.
 
 ```fly
 // Struct value — field = value pairs
@@ -831,6 +834,18 @@ struct Point3D : Point {
 }
 ```
 
+A struct field may have an **initializer** (`int x = 4`). From 0.16.0 every value of the struct starts from it, after the zero value: `new Point()`, a declaration `Point p`, a brace literal that does not give the field, a struct field inside an object or another struct, the base struct of a struct, and the base struct of a class (see [Section 6.4](#6-4-class-members)). The elements of a sized struct array (`Point[3] ps`) still start at zero. Up to 0.15.x the initializer was ignored.
+
+```fly
+struct Pen {
+    int width = 2
+    string color = "black"
+}
+
+Pen a                     // width 2, color "black"
+Pen b = {color = "red"}   // width 2, color "red"
+```
+
 ### 6.3 Interface Declaration
 
 Interfaces define contracts for classes. An interface can only extend another interface.
@@ -875,6 +890,8 @@ Classes can contain fields (attributes) and methods.
 All other methods require a return type (`void` for methods that return nothing).
 
 **`const` fields** are read-only. A `static const` field takes its value from its initializer and is never assigned. An instance `const` field without an initializer is set once, by a constructor of the class that declares it, on its own object (`this.v = …` or `v = …`). Every other write is an error: another method, another object (`o.v = …`), a subclass constructor (`super.v = …`), a field that has an initializer, `+=`, `++`/`--` and `delete`. The error is the same as for a `const` local: `cannot assign to 'v': it is declared 'const'`.
+
+**Field initializers.** A field may be declared with an initializer (`int count = 4`). An **instance** field's initializer runs when the object is created: after the object is zeroed and before any constructor, for every field that has one, inherited fields first and then the class's own, in declaration order, whether or not the constructor calls `super(...)`. So a constructor already sees the initialized values. An initializer may read `this` and the fields declared before it. If it fails (a call that `fail`s), the `new` fails. A **`static`** field's initializer must be a constant: a literal, an enum entry, a `static const` field, or the operators and casts over them (`static const int B = A * 2 + 1`, `static const byte W = (byte)300`). It becomes the field's initial value, and no code runs for it before `main`. Any other value is a compile error (`static field 'n' needs a constant initializer`): assign it in code. Initializers are checked like a declaration's (`int f = "abc"` is an error). All of this is from 0.16.0. Up to 0.15.x an initializer was ignored and the field started at its zero value.
 
 **Examples:**
 ```fly

@@ -166,6 +166,9 @@ Done:
   attributes; `private` and `protected` also guard static members.
 - **`const` fields are read-only**: a `static const` keeps its initializer, an
   instance `const` is set once by its own class's constructor.
+- **Field initializers run**: an instance field's when the object is created,
+  before any constructor; a struct's wherever a value of it is made; a static
+  field's is a constant folded into its initial value.
 
 To do: no implicit conversion to `bool`, constant overflow as a
 compile-time error, and the remaining clean-ups — see the

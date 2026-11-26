@@ -118,6 +118,15 @@ const int k = 1
 k = 2                // error from 0.14.7 — 0.14.6 stores 2
 ```
 
+**Field initializers are checked, from 0.16.0.** An initializer is checked like
+the initializer of a declaration (`int f = "abc"` and `int f = aLong` are
+errors), and a `static` field's must be a constant: literals, enum entries,
+`static const` fields and the operators and casts over them
+(`static const int B = A * 2 + 1`). `static int n = compute()` is an error, and
+so is a constant that overflows its type or divides by zero. Up to 0.15.x (the
+v0.15.2 seed included) an initializer was resolved without these checks and
+never emitted: the field started at its zero value.
+
 **`private` is per class.** A `private` field can be read and written, and a
 `private` method called, only from the class that declares it.
 
@@ -146,7 +155,8 @@ distinguish overloads.
 | Program | Result |
 |---|---|
 | A build of more than one source file (`fly --suite` over a tree, `--lib`, a module pulled in by an import) | **0.14.6:** a semantic error outside the first input file is reported with the name, line and column of the first file. Compile the single suite (`--suite=<Name>`) to get the right position. **Fixed in 0.14.7.** |
-| A field declared with an initializer (`int f = 6`, `static int count = 11`, `static const int A = 1`) | **Up to 0.16 (seed included):** the initializer is checked but not emitted, so the field starts at its zero value (`0`, `false`, `""`, `null`). Assign the value in a constructor, or in a static method for a static field; a `static const` or initialized `const` field cannot hold any other value until this is fixed. |
+| A `new` whose field initializer or constructor fails | The half-built object is not released: the failure propagates, and the object is reported at the end of `main` as not deleted. |
+| A sized array of structs (`Point[3] ps`) | The elements start at the zero value: the struct's field initializers do not run for them (they do for `Point p`, `new Point()` and a brace literal). |
 
 ### Warnings
 
@@ -170,7 +180,8 @@ class).
 | Array index out of range | **Checked.** A failure with code 2989, which `handle` can intercept; uncaught, the program stops with `error 2989: index out of range at main.fly:4:5` (the message and position from 0.16; before, `error 2989` alone) and exit code 2989 (173 as a POSIX shell sees it). |
 | Access through a `pointer` that points nowhere (`fly.mem` reads and writes) | Not checked: `pointer` is the unchecked part of the language. **From 0.16** the program prints `fatal error: invalid memory access at address 0x…` before it ends; the exit code stays the system's (`0xC0000005` on Windows, 139 for SIGSEGV on Linux and macOS), and a debugger, a core file or a crash dump see the fault as before. Up to 0.15.x: no message. |
 | Stack overflow (recursion without end) | Not checked. **From 0.16** the program prints `fatal error: stack overflow` before it ends, with the system's exit code (`0xC00000FD` on Windows, 139 on Linux and macOS). The main thread only: on Linux and macOS a fault within 64 MB below `main`'s frame is reported as a stack overflow, any other one as an invalid memory access. Up to 0.15.x: no message. |
-| Local variable without initializer | Defined: it holds the zero value of its type. |
+| Local variable without initializer | Defined: it holds the zero value of its type. A struct then takes the initializers of its fields (from 0.16.0). |
+| A field declared with an initializer (`int f = 6`, `static int count = 11`) | **From 0.16.0:** an instance field's initializer runs when the object is created, after the zeroing and before any constructor, inherited fields first, whether or not the constructor calls `super(...)`; a failing initializer fails the `new`. A static field starts at its constant initializer. Up to 0.15.x the initializer was ignored and the field started at its zero value. |
 | Integer overflow of `+`, `-`, `*`, `++`, `--`, unary `-` (signed and unsigned) | **Checked from 0.15.0, in every build:** `error 134: integer overflow in '+' at main.fly:2:5`. Wrapping is explicit: `math.wrapAdd` and its siblings. Not checked: `pointer` arithmetic, shifts, bitwise operators, casts. Up to 0.14.x: wraps silently. |
 | Integer division or remainder by zero (`/`, `%`, `/=`, `%=`) | **Checked from 0.15.0, in every build:** the program stops with `error 134: division by zero at main.fly:2:5` and exit code 134. Up to 0.14.x: abnormal termination, with no message. |
 | Signed minimum value divided by `-1` (`-2147483648 / -1`) | **Checked from 0.15.0:** `error 134: integer overflow: the minimum value divided by -1 at …`. `%` by `-1` is `0`. |

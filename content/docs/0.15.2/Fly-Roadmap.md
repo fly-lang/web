@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-roadmap/"]
 title = "Roadmap"
 description = "Where Fly stands after self-hosting and the ordered plan to maturity: a truthful compiler, a complete bootstrap, a safe language, a coherent standard library, and the criteria for 1.0."
 template = "docs-page.html"

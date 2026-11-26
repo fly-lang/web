@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-api/"]
 title = "Fly API"
 description = "Reference for the Fly standard library — fly.str, fly.math, fly.mem, fly.os, fly.sync, fly.data, fly.json, fly.codec, fly.hash, fly.net, fly.targz, fly.log, fly.assert, fly.bridge — with the conventions every module follows."
 template = "docs-page.html"

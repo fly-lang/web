@@ -126,9 +126,8 @@ function setUrl(version) {
   history.replaceState(null, '', url);
 }
 
-// Picking a release changes downloads and build instructions; picking a build
-// version (which may be the unreleased branch) changes only the instructions,
-// plus the downloads when it is a release.
+// Either picker switches the downloads and the build instructions together; a
+// release newer than the site (no build page yet) only changes the downloads.
 function selectRelease(version) {
   $('js-release').value = version;
   renderDownloads(version);

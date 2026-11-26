@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-language-reference/"]
 title = "Language Reference"
 description = "Complete reference for the Fly programming language — syntax, types, expressions, statements, and grammar."
 template = "docs-page.html"

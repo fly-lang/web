@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-bootstrap/"]
 title = "Building Fly"
 description = "How Fly builds itself: the chain of pinned seeds (C++ up to 0.14.x, self-host from 0.15), the three bootstrap stages, what each shipped artifact is compiled by, the guards that run at every stage, and the known limits of the current bootstrap."
 template = "docs-page.html"

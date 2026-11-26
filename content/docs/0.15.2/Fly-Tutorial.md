@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-tutorial/"]
 title = "Tutorial"
 description = "Step-by-step practical guide to writing Fly programs — from Hello World to classes, generics, error handling and tests. Every example compiles with Fly 0.14.6."
 template = "docs-page.html"

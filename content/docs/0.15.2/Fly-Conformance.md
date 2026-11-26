@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-conformance/"]
 title = "Conformance"
 description = "What Fly actually checks: compile-time rules enforced by the released 0.14.6, by 0.14.7 and by the seed; the run-time behaviour of unsafe operations; and the known limits of the standard library."
 template = "docs-page.html"

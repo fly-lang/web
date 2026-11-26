@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{#- A docs page of any version: its own section (the last ancestor) gives the
-    sidebar and the version; config.extra.docs lists the versions. -#}
+{#- A docs page of a released version: its own section (the last ancestor)
+    gives the sidebar and the version; config.extra.docs lists the versions.
+    An older release's page names the same page of the latest one canonical. -#}
 
-{% block title %}{% set ds = get_section(path=page.ancestors | last) %}{% set dv = ds.extra.version or "" %}{{ page.title }}{% if dv != "" %} — Fly {{ dv }}{% endif %}{% endblock %}
+{% block title %}{% set ds = get_section(path=page.ancestors | last) %}{{ page.title }} — Fly {{ ds.extra.version }}{% endblock %}
 {% block description %}{{ page.description | default(value=config.description) }}{% endblock %}
 
 {% block extra_head %}
 {%- set ds = get_section(path=page.ancestors | last) %}
-{%- set dv = ds.extra.version or "" %}
 {%- set fname = page.relative_path | split(pat="/") | last %}
-{%- if dv != "" %}
-{%- set root = get_section(path="docs/_index.md") %}
-{%- set cur = [q.permalink for q in root.pages if q.relative_path == "docs/" ~ fname] %}
+{%- if ds.extra.version != config.extra.docs.latest %}
+{%- set ls = get_section(path="docs/" ~ config.extra.docs.latest ~ "/_index.md") %}
+{%- set cur = [q.permalink for q in ls.pages if q.relative_path | split(pat="/") | last == fname] %}
 {%- if cur | length > 0 %}
 <link rel="canonical" href="{{ cur | first }}">
 {%- endif %}
@@ -21,7 +21,7 @@
 
 {% block content %}
 {%- set docs_section = get_section(path=page.ancestors | last) %}
-{%- set dv = docs_section.extra.version or "" %}
+{%- set dv = docs_section.extra.version %}
 {%- set fname = page.relative_path | split(pat="/") | last %}
 
 <div class="docs-layout">

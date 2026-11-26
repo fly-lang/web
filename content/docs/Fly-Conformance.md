@@ -53,7 +53,7 @@ Status values:
 | A variable cannot be declared twice in one scope | **Not enforced** | Enforced | Enforced |
 | `string + int` is a type error | **Not enforced** | Enforced | Enforced |
 | A `const` local or parameter cannot be assigned, incremented or decremented | **Not enforced** | Enforced | Not enforced |
-| A `const` field can be assigned only by a constructor of its class (from 0.16.0 also static, bare-name, `super.v` and `delete` writes; see below) | **Not enforced** | Enforced | Not enforced |
+| A `const` field can be assigned only by a constructor of its class (from 0.16.0 also static, bare-name, `super.v`, `delete` and multi-assignment writes; see below) | **Not enforced** | Enforced | Not enforced |
 | Two functions of one file cannot share an identical signature | **Not enforced** | Enforced | Not enforced |
 | No statement may follow a `return` in the same block | **Internal error** | Enforced | Not enforced |
 
@@ -112,6 +112,10 @@ it, on its own object (`this.v = …` or the bare `v = …`), and only when the
 declaration has no initializer. Writing it on another object (`o.v = …`), from a
 subclass constructor (`super.v = …`), over an initializer, or with `delete` is an
 error. Up to 0.15.x only `obj.v = …` outside a constructor was rejected.
+From 0.16.0 a multi-assignment follows the same rule for each receiver:
+`a, k = two()` with `k` a `const` local, parameter or field is the same error,
+and a constructor may still set its own unset `const` field this way. Up to
+0.15.x the receivers of a multi-assignment were not checked.
 
 ```fly
 const int k = 1

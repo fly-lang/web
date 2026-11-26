@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-compiler-internals/"]
 title = "Compiler Internals"
 description = "Compiler internals reference — AST nodes, Sema objects, symbol resolution, Parser and CodeGen pipeline."
 template = "docs-page.html"

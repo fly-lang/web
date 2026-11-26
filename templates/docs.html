@@ -1,13 +1,22 @@
 {% extends "base.html" %}
 
-{#- This template renders every docs version's index: docs/_index.md (the
-    current documentation) and docs/<version>/_index.md (a release snapshot). -#}
+{#- The index of a docs version: docs/<version>/_index.md (a release), and
+    docs/_index.md (/docs/), which shows the latest release. The draft docs in
+    content/docs/Fly-*.md are not published (see docs-components.html). -#}
 
-{% block title %}{% set dv = section.extra.version or "" %}Documentation{% if dv != "" %} — Fly {{ dv }}{% endif %}{% endblock %}
+{% block title %}{% set dv = section.extra.version or config.extra.docs.latest %}Documentation — Fly {{ dv }}{% endblock %}
+
+{% block extra_head %}
+{%- if not section.extra.version %}
+{%- set ls = get_section(path="docs/" ~ config.extra.docs.latest ~ "/_index.md") %}
+<link rel="canonical" href="{{ ls.permalink }}">
+{%- endif %}
+{% endblock %}
 
 {% block content %}
 {%- set docs = config.extra.docs %}
-{%- set dv = section.extra.version or "" %}
+{%- set dv = section.extra.version or docs.latest %}
+{%- set vs = get_section(path="docs/" ~ dv ~ "/_index.md") %}
 
 <section class="page-hero">
   <div class="wrap">
@@ -21,11 +30,11 @@
 
 <section class="page-body">
   <div class="wrap">
-    {{<docs_version_banner docs={config.extra.docs} dv={dv} fname={""} note={section.extra.note or ""} />}}
+    {{<docs_version_banner docs={config.extra.docs} dv={dv} fname={""} note={vs.extra.note or ""} />}}
 
     <div class="docs-index-grid">
 
-      {% for page in section.pages %}
+      {% for page in vs.pages %}
       <a href="{{ page.permalink }}" class="docs-index-card">
         <div class="docs-index-card-inner">
           <h2>{{ page.title }}</h2>
@@ -45,14 +54,10 @@
         Downloads and build instructions for every version are on the
         <a href="/install/">Install</a> page.</p>
       <ul>
-        <li>
-          <a href="/docs/"{% if dv == "" %} class="active"{% endif %}>{{ docs.current }}{% if docs.current_status != "" %} ({{ docs.current_status }}){% endif %}</a>
-          <span class="docs-version-meta">branch <code>{{ docs.current_branch }}</code></span>
-        </li>
         {% for v in docs.versions %}
-        {% set vs = get_section(path="docs/" ~ v ~ "/_index.md") %}
+        {% set s = get_section(path="docs/" ~ v ~ "/_index.md") %}
         <li>
-          <a href="{{ vs.permalink }}"{% if dv == v %} class="active"{% endif %}>{{ v }}{% if v == docs.latest %} (latest release){% endif %}</a>
+          <a href="{{ s.permalink }}"{% if dv == v %} class="active"{% endif %}>{{ v }}{% if v == docs.latest %} (latest release){% endif %}</a>
           <span class="docs-version-meta">tag <code>v{{ v }}</code></span>
         </li>
         {% endfor %}

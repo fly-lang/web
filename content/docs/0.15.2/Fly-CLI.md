@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-cli/"]
 title = "Command Line"
 description = "The fly command: directory-based builds, the three option axes (format, stage, shape), test runs with --suite, projects with Manifest.fly, and the fly-lsp, fly-registry and lldb companion tools."
 template = "docs-page.html"

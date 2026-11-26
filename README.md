@@ -102,13 +102,12 @@ web/
 ├── content/                  # Markdown pages
 │   ├── _index.md             # Home
 │   ├── docs/                 # Documentation (the canonical language spec)
-│   │   ├── _index.md
-│   │   ├── Fly-*.md          # Current docs: the version in development
-│   │   └── <version>/        # Frozen docs of each release (0.15.2, 0.15.0, …)
+│   │   ├── _index.md         # /docs/ = index of the latest release
+│   │   ├── Fly-*.md          # Draft docs of the version in development (NOT published)
+│   │   └── <version>/        # Published docs of each release (0.15.2, 0.15.0, …)
 │   ├── install/              # Install page
 │   │   ├── _index.md         # Notes shown on the page
-│   │   ├── <version>.md      # Build-from-source instructions of each release
-│   │   └── dev.md            # … and of the branch in development
+│   │   └── <version>.md      # Build-from-source instructions of each release
 │   ├── community.md
 │   ├── code-of-conduct.md
 │   ├── privacy-policy.md
@@ -123,7 +122,8 @@ web/
 │   ├── install.html          # Install page (downloads + build instructions)
 │   └── install-version.html  # /install/<version>/ → redirect to the install page
 ├── scripts/
-│   └── snapshot-docs.sh      # Freezes the docs of a release into content/docs/<version>/
+│   ├── snapshot-docs.sh      # Publishes the docs of a release into content/docs/<version>/
+│   └── preview-drafts.sh     # Serves the unpublished draft docs locally at /docs/draft/
 ├── sass/
 │   └── main.scss             # All styles
 ├── static/                   # Copied as-is to public/
@@ -138,33 +138,41 @@ web/
 
 ## Versions
 
-The site documents every published release of Fly, not only the latest.
+The site publishes the documentation of **released** versions only, every release
+and not just the latest. Nothing describing an unreleased version goes online.
 
-- **Docs** — `/docs/` is the current documentation, which tracks the version in
-  development (`extra.docs.current` in `config.toml`). Each release has a frozen copy
-  at `/docs/<version>/`. A picker on every docs page opens the same page in another
-  version, and a banner on the development and older docs points to the latest release.
-- **Install** — downloads default to the latest release (`extra.docs.latest`); a picker
-  (or `?version=<x>` in the URL) shows the packages of any other release, read from the
-  GitHub releases API. The build-from-source instructions follow the chosen version,
-  because each one builds from its own tag with the toolchain of its time.
-  `/install/<version>/` links straight to them.
+- **Docs** — each release has its documentation frozen at `/docs/<version>/`; `/docs/`
+  shows the latest release (`extra.docs.latest` in `config.toml`), and the
+  version-less page URLs (`/docs/fly-cli/`, …) redirect to the latest release's pages.
+  A picker on every docs page opens the same page in another release, and a banner on
+  older releases points to the latest one.
+- **Drafts** — `content/docs/Fly-*.md` are the working copy of the docs, edited along
+  with the version in development. Zola skips them (`ignored_content` in
+  `config.toml`), so they are published only when a release snapshots them. To preview
+  them locally, run `scripts/preview-drafts.sh` (`zola serve` with the drafts at
+  `/docs/draft/`, a gitignored copy removed on exit).
+- **Install** — downloads default to the latest release; a picker (or `?version=<x>`
+  in the URL) shows the packages of any other release, read from the GitHub releases
+  API. The build-from-source instructions follow the chosen release, because each one
+  builds from its own tag with the toolchain of its time. `/install/<version>/` links
+  straight to them.
 
 ### Adding a release
 
-When a new Fly version is tagged:
+When a new Fly version is released:
 
-1. Freeze its docs — from the tag, or from the working tree if the docs are up to date:
+1. Publish its docs from the drafts, then move the `/docs/fly-*/` redirects onto it:
    ```bash
-   scripts/snapshot-docs.sh 0.16.0 v0.16.0
+   scripts/snapshot-docs.sh 0.16.0
+   scripts/snapshot-docs.sh --latest 0.16.0
    ```
-   The script copies `content/docs/Fly-*.md` into `content/docs/0.16.0/` and rewrites
-   the internal links so the snapshot only links to itself.
+   The first command copies `content/docs/Fly-*.md` into `content/docs/0.16.0/` and
+   rewrites the internal links so the snapshot only links to itself (pass a commit of
+   this repo as a second argument to snapshot the docs as they were at that commit).
 2. In `config.toml`, add the version at the front of `extra.docs.versions` and set
-   `extra.docs.latest`; move `extra.docs.current` on to the next version in development.
+   `extra.docs.latest`.
 3. Add `content/install/<version>.md` with its build instructions (`git clone --branch
-   v<version>`), copying the previous release's page, and update `dev.md` for the new
-   development branch.
+   v<version>`), copying the previous release's page.
 
 ## Deployment
 

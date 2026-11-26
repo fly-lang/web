@@ -1,4 +1,5 @@
 +++
+aliases = ["/docs/fly-testing/"]
 title = "Testing"
 description = "First-class, zero-overhead testing built into Fly: inline test blocks, suites, case steps, and the built-in fly --suite runner."
 template = "docs-page.html"

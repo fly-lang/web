@@ -6,26 +6,76 @@
     (`ignored_content` in config.toml) until they are snapshotted at release.
     `dv` is the version shown and `fname` the page's file name, e.g.
     "Fly-CLI.md" ("" on a docs index): every link leads to the same page in the
-    other version, or to that version's index when the page does not exist there. -#}
+    other version, or to that version's index when the page does not exist there.
 
-{% component docs_version_picker(docs, dv: string, fname: string) %}
-<div class="docs-version">
-  <label for="docs-version-select" class="docs-nav-heading">Version</label>
-  <select id="docs-version-select" class="docs-version-select"
-          onchange="if (this.value) window.location.href = this.value;">
-    {%- if not dv in docs.versions %}
-    <option value="" selected>{{ dv }} (not published)</option>
-    {%- endif %}
+    The version menu is a <details> dropdown (works without JS; keyboard and
+    outside-click handling in static/js/version-menu.js). Release dates come
+    from content/install/<version>.md. -#}
+
+{% component vmenu_chevron() %}
+<svg class="vmenu-chevron" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{% endcomponent vmenu_chevron %}
+
+{% component vmenu_check() %}
+<svg class="vmenu-check" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{% endcomponent vmenu_check %}
+
+{% component docs_version_picker(docs, dv: string, fname: string, dark: bool) %}
+<details class="vmenu{% if dark %} vmenu-dark{% endif %}">
+  <summary class="vmenu-btn" aria-label="Documentation version: {{ dv }}">
+    <span class="vmenu-caption">Version</span>
+    <span class="vmenu-value">
+      <span class="vmenu-current">{{ dv }}</span>
+      {%- if dv == docs.latest %}<span class="vmenu-badge">latest</span>
+      {%- elif not dv in docs.versions %}<span class="vmenu-badge vmenu-badge-muted">draft</span>{% endif %}
+    </span>
+    {{<vmenu_chevron />}}
+  </summary>
+  <div class="vmenu-pop">
+    <p class="vmenu-head">Fly releases</p>
     {%- for v in docs.versions %}
     {%- set s = get_section(path="docs/" ~ v ~ "/_index.md") %}
     {%- set hit = [q.permalink for q in s.pages if q.relative_path | split(pat="/") | last == fname] %}
-    <option value="{{ hit | first or s.permalink }}"{% if v == dv %} selected{% endif %}>
-      {{- v }}{% if v == docs.latest %} (latest release){% endif -%}
-    </option>
+    {%- set ip = get_page(path="install/" ~ v ~ ".md") %}
+    <a class="vmenu-item{% if v == dv %} is-current{% endif %}" href="{{ hit | first or s.permalink }}"
+       {%- if v == dv %} aria-current="page"{% endif %}>
+      <span class="vmenu-item-v">{{ v }}</span>
+      {%- if v == docs.latest %}<span class="vmenu-badge">latest</span>{% endif %}
+      <span class="vmenu-item-date">{{ ip.extra.date | date(format="%b %-d, %Y") }}</span>
+      {{<vmenu_check />}}
+    </a>
     {%- endfor %}
-  </select>
-</div>
+    <a class="vmenu-foot" href="/install/">Downloads for every release →</a>
+  </div>
+</details>
 {% endcomponent docs_version_picker %}
+
+{#- The Install page's menus: items carry data-version and link to
+    ?version=<v> (so they work without JS); install.js switches in place. -#}
+{% component install_version_menu(docs, pages, id: string, label: string, anchor: string) %}
+<details class="vmenu" id="{{ id }}" data-current="{{ docs.latest }}">
+  <summary class="vmenu-btn" aria-label="{{ label }}">
+    <span class="vmenu-caption">{{ label }}</span>
+    <span class="vmenu-value">
+      <span class="vmenu-current">{{ docs.latest }}</span><span class="vmenu-badge">latest</span>
+    </span>
+    {{<vmenu_chevron />}}
+  </summary>
+  <div class="vmenu-pop">
+    <p class="vmenu-head">Fly releases</p>
+    {%- for p in pages %}
+    {%- set v = p.extra.version %}
+    <a class="vmenu-item{% if v == docs.latest %} is-current{% endif %}" href="/install/?version={{ v }}{{ anchor }}"
+       data-version="{{ v }}"{% if v == docs.latest %} aria-current="true"{% endif %}>
+      <span class="vmenu-item-v">{{ v }}</span>
+      {%- if v == docs.latest %}<span class="vmenu-badge">latest</span>{% endif %}
+      <span class="vmenu-item-date">{{ p.extra.date | date(format="%b %-d, %Y") }}</span>
+      {{<vmenu_check />}}
+    </a>
+    {%- endfor %}
+  </div>
+</details>
+{% endcomponent install_version_menu %}
 
 {% component docs_version_banner(docs, dv: string, fname: string, note: string) %}
 {%- if dv != docs.latest %}

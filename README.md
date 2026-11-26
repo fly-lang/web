@@ -130,7 +130,8 @@ web/
 │   ├── img/
 │   ├── fonts/
 │   └── js/
-│       └── install.js        # Release downloads from the GitHub API, version switching
+│       ├── install.js        # Release downloads from the GitHub API, version switching
+│       └── version-menu.js   # Keyboard / outside-click behaviour of the version menus
 └── .github/
     └── workflows/
         └── deploy.yml        # Zola build → deploy to Cloudflare Pages

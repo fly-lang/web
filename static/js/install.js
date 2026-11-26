@@ -38,8 +38,33 @@ const tag = v => 'v' + v;
 let releases = null;   // version → release, from the API (null until loaded / on failure)
 let apiFailed = false;
 
-function hasOption(select, value) {
-  return Array.from(select.options).some(o => o.value === value);
+// The version menus (<details class="vmenu">, see docs-components.html): each
+// item is a link with data-version; the menu's current version is data-current.
+function hasVersion(menu, v) {
+  return Array.from(menu.querySelectorAll('[data-version]')).some(a => a.dataset.version === v);
+}
+
+function setMenu(menu, v) {
+  menu.dataset.current = v;
+  menu.querySelector('.vmenu-current').textContent = v;
+  const badge = menu.querySelector('summary .vmenu-badge');
+  if (badge) badge.hidden = v !== LATEST;
+  menu.querySelectorAll('[data-version]').forEach(a => {
+    const on = a.dataset.version === v;
+    a.classList.toggle('is-current', on);
+    if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+  });
+}
+
+function onPick(menu, handler) {
+  menu.addEventListener('click', e => {
+    const item = e.target.closest('[data-version]');
+    if (!item) return;
+    e.preventDefault();
+    menu.open = false;
+    menu.querySelector('summary').focus();
+    handler(item.dataset.version);
+  });
 }
 
 function renderDownloads(version) {
@@ -115,8 +140,8 @@ function showBuild(version) {
   if (!shown) {
     blocks.forEach(b => { b.hidden = b.dataset.version !== LATEST; });
   }
-  const sel = $('js-build');
-  if (hasOption(sel, version)) sel.value = version;
+  const menu = $('js-build');
+  if (hasVersion(menu, version)) setMenu(menu, version);
 }
 
 function setUrl(version) {
@@ -126,10 +151,10 @@ function setUrl(version) {
   history.replaceState(null, '', url);
 }
 
-// Either picker switches the downloads and the build instructions together; a
+// Either menu switches the downloads and the build instructions together; a
 // release newer than the site (no build page yet) only changes the downloads.
 function selectRelease(version) {
-  $('js-release').value = version;
+  setMenu($('js-release'), version);
   renderDownloads(version);
   showBuild(version);
   setUrl(version);
@@ -137,8 +162,8 @@ function selectRelease(version) {
 
 function selectBuild(version) {
   showBuild(version);
-  if (hasOption($('js-release'), version)) {
-    $('js-release').value = version;
+  if (hasVersion($('js-release'), version)) {
+    setMenu($('js-release'), version);
     renderDownloads(version);
   }
   setUrl(version);
@@ -150,17 +175,23 @@ async function loadReleases() {
     if (!res.ok) throw new Error(res.statusText);
     const list = await res.json();
     releases = new Map();
-    const select = $('js-release');
+    const menu = $('js-release');
+    const first = menu.querySelector('[data-version]');
     for (const r of list) {
       if (r.draft) continue;
       const v = r.tag_name.replace(/^v/, '');
       releases.set(v, r);
       // a release published after the site was built still shows up
-      if (r.assets.length > 0 && !hasOption(select, v)) {
-        const opt = document.createElement('option');
-        opt.value = v;
-        opt.textContent = v;
-        select.insertBefore(opt, select.firstChild);
+      if (r.assets.length > 0 && first && !hasVersion(menu, v)) {
+        const item = first.cloneNode(true);
+        item.dataset.version = v;
+        item.href = `/install/?version=${encodeURIComponent(v)}`;
+        item.querySelector('.vmenu-item-v').textContent = v;
+        item.querySelector('.vmenu-item-date').textContent = r.published_at
+          ? new Date(r.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : '';
+        item.querySelectorAll('.vmenu-badge').forEach(b => b.remove());
+        first.parentNode.insertBefore(item, first);
       }
     }
   } catch {
@@ -171,13 +202,13 @@ async function loadReleases() {
 async function init() {
   const release = $('js-release');
   const build = $('js-build');
-  release.addEventListener('change', () => selectRelease(release.value));
-  build.addEventListener('change', () => selectBuild(build.value));
+  onPick(release, selectRelease);
+  onPick(build, selectBuild);
 
   const wanted = new URL(window.location.href).searchParams.get('version');
-  const start = wanted && (hasOption(release, wanted) || hasOption(build, wanted)) ? wanted : LATEST;
+  const start = wanted && (hasVersion(release, wanted) || hasVersion(build, wanted)) ? wanted : LATEST;
   selectBuild(start);
-  if (!hasOption(release, start)) release.value = LATEST;
+  if (!hasVersion(release, start)) setMenu(release, LATEST);
   // the anchor (e.g. from /install/<version>/) points at a block that was hidden
   if (window.location.hash) {
     const target = document.getElementById(window.location.hash.slice(1));
@@ -185,10 +216,10 @@ async function init() {
   }
 
   await loadReleases();
-  if (wanted && !hasOption(build, wanted) && hasOption(release, wanted)) {
-    release.value = wanted;   // a release newer than the site: downloads only
+  if (wanted && !hasVersion(build, wanted) && hasVersion(release, wanted)) {
+    setMenu(release, wanted);   // a release newer than the site: downloads only
   }
-  renderDownloads(release.value);
+  renderDownloads(release.dataset.current);
 }
 
 init();

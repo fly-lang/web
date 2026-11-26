@@ -31,14 +31,7 @@
 
     <div class="install-card">
       <div class="install-version-pick">
-        <label for="js-release">Version</label>
-        <select id="js-release" class="docs-version-select">
-          {%- for p in releases %}
-          <option value="{{ p.extra.version }}"{% if p.extra.version == docs.latest %} selected{% endif %}>
-            {{- p.extra.version }}{% if p.extra.version == docs.latest %} (latest release){% endif -%}
-          </option>
-          {%- endfor %}
-        </select>
+        {{<install_version_menu docs={config.extra.docs} pages={releases} id={"js-release"} label={"Version"} anchor={""} />}}
       </div>
       <p id="js-version" class="install-version">Fly {{ docs.latest }}</p>
       <div class="install-detect">
@@ -76,14 +69,7 @@
     <p>Each version builds from its own git tag, with the toolchain of its time.
       Pick the version to see its instructions.</p>
     <div class="install-version-pick">
-      <label for="js-build">Version</label>
-      <select id="js-build" class="docs-version-select">
-        {%- for p in releases %}
-        <option value="{{ p.extra.version }}"{% if p.extra.version == docs.latest %} selected{% endif %}>
-          {{- p.extra.version }}{% if p.extra.version == docs.latest %} (latest release){% endif -%}
-        </option>
-        {%- endfor %}
-      </select>
+      {{<install_version_menu docs={config.extra.docs} pages={releases} id={"js-build"} label={"Version"} anchor={"#build-from-source"} />}}
     </div>
 
     {%- for p in releases %}

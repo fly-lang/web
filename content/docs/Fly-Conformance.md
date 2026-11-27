@@ -156,6 +156,14 @@ elsewhere would point at released memory. Not covered: a method the constructor
 calls can still store `this`. Up to 0.15.x (the v0.15.2 seed included) `this`
 was an ordinary value there.
 
+**The files of one namespace see each other without an import, from 0.16.0.**
+A file declaring `namespace N` uses the classes, functions and enums of the
+other files of `N` by their bare names; the compiler reads those files from
+the project's sources because `N` is the file's own namespace. Up to 0.15.x
+(the v0.15.2 seed included) they were read only when something imported `N`:
+a file of `N` that used a sibling's class without `import N.C` failed with
+`unknown type 'C'`. Code the seed compiles keeps its imports.
+
 **Redeclaration versus shadowing.** Declaring a name twice in the same scope is
 an error; declaring it again in a nested block shadows the outer variable and
 is allowed.

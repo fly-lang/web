@@ -146,6 +146,16 @@ interface, struct or suite it is an error. From 0.16.0 both `private` and
 was parsed and ignored (every access compiled), and a `private` static member
 could be reached from outside its class.
 
+**`this` is only a receiver in a constructor, from 0.16.0.** In a constructor
+and in an instance field initializer `this` may read or set a field and call a
+method (`this.x`, `this.x = v`, `this.m()`); assigning it, passing it as an
+argument, putting it in an array value or comparing it is an error (`'this' can
+only be a receiver (this.x, this.m()) in a constructor or a field initializer`):
+a constructor that fails releases its object, and a copy of `this` kept
+elsewhere would point at released memory. Not covered: a method the constructor
+calls can still store `this`. Up to 0.15.x (the v0.15.2 seed included) `this`
+was an ordinary value there.
+
 **Redeclaration versus shadowing.** Declaring a name twice in the same scope is
 an error; declaring it again in a nested block shadows the outer variable and
 is allowed.
@@ -194,6 +204,7 @@ class).
 | A class instance created with a plain `new` that is never deleted | From 0.16.0 leaving the scope of its variable releases nothing (see the Language Reference §6.6), and **at the end of `main` the object is reported** on stderr (`warning: N objects not deleted (B B)` and one line per class) **and released** — its `free()` runs, an object before what it owns, a `new shared` cycle once. The exit code does not change; a run-time trap or a crash skips the report. In 0.15.x a local created with `new` that had not escaped was released at the end of its scope, and the rest leaked silently. Objects created with `new unique` or `new shared` are released by their owner or their last holder. There is no garbage collector. |
 | A second `delete` of an object through another reference (`b = a`, `delete a`, `delete b`) | **Checked from 0.16.0:** `error 134: double delete of a 'Node' at main.fly:4:5`, exit code 134. Up to 0.15.x: undefined (a double free). |
 | The object of a `fail` consumed by `handle` | Deleted from 0.16.0 (the error owns it). Up to 0.15.x: dropped from the error, never released. |
+| A `free()` that fails | **An ordinary failure from 0.16.0**: after `delete` (the object still released, the variable `null`), at the end of a `new unique` scope, with the last `new shared` holder, in the release at the end of `main` (it sets the exit code when `main` ended cleanly). One that fails while another failure is in flight does not replace it: the first stays the failure and the later one is **attached** to it — `main` prints it as `  also: error 43: free`, a `handle` consumes it with the first. Up to 0.15.x: not checked after `delete` (it surfaced at a later call or at the end of `main`), dropped in a cleanup or at the end of `main`, and at the end of a `new unique` scope it overwrote the failure in flight. |
 | Locals of a `handle` block or a suite `case` (and of the blocks in them) left by a failure | **Released from 0.16.0**, as a `return` releases them: `new unique` owners deleted, `new shared` holders let go, strings and arrays freed, innermost scope first. Up to 0.15.x: left behind (objects reported at the end of `main`, strings and arrays leaked). |
 | Order in which one scope releases its locals | **Last declared first from 0.16.0**, on every exit: an object whose `free()` uses an earlier local's object finds it alive. Up to 0.15.x: declaration order, so such a `free()` read a released object (no diagnostic). |
 | An object deleted, or released by its owner or last holder, through a base class or interface reference | Defined **from 0.16.0**: destroyed as the class it was created with — that class's `free()` and every owning, holding and weak field it has, bases' fields included. In 0.15.x only the fields of the reference's type were released: those of the subclass leaked, and a `free()` declared only by the subclass did not run. |

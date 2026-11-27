@@ -889,11 +889,20 @@ Classes can contain fields (attributes) and methods.
 
 **`this`** is available inside any instance method and refers to the current object. Use `this.field` to access members.
 
+**In a constructor `this` is only a receiver** (from 0.16.0). In a constructor, and in an instance field initializer, `this` may be used to read or set a field and to call a method — `this.x`, `this.x = v`, `this.m()` — and nothing else. The object is not complete yet, and a constructor that fails releases it (see [A `new` that fails](#class-heap-allocated-released-with-delete)), so a copy of `this` kept elsewhere would point at released memory. Any other use is a compile error, `'this' can only be a receiver (this.x, this.m()) in a constructor or a field initializer`: assigned (`Reg.last = this`, `Node self = this`), passed as an argument (`list.add(this)`, `f(this)`), placed in an array value (`{this}`), compared. As the object of a `fail` it has an error of its own (see [Fail Statement](#9-7-2-fail-statement)). In every other method `this` is an ordinary value. A program that registers a new object does it after the `new`, where the object is complete:
+
+```fly
+Node n = new Node()
+Reg.last = n
+```
+
+Not covered: a method called from the constructor (`this.m()`) can still store `this` somewhere, and the constructor can fail after it. Like using an object after `delete`, that is the program's responsibility. Up to 0.15.x `this` was an ordinary value in a constructor too.
+
 All other methods require a return type (`void` for methods that return nothing).
 
 **`const` fields** are read-only. A `static const` field takes its value from its initializer and is never assigned. An instance `const` field without an initializer is set once, by a constructor of the class that declares it, on its own object (`this.v = …`, `v = …`, or as a receiver of a multi-assignment, `a, v = f()`). Every other write is an error: another method, another object (`o.v = …`), a subclass constructor (`super.v = …`), a field that has an initializer, `+=`, `++`/`--` and `delete`. The error is the same as for a `const` local: `cannot assign to 'v': it is declared 'const'`.
 
-**Field initializers.** A field may be declared with an initializer (`int count = 4`). An **instance** field's initializer runs when the object is created: after the object is zeroed and before any constructor, for every field that has one, inherited fields first and then the class's own, in declaration order, whether or not the constructor calls `super(...)`. So a constructor already sees the initialized values. An initializer may read `this` and the fields declared before it. If it fails (a call that `fail`s), the `new` fails and releases the object (see [A `new` that fails](#class-heap-allocated-released-with-delete)). A **`static`** field's initializer must be a constant: a literal, an enum entry, a `static const` field, or the operators and casts over them (`static const int B = A * 2 + 1`, `static const byte W = (byte)300`). It becomes the field's initial value, and no code runs for it before `main`. Any other value is a compile error (`static field 'n' needs a constant initializer`): assign it in code. Initializers are checked like a declaration's (`int f = "abc"` is an error). All of this is from 0.16.0. Up to 0.15.x an initializer was ignored and the field started at its zero value.
+**Field initializers.** A field may be declared with an initializer (`int count = 4`). An **instance** field's initializer runs when the object is created: after the object is zeroed and before any constructor, for every field that has one, inherited fields first and then the class's own, in declaration order, whether or not the constructor calls `super(...)`. So a constructor already sees the initialized values. An initializer may read the fields declared before it, with `this` as a receiver only (see above). If it fails (a call that `fail`s), the `new` fails and releases the object (see [A `new` that fails](#class-heap-allocated-released-with-delete)). A **`static`** field's initializer must be a constant: a literal, an enum entry, a `static const` field, or the operators and casts over them (`static const int B = A * 2 + 1`, `static const byte W = (byte)300`). It becomes the field's initial value, and no code runs for it before `main`. Any other value is a compile error (`static field 'n' needs a constant initializer`): assign it in code. Initializers are checked like a declaration's (`int f = "abc"` is an error). All of this is from 0.16.0. Up to 0.15.x an initializer was ignored and the field started at its zero value.
 
 **Examples:**
 ```fly
@@ -985,6 +994,34 @@ Deleting through **another** reference an object that is already gone — `Node 
 The target must be a variable, a parameter or a field holding a class or interface reference; it cannot be `this`, a `struct` or a `const` variable.
 
 **A `new` that fails.** When a field initializer, a constructor argument or the constructor itself fails, the object is only half built. From 0.16.0 the `new` releases it before the failure goes on: the owning, holding and weak fields already set (those the constructor never reached are still `null`), then its memory — for `new`, `new unique` and `new shared` alike. The class's `free()` does **not** run: the object was never built. Nothing is left for the report at the end of `main`. Up to 0.15.x the object was left behind. A constructor cannot hand `this` to the error (`fail 1, this` is a compile error, see [Fail Statement](#9-7-2-fail-statement)); when a method it calls does, the object travels in the error instead, and the `handle` that consumes the failure deletes it. An element of a sized array that fails stops the declaration the same way (see [Arrays](#arrays-reference-counted-freed-automatically)).
+
+**A `free()` that fails.** `free()` may fail like any method (a `fail`, a failing call, an index out of range), and from 0.16.0 that is an ordinary failure, checked and propagated: a `handle` catches it, or `main` reports it and exits with its code. Up to 0.15.x it was not checked after `delete`, and it was dropped during a cleanup.
+
+- **`delete x`:** the object is still released and `x` set to `null`; then the failure goes on from the `delete`, as from a failing call. The statement after it does not run.
+- **The automatic releases:** the end of a `new unique` scope, the last `new shared` holder going away, the reassignment of an owner or a holder, a `break` or `continue` leaving a scope. With no failure in flight, the failure of `free()` is the failure at that point, as if a call there had failed.
+- **The release at the end of `main`** of the objects never deleted (see [below](#objects-never-deleted-the-report-at-the-end-of-main)): when `main` ended cleanly, the first `free()` that fails is reported like an unhandled failure and sets the exit code; the other objects are still released.
+- **Two failures at once.** A `free()` that fails while another failure is already in flight — the cleanup of a `new` or of a sized array that failed, the scopes released by a failing `return` or by a failure leaving a `handle`, the release at the end of a `main` that failed — does not replace it. The **first** failure stays the failure (its code, its message, its object, the exit code); each later one is **attached** to it, like Java's suppressed exceptions. Nothing is dropped and nothing is overwritten. Unhandled, `main` reports the first failure and then each attached one, in order; a `handle` that consumes the failure consumes the attached ones too (their messages freed, their objects deleted).
+- **The error's object:** when a `handle` (or `main`) deletes the object of a `fail …, obj` and its `free()` fails, that is a new failure, starting after the `handle` as if a statement there had failed.
+
+Every release still runs: a `free()` that fails does not stop the release of the object's fields, nor that of the other locals of the scope.
+
+```fly
+int compute() {
+    Res r = new unique Res()     // r's free() fails with 43, "free"
+    fail 50, "compute"
+}
+
+void main() {
+    int v = compute()
+}
+```
+
+```
+error 50: compute
+  also: error 43: free
+```
+
+The exit code is 50. Up to 0.15.x the 43 overwrote the 50.
 
 ```fly
 import fly.data.List
@@ -1288,7 +1325,7 @@ String **literals** inside an array literal are unaffected: they are stored as p
 
 #### Objects never deleted: the report at the end of `main`
 
-From 0.16.0 every class object — `new`, `new unique`, `new shared` — lives in the runtime's **object heap**, which knows the live ones. When `main` ends, the program reports on **stderr** the objects it never deleted, by class, most first, and then releases them. The exit code does not change. A program that deletes everything prints nothing.
+From 0.16.0 every class object — `new`, `new unique`, `new shared` — lives in the runtime's **object heap**, which knows the live ones. When `main` ends, the program reports on **stderr** the objects it never deleted, by class, most first, and then releases them. The exit code does not change, unless a `free()` fails in that release (see [A `free()` that fails](#class-heap-allocated-released-with-delete)). A program that deletes everything prints nothing.
 
 ```fly
 namespace app
@@ -1309,7 +1346,7 @@ warning: 2 objects not deleted (32 B)
 ```
 
 - The count includes what a leaked object owns or holds. A generic class is named with its type arguments (`fly.data.List<string>`); a class compiled by an earlier release (a package built with 0.15.x) has no type information and is counted as `(a class built by an earlier compiler)`.
-- **Release.** Each leaked object is then released as `delete` would: its `free()` runs and its owning and holding fields go with it. An object is released before the objects it owns or holds, so a `free()` still finds them; objects that hold each other (a `new shared` cycle) are released once each. A `BufWriter` nobody closed writes out its buffered bytes.
+- **Release.** Each leaked object is then released as `delete` would: its `free()` runs and its owning and holding fields go with it. An object is released before the objects it owns or holds, so a `free()` still finds them; objects that hold each other (a `new shared` cycle) are released once each. A `BufWriter` nobody closed writes out its buffered bytes. A `free()` that fails here is reported after the list: as `error <code>: <message>`, which sets the exit code, when `main` ended cleanly; as `  also: error …` after the failure of a `main` that failed. Through `fly.os.env.exit` it is reported and the exit code stays the one given to `exit`.
 - **When.** When `main` returns or ends with an unhandled `fail`, and also when the program ends through `fly.os.env.exit`. Not after a run-time trap (`error 134`, `error 2989`…) or a crash: a broken program is not walked.
 - **Test suites.** A suite's generated `main` reports at its end like any program, and each `case` that leaves objects alive gets a line under its result — a warning, the case still passes (see the Testing page).
 - **Not covered.** Strings and arrays (released automatically), raw `fly.mem` blocks, structs (stack). The Fly toolchain itself (compiler, `fly-lsp`, `fly-registry`) does not delete its syntax trees yet and turns the report off for itself.
@@ -2119,7 +2156,7 @@ fail 404, "not found"       // code = 404, str = "not found"
 fail 1, "oops", new Ctx()   // code = 1,   str = "oops", obj = Ctx instance
 ```
 
-The error **owns** its object: when a `handle` consumes the failure, or `main` reports it, the object is deleted (from 0.16.0; up to 0.15.x it was only dropped from the error, and leaked). In a constructor the object cannot be `this` (from 0.16.0): `'this' cannot be the object of a fail in a constructor`, because a constructor that fails releases the object it was building.
+The error **owns** its object: when a `handle` consumes the failure, or `main` reports it, the object is deleted (from 0.16.0; up to 0.15.x it was only dropped from the error, and leaked). In a constructor the object cannot be `this` (from 0.16.0): `'this' cannot be the object of a fail in a constructor`, because a constructor that fails releases the object it was building. When the object's `free()` fails as it is deleted, that is a new failure, after the `handle` (see [A `free()` that fails](#class-heap-allocated-released-with-delete)).
 
 **Behavior of `fail`:**
 
@@ -2219,7 +2256,11 @@ any handle, no declaration needed — holds the outcome. It reads as a boolean:
 to `false`.
 
 The handle consumes the **whole** failure: its code, its message (freed) and its
-object (deleted from 0.16.0: the error owns it; up to 0.15.x it was only dropped). A later
+object (deleted from 0.16.0: the error owns it; up to 0.15.x it was only dropped), and
+the failures attached to it — those raised by a `free()` while it was in flight, from
+0.16.0 (see [A `free()` that fails](#class-heap-allocated-released-with-delete)). A
+`free()` that fails as the handle deletes one of those objects is a new failure, which
+goes on after the handle as if a statement there had failed. A later
 failure starts empty — up to 0.15.2 a handled failure's message stayed behind,
 and a later `fail` without a message, or with one built by a call, was reported
 with the old text.
@@ -2371,7 +2412,7 @@ ret i32 load(error.code)
 
 So the process exit code equals the error code of the last unhandled failure — `0` means clean exit. See [Section 5.5](#5-5-the-main-function) for the full behaviour table.
 
-After the error is printed, its message and object are released, and the end-of-`main` report lists the objects the program never deleted (from 0.16.0, [§6.6](#objects-never-deleted-the-report-at-the-end-of-main)).
+After the error is printed, each failure attached to it is printed on a line of its own (`  also: error 43: free`, from 0.16.0: a `free()` that failed while the error was in flight, [§6.6](#class-heap-allocated-released-with-delete)); then its message and object are released, and the end-of-`main` report lists the objects the program never deleted (from 0.16.0, [§6.6](#objects-never-deleted-the-report-at-the-end-of-main)). A `free()` that fails in that release sets the exit code when `main` ended cleanly, and is reported as attached when it failed.
 
 #### 9.7.7 Key Differences from try-catch
 

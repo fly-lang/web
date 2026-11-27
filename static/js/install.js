@@ -98,13 +98,14 @@ function renderDownloads(version) {
     return;
   }
 
+  // the other platforms are in the table below
   const os = detectOS();
-  const mine = assets.find(a => PLATFORMS.find(p => p.key === os).match(a.name));
+  const platform = PLATFORMS.find(p => p.key === os);
+  const mine = assets.find(a => platform.match(a.name));
   if (mine) {
-    const label = PLATFORMS.find(p => p.key === os).label;
     btns.innerHTML = `
       <a href="${mine.browser_download_url}" class="btn btn-primary" download>
-        Download Fly ${escapeHtml(version)} for ${label} (${escapeHtml(archOf(mine.name))})
+        Download for ${platform.label} (${escapeHtml(archOf(mine.name))})
       </a>`;
   } else {
     btns.innerHTML = '<p>No package for your platform in this version — see the table below.</p>';
@@ -199,7 +200,15 @@ async function loadReleases() {
   }
 }
 
+// The installation notes start with the visitor's platform, like the download button.
+function platformFirst() {
+  const sections = document.querySelectorAll('.install-os');
+  const mine = Array.from(sections).find(s => s.dataset.os === detectOS());
+  if (mine && sections[0] !== mine) sections[0].before(mine);
+}
+
 async function init() {
+  platformFirst();
   const release = $('js-release');
   const build = $('js-build');
   onPick(release, selectRelease);

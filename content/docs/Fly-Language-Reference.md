@@ -1250,7 +1250,16 @@ That is the direct consequence of the ownership rule, not an oversight: cloning 
 
 String **literals** inside an array literal are unaffected: they are stored as pointers into static memory, allocate nothing per element, and need no freeing.
 
-**When the release happens.** An owned array is released where the scope *falls through* its end. There is no cleanup on an early `return`, on an uncaught `fail`, or on `break` / `continue` out of a scope — an array left behind on one of those paths simply is not released. This is a pre-existing limitation of the compiler's scope handling, shared with heap-allocated strings and class handles, not something specific to arrays; it is recorded here because reference counting otherwise reads as a complete guarantee, and on those paths it is not.
+**When the release happens.** An owned array is released when its scope ends: where the scope falls through its end, and on every exit that leaves it early — a `return`, a `break` or `continue`, a failure that returns from the function, and (from 0.16.0) a failure that jumps to the end of an enclosing `handle` (see [Handle Statement](#9-7-4-handle-statement)) or of a suite `case`. Strings, `new unique` owners and `new shared` holders are released on the same paths.
+
+**In which order.** The scopes an exit leaves are released innermost first, and within one scope the locals go **last declared first** (from 0.16.0), on every exit, the scope's end included. A local may lean on one declared before it — an object whose `free()` reads an earlier owner's object through a plain reference — so the earlier one is still there when the later one goes. Up to 0.15.x the locals of a scope went in declaration order, and such a `free()` read an object already released.
+
+```fly
+{
+    Res a = new unique Res()
+    User u = new unique User(a)   // u keeps a plain reference to a's object
+}                                 // ← u first (its free() may use a), then a
+```
 
 **Class fields of array type** are likewise never released: only locals are registered as owners.
 
@@ -2192,6 +2201,15 @@ The compiler emits two LLVM basic blocks for each `handle`:
 - **`safe`** — the continuation (code after the handle)
 
 When `fail` fires **directly inside the handle body** (same function), execution jumps to `safe`, skipping the rest of the handle body. When `fail` fires **in a callee** (at any depth), the callee returns, and the call inside the handle body jumps to `safe` the same way: the rest of the body is skipped.
+
+**The scopes a failure leaves are cleaned up** (from 0.16.0). On its way to `safe` the failure releases the locals of every scope it leaves — the handle body and the blocks nested in it, innermost first — as a `return` does: a `new unique` owner is deleted (its `free()` runs), a `new shared` holder lets go of its reference, strings and arrays are released. The same holds for a failing `new` and an index out of range. Only the locals declared before the failure count; one whose own initializer failed holds nothing and is skipped. Up to 0.15.x those locals were left behind: the objects were reported at the end of `main`, the strings and arrays leaked.
+
+```fly
+handle {
+    Res r = new unique Res()
+    int v = boom()          // fails: r is deleted, then execution goes on after the handle
+}
+```
 
 On exit the handle **consumes** the error: the failure never propagates to
 the caller, and the implicit `error` variable — automatically in scope after

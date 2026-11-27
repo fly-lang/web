@@ -215,6 +215,9 @@ Flow: `setup()` → each test-method (each `case` reported individually) →
   case executes (per-case isolation).
 - Within one case the **first** failure wins: the runner checks the error after
   every statement and jumps to the case's report as soon as one is recorded.
+  On the way the case's locals are released, as a `return` releases them (from
+  0.16.0; up to 0.15.x they were left behind, and a failing case holding a
+  `new unique` owner got a `warning:` line).
 - If `setup()` fails, it is reported (`setup ... FAIL(...)`), the test-methods
   are **skipped**, and `teardown()` still runs.
 - A `fail` that escapes a test-method outside any `case` is reported as

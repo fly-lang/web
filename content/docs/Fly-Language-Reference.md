@@ -2580,6 +2580,8 @@ void main() {
 }
 ```
 
+The prefix names the namespace's types as well as its functions, in every type position: a declaration, a parameter, a return type, a field, a type argument, an array parameter (`left.P[] ps`) and a `new` (`left.P p = new left.P()` after `import probe.left`). A local array declared with a dotted element type (`left.P[2] all`) does not parse yet, with any prefix. `new` also takes the full path (`new probe.left.P()`). A dotted type name must start with a namespace, in full or as the prefix of an import: `zzz.P`, where `zzz` is neither, is an unknown type. Up to 0.15.x (the v0.15.2 seed included) the prefix of a namespace with more than one segment named only functions, `new` took no dotted name, and an unknown prefix fell back to the bare name (`zzz.P` was any `P` in scope).
+
 A namespace import binds **only the prefix** — it does not bring the namespace's
 members into scope, so bare calls are an error:
 

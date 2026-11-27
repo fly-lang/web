@@ -221,6 +221,11 @@ Flow: `setup()` → each test-method (each `case` reported individually) →
   release does not replace the case's failure: it is attached to it and printed
   on stderr as `  also: error <code>: <message>` (from 0.16.0, Language
   Reference §6.6).
+- A `fail` written directly in a case body, and an index out of range there,
+  end the case the same way: the case is reported on its own line and the next
+  case runs (from 0.16.0). Up to 0.15.x they returned from the test-method: the
+  failure was reported as `body ... FAIL(...)` and the method's later cases were
+  skipped.
 - If `setup()` fails, it is reported (`setup ... FAIL(...)`), the test-methods
   are **skipped**, and `teardown()` still runs.
 - A `fail` that escapes a test-method outside any `case` is reported as

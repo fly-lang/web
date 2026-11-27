@@ -2517,7 +2517,7 @@ namespace company.project.module
 **Rules:**
 - A namespace declaration must appear before any imports or top-level declarations
 - Only one namespace declaration per file
-- If no namespace is declared, a default namespace based on the filename is used
+- If no namespace is declared, a default namespace based on the filename is used: each such file is a namespace of its own, so what it declares is not visible from another file, and two files may declare a class, a function or an enum of the same name, each getting its own. From 0.16.0 the compiled program keeps them apart too (the generated symbols carry the file's base name); up to 0.15.x they shared their symbols, and an object could be initialized or released as the other file's class. Two such files with the same base name in different directories still share it: give a file a `namespace` when that can happen.
 
 ### 10.2 Import Declaration
 

@@ -159,7 +159,6 @@ distinguish overloads.
 | Program | Result |
 |---|---|
 | A build of more than one source file (`fly --suite` over a tree, `--lib`, a module pulled in by an import) | **0.14.6:** a semantic error outside the first input file is reported with the name, line and column of the first file. Compile the single suite (`--suite=<Name>`) to get the right position. **Fixed in 0.14.7.** |
-| A sized array of structs (`Point[3] ps`) | The elements start at the zero value: the struct's field initializers do not run for them (they do for `Point p`, `new Point()` and a brace literal). |
 
 ### Warnings
 

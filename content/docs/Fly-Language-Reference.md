@@ -836,7 +836,7 @@ struct Point3D : Point {
 }
 ```
 
-A struct field may have an **initializer** (`int x = 4`). From 0.16.0 every value of the struct starts from it, after the zero value: `new Point()`, a declaration `Point p`, a brace literal that does not give the field, a struct field inside an object or another struct, the base struct of a struct, and the base struct of a class (see [Section 6.4](#6-4-class-members)). The elements of a sized struct array (`Point[3] ps`) still start at zero. Up to 0.15.x the initializer was ignored.
+A struct field may have an **initializer** (`int x = 4`). From 0.16.0 every value of the struct starts from it, after the zero value: `new Point()`, a declaration `Point p`, a brace literal that does not give the field, a struct field inside an object or another struct, the base struct of a struct, the base struct of a class (see [Section 6.4](#6-4-class-members)), and each element of a sized struct array (`Point[3] ps`), in index order; a struct constructor does not run for them, as for `Point p`. Up to 0.15.x the initializer was ignored.
 
 ```fly
 struct Pen {
@@ -984,7 +984,7 @@ Deleting through **another** reference an object that is already gone — `Node 
 
 The target must be a variable, a parameter or a field holding a class or interface reference; it cannot be `this`, a `struct` or a `const` variable.
 
-**A `new` that fails.** When a field initializer, a constructor argument or the constructor itself fails, the object is only half built. From 0.16.0 the `new` releases it before the failure goes on: the owning, holding and weak fields already set (those the constructor never reached are still `null`), then its memory — for `new`, `new unique` and `new shared` alike. The class's `free()` does **not** run: the object was never built. Nothing is left for the report at the end of `main`. Up to 0.15.x the object was left behind. A constructor cannot hand `this` to the error (`fail 1, this` is a compile error, see [Fail Statement](#9-7-2-fail-statement)); when a method it calls does, the object travels in the error instead, and the `handle` that consumes the failure deletes it.
+**A `new` that fails.** When a field initializer, a constructor argument or the constructor itself fails, the object is only half built. From 0.16.0 the `new` releases it before the failure goes on: the owning, holding and weak fields already set (those the constructor never reached are still `null`), then its memory — for `new`, `new unique` and `new shared` alike. The class's `free()` does **not** run: the object was never built. Nothing is left for the report at the end of `main`. Up to 0.15.x the object was left behind. A constructor cannot hand `this` to the error (`fail 1, this` is a compile error, see [Fail Statement](#9-7-2-fail-statement)); when a method it calls does, the object travels in the error instead, and the `handle` that consumes the failure deletes it. An element of a sized array that fails stops the declaration the same way (see [Arrays](#arrays-reference-counted-freed-automatically)).
 
 ```fly
 import fly.data.List
@@ -1231,6 +1231,8 @@ void demo() {
     first.set(7)           // does not affect cells[1] or cells[2]
 }   // ← the buffer of pointers is freed; the three Cell instances are NOT
 ```
+
+**An element that fails stops the declaration.** When the constructor or a field initializer of element `k` fails, `C[n] cs` fails with it, and from 0.16.0 nothing is left behind: element `k` is released as any [`new` that fails](#class-heap-allocated-released-with-delete) is (its fields, then its memory, without `free()`), the elements already built are deleted from `k-1` down to `0` (their `free()` runs), then the buffer goes. A sized struct array whose field initializer fails at element `k` stops the same way. Up to 0.15.x a failing element constructor did not stop the declaration, and a failing initializer left the elements behind.
 
 A sized array of an **interface** is rejected at the declaration: an interface has no constructor to build the elements with. Supply them with an array literal instead.
 

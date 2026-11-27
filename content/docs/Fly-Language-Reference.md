@@ -2538,6 +2538,8 @@ void main() {
 }
 ```
 
+- **One definition per name in a namespace.** Two functions of one namespace with the same name and the same parameter types are an error from 0.16.0, whether they are in one file or in two: the error is on the second, with a note at the first. Two types of the same name (class, struct, interface or enum, in any mix) in one namespace are an error in the same way. The files without a `namespace` are checked one file at a time, since each is a namespace of its own. Overloads stay legal: they differ in their parameter types. Up to 0.15.x (the v0.15.2 seed included) only two functions in one file were reported; across files the program compiled and which body ran depended on the link order, and a type declared twice was taken without a word.
+
 ### 10.2 Import Declaration
 
 Imports make symbols from other namespaces available. Fly supports four import forms, all modelled on Java-style imports.

@@ -1752,6 +1752,21 @@ i <<= 2         // i = i << 2
 j >>= 1         // j = j >> 1
 ```
 
+**What a class or an enum variable takes.** A class value is accepted where its own class, one of its bases or one of its interfaces is expected: in a declaration, an assignment, a `return`, a field initializer and a struct literal. An unrelated class, or a base where a subclass is expected, is an error (`cannot assign a value of type 'Cat' to a variable of type 'Dog'`); two classes with the same short name from two namespaces are named in full (`probe.right.P`, `probe.left.P`). An enum variable takes only its own enum. `null`, and the integer and `pointer` conversions of a class handle, stay as they are. Up to 0.15.x (the v0.15.2 seed included) only the kind was checked, so any class went into any class variable and any enum into any enum variable.
+
+```fly
+class Animal {
+}
+class Dog : Animal {
+}
+class Cat {
+}
+
+Animal a = new Dog()    // ok: Dog derives from Animal
+Dog d = new Cat()       // error: Cat is not a Dog
+Dog e = a               // error: an Animal is not a Dog
+```
+
 #### 8.4.1 Assignment vs Equality: Important Distinction
 
 Fly clearly distinguishes between the **assignment operator** `=` and the **equality comparison operator** `==`:

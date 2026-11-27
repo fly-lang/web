@@ -2580,7 +2580,9 @@ void main() {
 }
 ```
 
-The prefix names the namespace's types as well as its functions, in every type position: a declaration, a parameter, a return type, a field, a type argument, an array parameter (`left.P[] ps`) and a `new` (`left.P p = new left.P()` after `import probe.left`). A local array declared with a dotted element type (`left.P[2] all`) does not parse yet, with any prefix. `new` also takes the full path (`new probe.left.P()`). A dotted type name must start with a namespace, in full or as the prefix of an import: `zzz.P`, where `zzz` is neither, is an unknown type. Up to 0.15.x (the v0.15.2 seed included) the prefix of a namespace with more than one segment named only functions, `new` took no dotted name, and an unknown prefix fell back to the bare name (`zzz.P` was any `P` in scope).
+The prefix names the namespace's types as well as its functions, in every type position: a declaration, a parameter, a return type, a field, a type argument, an array (`left.P[] ps` as a parameter, `left.P[2] all` or `probe.left.P[] some = {}` as a local) and a `new` (`left.P p = new left.P()` after `import probe.left`). `new` also takes the full path (`new probe.left.P()`). A dotted type name must start with a namespace, in full or as the prefix of an import: `zzz.P`, where `zzz` is neither, is an unknown type. Up to 0.15.x (the v0.15.2 seed included) the prefix of a namespace with more than one segment named only functions, `new` took no dotted name, and an unknown prefix fell back to the bare name (`zzz.P` was any `P` in scope); a local array with a dotted element type was not read as a declaration (`probe.left.P[2] all` was taken for an index into a member, `left.P[] some = {}` did not parse).
+
+The prefix also reaches what a type holds. An enum value takes it wherever a value is written — an initializer, an assignment, a comparison, a `case` label, an argument, a `return` — by the full path (`probe.left.Mode.ON`) or through the import (`left.Mode.ON`), and so does a static member of a class (`left.P.count`, `left.P.twice(2)`). A local variable named like the prefix shadows it, as for a call. Up to 0.15.x (the v0.15.2 seed included) the type itself had to be in scope (`import probe.left.Mode`, then `Mode.ON`): with a prefix the value was an error (`'probe' is a namespace, not a value`, `cannot find 'left' in this scope`).
 
 A namespace import binds **only the prefix** — it does not bring the namespace's
 members into scope, so bare calls are an error:
@@ -2693,9 +2695,9 @@ void main() {
 }
 ```
 
-The namespace prefix is for calls only: a type is never written with it
-(`geom.Circle c` is an error). A type comes into scope through a class import,
-a wildcard import or an alias import.
+From 0.16.0 the prefix names the type too (`geom.Circle c = new geom.Circle()`,
+see above); up to 0.15.x it was for calls only. A type comes into scope under
+its bare name through a class import, a wildcard import or an alias import.
 
 ```fly
 // File: main.fly — wildcard import

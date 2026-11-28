@@ -33,7 +33,10 @@ the entry depends on the build mode:
 | `--suite` (test mode) | every file declaring a `suite` (see [Testing](@/docs/Fly-Testing.md)) |
 | `--lib` / `--lib-dyn` | every source — the directory *is* the library |
 
-The entry's import closure pulls the remaining sources automatically; std
+The entry's import closure pulls the remaining sources automatically, and so
+do the other files of each namespace it reaches — the files with no
+`namespace` are one namespace, the default one, so a `main.fly` without a
+namespace brings in every other file without one (from 0.16.0); std
 namespaces resolve against the `.fly.h` headers next to the compiler (and any
 `-L` package dir) and link from their archives.
 

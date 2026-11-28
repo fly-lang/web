@@ -1276,7 +1276,21 @@ void demo() {
 
 A sized array of an **interface** is rejected at the declaration: an interface has no constructor to build the elements with. Supply them with an array literal instead.
 
-**Elements are borrowed, and a borrow can outlive its owner.** Storing a string, a class or a struct into an array neither copies it nor transfers ownership. Reading one back out into an owned slot *clones* it, by the string rule above, so the common direction is safe. The opposite direction is not:
+**A struct element is a copy.** A struct variable lives on the stack, in the frame of the function that declares it, while a class instance lives on the heap. An array cannot refer to a struct where it is — that storage is gone when the function returns — so an array of structs holds the structs themselves. Writing one into the array — as an element of an array literal or by assignment to an element — copies its fields, as an assignment between two struct variables does; reading one out, or taking it as the item of a `for … in`, copies them again. The element and the variable then change independently:
+
+```fly
+Cell c = {tag = 5}
+Cell[] cells = {c, {tag = 6}}
+c.tag = 9             // cells[0].tag is still 5
+cells[1] = c          // a copy: cells[1].tag is 9
+for each in cells {
+    each.tag = 0      // changes the item, not the element
+}
+```
+
+Up to 0.15.x a struct written into an array, in a literal or by assignment, was not stored: the element read back as something else.
+
+**Elements are borrowed, and a borrow can outlive its owner.** Storing a string or a class into an array neither copies it nor transfers ownership, and the same holds for the strings and classes that the fields of a struct element refer to. Reading one back out into an owned slot *clones* it, by the string rule above, so the common direction is safe. The opposite direction is not:
 
 ```fly
 string[] names = {"a", "b"}

@@ -147,10 +147,11 @@ matches a name the whole namespace sees is still a duplicate definition. Up to
 checked: any file that saw the namespace could call the function or name the
 type, and two same-named `private` functions in two files of a namespace
 compiled to one symbol, so which body ran depended on the link order. The
-symbol of a `private` function or type now carries its file's base name: a
-library whose public generic code uses a `private` function (the
-`header-private` warning) and the programs using it must be compiled by the
-same release line.
+symbol of a `private` function or type now carries its file: the base name, or,
+for the source files of one namespace that share a base name (`a/p.fly` and
+`b/p.fly`), the path that tells them apart. A library whose public generic code
+uses a `private` function (the `header-private` warning) and the programs using
+it must be compiled by the same release line.
 
 **`protected` is per class hierarchy, from 0.16.0.** A `protected` field or
 method (constructors included) is reachable from the class that declares it and
@@ -237,6 +238,7 @@ class).
 | A program with a `main` whose namespace also holds a `suite` (`main.fly` and `test/XSuite.fly`, both in one namespace or both without one) | **Runs its `main` from 0.16.0.** A plain build reads every file of the namespace, the suite's too; up to 0.15.x a suite among the compiled files replaced the entry, and the program ran the tests instead of `main`. Outside test mode a suite is the entry only when the build has no `main`. |
 | A multi-return function called in its full form (`divmod(17, 5, q, r)`) from a file with a `namespace` | **Resolves from 0.16.0.** Up to 0.15.x the call was refused (`no function or method named 'divmod' matches this call`) when the function was in a named namespace: it was listed twice, by its file and by its namespace, and taken for two candidates. It resolved only in a file with no namespace. |
 | Two source files with the same base name in different directories, each with its `namespace` (`a/p.fly`, `b/p.fly`), or a file in a subdirectory named like the entry file | **Both read from 0.16.0**: a source file is identified by its path. Up to 0.15.x (and in the v0.15.2 seed) the files already read were listed by base name and the second was skipped without a message: what it declared was missing (`unknown type 'P'`, `cannot find 'b' in this scope`). |
+| Two source files of one namespace (or both with none) with the same base name in different directories (`a/p.fly`, `b/p.fly`), each declaring a `private` function, class or enum of the same name | **Two definitions from 0.16.0**, each used by its own file: a `private` belongs to its file whatever the file is called. The symbols of such files carry the part of the path that tells the files apart (`a/p`, `b/p`), every other file keeps its base name, and the names do not depend on where the source directory is. Up to 0.15.x (and in the v0.15.2 seed) a top-level `private` was not kept to its file, and same-named ones compiled to one symbol. |
 | A library (`--lib`) built from two source files with the same base name in different directories | **Two headers from 0.16.0**: the files that share a base name put their namespace in the header's name (`a.p.fly.h`, `b.p.fly.h`); with the same namespace, or none, the build stops with an error that names both files. Up to 0.15.x (and in the v0.15.2 seed) both wrote `p.fly.h` and the first header was lost without a message. |
 | Two functions with the same name and parameter types, or two types (class, struct, interface, enum) with the same name, in one namespace | **An error from 0.16.0**, in one file or across files, with a note at the first definition. Up to 0.15.x (and in the v0.15.2 seed) only two functions in one file were reported: across files the program compiled and the link order chose the body, and a type defined twice was accepted. |
 | Two functions whose parameters are classes or enums with the same short name from two namespaces (`h(probe.left.P)`, `h(probe.right.P)`), or specializations over them (`Box<probe.left.P>`, `Box<probe.right.P>`) | **Two overloads from 0.16.0**: a class or an enum type is identified by its namespace and its name, a specialization by its type arguments, and each call picks its own. Up to 0.15.x (and in the v0.15.2 seed) types were compared by their short name: the second function was reported as already defined. |

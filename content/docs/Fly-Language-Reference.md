@@ -2839,8 +2839,10 @@ void main() {
 
 Because a `private` name never leaves its file, two files of one namespace may
 each declare a `private` function or type of the same name: each file uses its
-own, and the compiled program keeps them apart (their symbols carry the file's
-base name). A `private` name and a name the whole namespace sees are still one
+own, and the compiled program keeps them apart: their symbols carry the file,
+by its base name or, when two files of the namespace share a base name in
+different directories (`a/p.fly`, `b/p.fly`), by the path that tells them
+apart. A `private` name and a name the whole namespace sees are still one
 name defined twice, and an error ([10.1](#10-1-namespace-declaration)).
 
 A library's header (`.fly.h`) declares only what is `public`. One exception: a

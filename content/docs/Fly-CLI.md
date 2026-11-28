@@ -133,7 +133,7 @@ shipped artifact.
 
 | Option | Meaning |
 |---|---|
-| `-o <file>` | output name (default: named after the entry — the suite, or the source-root directory when no single file can name it) |
+| `-o <file>` | output name (default: named after the entry — see below) |
 | `--out-dir <dir>` | directory for the output *and* its intermediate objects |
 | `--src-dir <dir>` | source root for discovery and import resolution (default: `.`). **Repeatable** — the first is the discovery root, all of them resolve imports |
 | `--entry <file>` | the file declaring `main()`, instead of discovering it |
@@ -145,6 +145,22 @@ shipped artifact.
 | `--keep-object` | keep the object of a linked build (`<output>.o`) next to the output instead of deleting it |
 | `--rpath <dir>` | a run-time library search path of the executable, repeatable; `$ORIGIN` is the executable's directory (`@loader_path` on macOS). Windows has none: a DLL is found next to the executable |
 | `--tls` | link the **real** TLS backend (OpenSSL on Linux, Schannel on Windows) instead of the no-op stub |
+
+With no `-o`, the output is named after what the build starts from:
+
+| The build | Default name |
+|---|---|
+| a program (one file declares `main()`) | that file's name without `.fly`, written next to the file; under `--out-dir`, the name alone — `src/main.fly` gives `<out-dir>/main` |
+| `--suite=<Sel>` | the selector |
+| `--suite` with one suite | the suite's name |
+| `--suite` with several suites, `--lib`, `--lib-dyn`, a compile of a whole directory | the source directory's name: `--src-dir proj` gives `proj`, and `.` is the directory it is (in `myproj/`, `fly --suite` builds `myproj`) |
+
+Under `--out-dir` a default name never carries a directory of the sources, so
+the output lies directly in `<out-dir>`. From 0.16.0; up to 0.15.x the name
+kept the path of the entry file below `--out-dir`, a directory that does not
+exist there, and the build stopped with `error: object emission failed`. A
+failed emission now names the path: `error: object emission failed: cannot
+write 'out/missing/app.o'`.
 
 `--tls` is opt-in for a reason: linking the real backend makes the program
 depend on the platform's TLS library, so a build without it still links on a

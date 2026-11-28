@@ -384,6 +384,11 @@ Organise suites by namespace and whole areas become runnable in one command
 Notes:
 
 - `--suite` implies test mode (`test {}` blocks are compiled in).
+- The suites it selects are built into **one** executable, wherever their
+  files lie below the source directory. With no `-o` it is named after the
+  selector, after the suite when there is one, and after the source directory
+  when there are several (`fly --suite` in `myproj/` builds `myproj`); see
+  [Output and paths](@/docs/Fly-CLI.md).
 - A selector matching **no** suite or namespace is an error.
 - A `--test=<Method>` filter matching **zero** test-methods across the
   selected suites is a **compile error** — a typo'd filter cannot produce a

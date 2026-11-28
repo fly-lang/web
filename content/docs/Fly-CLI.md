@@ -104,6 +104,13 @@ incompatibly is a diagnosed error — no axis silently rewrites another.
 Each public module produces exactly one `<module>.fly.h`. A library directory
 holds those and the archive — no other textual file.
 
+The header is named after the source file (`str.fly` gives `str.fly.h`). From
+0.16.0, source files of one library that share a base name in different
+directories put their namespace in the header's name: `a/p.fly` (`namespace a`)
+and `b/p.fly` (`namespace b`) give `a.p.fly.h` and `b.p.fly.h`. Two such files
+with the same namespace, or with none, are an error that names both. Up to
+0.15.x the second header silently replaced the first.
+
 Most of a header is declarations: signatures with no bodies, since the code lives
 in the archive. The exception is a **generic** class or function, which the header
 carries **as source, body included**. Monomorphization re-walks a template's

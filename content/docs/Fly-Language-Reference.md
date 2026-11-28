@@ -356,9 +356,12 @@ int[5] coordinates
 // Multi-dimensional arrays
 int[][] matrix = {}
 byte[][][] cube = {}
+int[2][3] grid          // 2 rows of 3: grid[i][j] with i < 2 and j < 3
 ```
 
 A declaration must give either a size or an initializer — `int[] xs` alone is an error, because there is nothing to say how large the array is.
+
+**More than one dimension.** The dimensions read in the order of the subscripts: `int[2][3] grid` is 2 rows of 3 elements, so the first subscript goes up to 2 and the second up to 3 (`grid[1][2]` is the last element; `grid[2][0]` and `grid[0][3]` fail with `index out of range`). From 0.16.0 a sized declaration builds every dimension: each row is built as a sized array of one dimension is — numbers at zero, struct elements with their field initializers, class elements with their no-argument constructor — and every size is evaluated once, before anything is allocated. A dimension without a size ends the building: `int[2][] rows` is two rows, each an empty array until one is assigned. Up to 0.15.x (the v0.15.2 seed included) only the outer array was built, with its sizes read in the opposite order: the rows stayed empty and every subscript failed.
 
 Elements are read and written with the subscript operator, which is bounds-checked (see [8.1.3 Array Subscript](#8-1-3-array-subscript)), and iterated with `for in` (see [9.5.3](#9-5-3-for-in-loop)).
 
@@ -993,7 +996,7 @@ Deleting through **another** reference an object that is already gone — `Node 
 
 The target must be a variable, a parameter or a field holding a class or interface reference; it cannot be `this`, a `struct` or a `const` variable.
 
-**A `new` that fails.** When a field initializer, a constructor argument or the constructor itself fails, the object is only half built. From 0.16.0 the `new` releases it before the failure goes on: the owning, holding and weak fields already set (those the constructor never reached are still `null`), then its memory — for `new`, `new unique` and `new shared` alike. The class's `free()` does **not** run: the object was never built. Nothing is left for the report at the end of `main`. Up to 0.15.x the object was left behind. A constructor cannot hand `this` to the error (`fail 1, this` is a compile error, see [Fail Statement](#9-7-2-fail-statement)); when a method it calls does, the object travels in the error instead, and the `handle` that consumes the failure deletes it. An element of a sized array that fails stops the declaration the same way (see [Arrays](#arrays-reference-counted-freed-automatically)).
+**A `new` that fails.** When a field initializer, a constructor argument or the constructor itself fails, the object is only half built. From 0.16.0 the `new` releases it before the failure goes on: the owning, holding and weak fields already set (those the constructor never reached are still `null`), then its memory — for `new`, `new unique` and `new shared` alike. The class's `free()` does **not** run: the object was never built. Nothing is left for the report at the end of `main`. Up to 0.15.x the object was left behind. A constructor cannot hand `this` to the error (`fail 1, this` is a compile error, see [Fail Statement](#9-7-2-fail-statement)); when a method it calls does, the object travels in the error instead, and the `handle` that consumes the failure deletes it. An element of a sized array that fails stops the declaration the same way (see [Arrays](#arrays-reference-counted-freed-automatically)); with more than one dimension the rows already built go too, the last one first, each from its last element.
 
 **A `free()` that fails.** `free()` may fail like any method (a `fail`, a failing call, an index out of range), and from 0.16.0 that is an ordinary failure, checked and propagated: a `handle` catches it, or `main` reports it and exits with its code. Up to 0.15.x it was not checked after `delete`, and it was dropped during a cleanup.
 

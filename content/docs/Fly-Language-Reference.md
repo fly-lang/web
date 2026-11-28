@@ -1466,6 +1466,21 @@ void main() {
 > only in the return type (`T make<T>()`) has nothing to be inferred from, and such a
 > function cannot be called.
 
+**A generic function is found like any other function**: a bare name in the caller's
+scope (its file, its namespace, what it imports), a name written with a namespace in that
+namespace. Two namespaces may each declare a generic function of the same name, and each
+call reaches the one it names:
+
+```fly
+import one.a
+import two.b
+
+void main() {
+    int x = a.pick(1)   // one.a's pick
+    int y = b.pick(1)   // two.b's pick
+}
+```
+
 #### 6.7.4 Managing a List of Strings — fly.data.List\<string\> Pattern
 
 `fly.data.List` is an untyped dynamic array that stores `long` values (raw integers or object addresses). To maintain a **typed list of strings**, wrap each string in a `Wrapper<string>` and store the wrapper reference in the list. Retrieve the wrapper and call `.get()` to recover the string.

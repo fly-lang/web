@@ -150,7 +150,7 @@ Covered in depth in [Testing](@/docs/Fly-Testing.md); the short version:
 
 | Option | Meaning |
 |---|---|
-| `--suite` | build ONE test executable containing **every** discovered suite, run it, and exit with the run's code (0 = all passed, 1 = failures) |
+| `--suite` | build ONE test executable containing **every** discovered suite, run it, and exit with the run's code (0 = all passed, 1 = failures). From 0.16.0 the files of each directory are read sorted by name, so the suites run in the same order on every machine |
 | `--suite=<Sel>` | run a subset. `Sel` is a **suite name** (`MathSuite`), a **qualified name** (`fly.math.test.MathSuite`), or a **namespace** — a namespace runs every suite declared under it, sub-namespaces included (`--suite=fly.compiler.target.test`) |
 | `--test` | bare: compile in test mode (`test {}` blocks compiled in) without running anything — for library builds whose blocks a later suite activates |
 | `--test=<Method>` | run only that test-method (`Prova` matches `Prova` or `ProvaTest`). A filter matching **zero** methods across the selected suites is a compile error — a typo cannot produce a green run |

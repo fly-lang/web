@@ -1118,7 +1118,7 @@ Removes `path` and all its contents recursively (`rm -rf`).
 ```fly
 public DirEntries dirRead(const string path)
 ```
-Returns all entries in the directory at `path`.
+Returns all entries in the directory at `path`, without `.` and `..`, sorted by name byte by byte (`B.txt` before `a`, `a` before `a.txt`): the same directory comes back in the same order on every operating system. Up to 0.15.x the order was the one the operating system gave, which is not promised and could change from one run to the next.
 
 #### `dirEntriesFree`
 ```fly

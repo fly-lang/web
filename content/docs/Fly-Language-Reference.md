@@ -545,12 +545,16 @@ Functions can have different visibility levels:
 // Default visibility (package-private)
 void defaultFunction() {}
 
-// Private function (internal use only)
+// Private function: visible in this file only
 private void privateHelper() {}
 
 // Public function (exported)
 public void publicAPI() {}
 ```
+
+A `private` function belongs to its file: no other file can call it, not even
+one of the same namespace, and each file of a namespace may have its own
+`private` helper of a given name (see [11.1](#11-1-visibility-modifiers)).
 
 `protected` is not a visibility for functions: it applies only to the methods
 and attributes of a class (see [11.1](#11-1-visibility-modifiers)), and on a
@@ -2572,6 +2576,7 @@ void main() {
 ```
 
 - **One definition per name in a namespace.** Two functions of one namespace with the same name and the same parameter types are an error from 0.16.0, whether they are in one file or in two: the error is on the second, with a note at the first. Two types of the same name (class, struct, interface or enum, in any mix) in one namespace are an error in the same way. The files without a `namespace` are checked one file at a time, since each is a namespace of its own. Overloads stay legal: they differ in their parameter types. Two classes or enums with the same short name in two namespaces (`probe.left.P`, `probe.right.P`) are two types, so `h(probe.left.P)` and `h(probe.right.P)` are two overloads, as are `k(Box<probe.left.P>)` and `k(Box<probe.right.P>)`, and each call picks its own; up to 0.15.x types were compared by their short name and the second `h` was reported as already defined. Up to 0.15.x (the v0.15.2 seed included) only two functions in one file were reported; across files the program compiled and which body ran depended on the link order, and a type declared twice was taken without a word.
+- **A `private` function or type stays in its file.** A top-level `private` function, class, struct, interface or enum is not part of what the namespace shares: the other files of the namespace do not see it, and neither does a file that imports the namespace (see [11.1](#11-1-visibility-modifiers)). Two files of one namespace may each declare a `private` function or type of the same name, each using its own; a `private` one and one of the same name that the whole namespace sees are still two definitions of a name, and an error. Up to 0.15.x (the v0.15.2 seed included) `private` at the top level was not checked.
 
 ### 10.2 Import Declaration
 
@@ -2761,14 +2766,14 @@ Control the accessibility of declarations.
 
 | Modifier    | Scope                                          | Applies To                    |
 |-------------|------------------------------------------------|-------------------------------|
-| `private`   | Only within the same file/class                | Functions, classes, members   |
+| `private`   | The file (a function, a type); the class (a member) | Functions, classes, members   |
 | `protected` | Within the class and every class derived from it | Methods and attributes of a class |
 | `public`    | Accessible from anywhere                       | Functions, classes, members   |
 | (default)   | Package-private (same namespace)               | Functions, classes            |
 
 **Examples:**
 ```fly
-// Private function
+// Private function: this file only
 private void internalHelper() {}
 
 // Protected member
@@ -2785,6 +2790,55 @@ public class PublicAPI {
 void packageFunction() {}
 class DefaultClass {}
 ```
+
+**A top-level `private`, checked by the compiler.** A `private` function or
+type (class, struct, interface, enum) declared outside a class is private to
+its **file**: only the code of that file can call the function or name the
+type. Another file gets an error that names the file, whether it belongs to the
+same namespace or imports it, and however it writes the name (`helper()`,
+`app.helper()`, `util.helper()` through an import, `new P()`, `P.count()`,
+`E.A`).
+
+```fly
+// parts.fly
+namespace app
+
+private int helper() {
+    return 5
+}
+
+int open() {
+    return helper()         // ok: same file
+}
+```
+
+```fly
+// main.fly
+namespace app
+
+void main() {
+    int a = open()          // ok: open is visible to the whole namespace
+    int b = helper()        // error: 'helper' is private to 'parts.fly'
+}
+```
+
+Because a `private` name never leaves its file, two files of one namespace may
+each declare a `private` function or type of the same name: each file uses its
+own, and the compiled program keeps them apart (their symbols carry the file's
+base name). A `private` name and a name the whole namespace sees are still one
+name defined twice, and an error ([10.1](#10-1-namespace-declaration)).
+
+A library's header (`.fly.h`) declares only what is `public`. One exception: a
+`private` function that a public generic function or class uses is shipped in
+the header as source, with the `header-private` warning, because the code that
+instantiates the generic must be able to call it. Its symbol carries the file
+name from 0.16.0, so a library with such a function and the programs that use
+it must be compiled by the same release line.
+
+Up to 0.15.x (the v0.15.2 seed included) `private` at the top level was
+accepted and not checked: every file that could see the namespace could use the
+name, and two `private` functions of the same name in two files of a namespace
+were one symbol defined twice.
 
 **Member access, checked by the compiler.** A `private` member (field, method,
 constructor, static or not) is reachable only from the methods of the class that

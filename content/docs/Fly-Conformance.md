@@ -134,6 +134,24 @@ never emitted: the field started at its zero value.
 **`private` is per class.** A `private` field can be read and written, and a
 `private` method called, only from the class that declares it.
 
+**A top-level `private` is per file, from 0.16.0.** A `private` function or
+type (class, struct, interface, enum) declared outside a class can be used
+only in the file that declares it. A use from another file, of the same
+namespace or of one that imports it, is an error (`'h' is private to
+'parts.fly': a private function or type can be used only in the file that
+declares it`). Two files of one namespace may each declare a `private`
+function or type of the same name: they are two definitions, each used by its
+own file, with distinct symbols in the compiled program. A `private` name that
+matches a name the whole namespace sees is still a duplicate definition. Up to
+0.15.x (the v0.15.2 seed included) a top-level `private` was parsed and not
+checked: any file that saw the namespace could call the function or name the
+type, and two same-named `private` functions in two files of a namespace
+compiled to one symbol, so which body ran depended on the link order. The
+symbol of a `private` function or type now carries its file's base name: a
+library whose public generic code uses a `private` function (the
+`header-private` warning) and the programs using it must be compiled by the
+same release line.
+
 **`protected` is per class hierarchy, from 0.16.0.** A `protected` field or
 method (constructors included) is reachable from the class that declares it and
 from every class derived from it, through any receiver; anywhere else it is an

@@ -446,7 +446,7 @@ Run from the directory holding the manifest.
 | `fly init [--name N] [--version V]` | scaffold `Manifest.fly` + `src/main.fly` |
 | `fly build [--target N] [--out-dir D] [--keep-objects]` | build every target, or one; `--out-dir` writes the output to `D` instead of `target/<profile>`, `--keep-objects` leaves each executable's object (`<name>.o`) next to it |
 | `fly run [--bin N]` | build, then run the (named) executable target |
-| `fly test` | build and run the project's suites (the `*Suite.fly` files) |
+| `fly test` | build and run the project's suites (the `*Suite.fly` files), each into `target/test/<its path below the project>` |
 | `fly clean` | remove the profile's output directory |
 | `fly lock` | resolve dependencies and write `Lock.fly` |
 | `fly add <name> [--git URL] [--tag T \| --branch B \| --rev R] [--dev]` | add a dependency and re-lock |
@@ -504,7 +504,25 @@ manifest edit invalidates it.
 Output goes to `target/<profile>` (plus `/<triple>` when cross-compiling), and
 `target/test` for test binaries.
 
-Each target gets a **fingerprint** under `<outdir>/.fly/<key>.fp`: a hash of
+`fly test` names each suite by the path of its file below the project, without
+`.fly`, and `target/test` mirrors the project's directories: `x/FooSuite.fly`
+builds `target/test/x/FooSuite` (`FooSuite.exe` on Windows), a suite file next
+to the manifest builds `target/test/<name>`. The result lines carry the same
+name:
+
+```text
+  up-to-date x/FooSuite
+  PASS  x/FooSuite
+  PASS  y/FooSuite
+```
+
+So two suite files with one name in two directories each keep their own
+executable and their own fingerprint (from 0.16.0; up to 0.15.x every suite was
+named by its file name alone, and two such suites replaced each other's
+executable and were compiled again at every run).
+
+Each target, and each suite of `fly test`, gets a **fingerprint** under
+`<outdir>/.fly/<key>.fp` (`target/test/.fly/x/FooSuite.fp` for a suite): a hash of
 its sources (every source root, staged files and the package module included),
 its flags, the package's name and version, the lockfile and the compiler's own
 identity — content hashes only, never mtimes. A target whose fingerprint is unchanged is skipped;
